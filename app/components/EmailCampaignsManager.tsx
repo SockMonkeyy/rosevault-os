@@ -35,13 +35,16 @@ export default function EmailCampaignsManager({
   initialCampaigns,
   organizationId,
 }: Props) {
-  const [campaigns, setCampaigns] =
-    useState<EmailCampaign[]>(initialCampaigns);
+  const [campaigns, setCampaigns] = useState<EmailCampaign[]>(initialCampaigns);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [message, setMessage] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+const [message, setMessage] = useState("");
+const [deletingId, setDeletingId] = useState<string | null>(null);
+
+const [campaignToDelete, setCampaignToDelete] =
+  useState<EmailCampaign | null>(null);
 
   const filteredCampaigns = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -53,18 +56,13 @@ export default function EmailCampaignsManager({
         campaign.subject.toLowerCase().includes(query);
 
       const matchesStatus =
-        statusFilter === "all" ||
-        campaign.status === statusFilter;
+        statusFilter === "all" || campaign.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [campaigns, search, statusFilter]);
 
   async function deleteCampaign(campaign: EmailCampaign) {
-    const confirmed = window.confirm(
-      `Permanently delete the campaign "${campaign.name}"? This action cannot be undone.`,
-    );
-
     if (!confirmed) {
       return;
     }
@@ -102,35 +100,27 @@ export default function EmailCampaignsManager({
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <SummaryCard
-          label="Total Campaigns"
-          value={campaigns.length}
-        />
+        <SummaryCard label="Total Campaigns" value={campaigns.length} />
 
         <SummaryCard
           label="Drafts"
           value={
-            campaigns.filter(
-              (campaign) => campaign.status === "draft",
-            ).length
+            campaigns.filter((campaign) => campaign.status === "draft").length
           }
         />
 
         <SummaryCard
           label="Scheduled"
           value={
-            campaigns.filter(
-              (campaign) => campaign.status === "scheduled",
-            ).length
+            campaigns.filter((campaign) => campaign.status === "scheduled")
+              .length
           }
         />
 
         <SummaryCard
           label="Sent"
           value={
-            campaigns.filter(
-              (campaign) => campaign.status === "sent",
-            ).length
+            campaigns.filter((campaign) => campaign.status === "sent").length
           }
         />
       </div>
@@ -148,16 +138,11 @@ export default function EmailCampaignsManager({
 
           <select
             value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value)
-            }
+            onChange={(event) => setStatusFilter(event.target.value)}
             className="rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition focus:border-[#d4af37] lg:min-w-52"
           >
             {STATUS_OPTIONS.map((option) => (
-              <option
-                key={option.value}
-                value={option.value}
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -260,13 +245,11 @@ export default function EmailCampaignsManager({
 
                     <button
                       type="button"
-                      onClick={() => deleteCampaign(campaign)}
+                      onClick={() => setCampaignToDelete(campaign)}
                       disabled={deletingId === campaign.id}
                       className="rounded-lg border border-red-900/50 px-4 py-2 text-sm font-medium text-red-400 transition hover:border-red-600 hover:bg-red-950/30 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {deletingId === campaign.id
-                        ? "Deleting..."
-                        : "Delete"}
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -279,40 +262,24 @@ export default function EmailCampaignsManager({
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
+function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-5">
-      <p className="text-xs uppercase tracking-wider text-gray-600">
-        {label}
-      </p>
+      <p className="text-xs uppercase tracking-wider text-gray-600">{label}</p>
 
-      <p className="mt-2 text-3xl font-semibold text-white">
-        {value}
-      </p>
+      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    draft:
-      "border-gray-700 bg-gray-900/50 text-gray-300",
-    scheduled:
-      "border-blue-900/50 bg-blue-950/30 text-blue-300",
-    sending:
-      "border-amber-900/50 bg-amber-950/30 text-amber-300",
-    sent:
-      "border-green-900/50 bg-green-950/30 text-green-300",
-    failed:
-      "border-red-900/50 bg-red-950/30 text-red-300",
-    cancelled:
-      "border-gray-700 bg-gray-900/50 text-gray-500",
+    draft: "border-gray-700 bg-gray-900/50 text-gray-300",
+    scheduled: "border-blue-900/50 bg-blue-950/30 text-blue-300",
+    sending: "border-amber-900/50 bg-amber-950/30 text-amber-300",
+    sent: "border-green-900/50 bg-green-950/30 text-green-300",
+    failed: "border-red-900/50 bg-red-950/30 text-red-300",
+    cancelled: "border-gray-700 bg-gray-900/50 text-gray-500",
   };
 
   return (
