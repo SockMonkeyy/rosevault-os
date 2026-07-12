@@ -1,16 +1,38 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import PropertyContactManager from "@/app/components/PropertyContactManager";
 import { createClient } from "@/lib/supabase/server";
+
+type PropertyProfilePageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+type ContactRelationship = {
+  contact_id: string;
+  relationship_type: string | null;
+  is_primary: boolean | null;
+};
+
+type ContactRecord = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  primary_phone: string | null;
+  secondary_phone: string | null;
+  contact_type: string | null;
+};
 
 export default async function PropertyProfilePage({
   params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+}: PropertyProfilePageProps) {
+  const { id: propertyId } = await params;
+
   const supabase = await createClient();
 
-  // Get authenticated user
+  // Verify signed-in user
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -19,18 +41,22 @@ export default async function PropertyProfilePage({
     redirect("/login");
   }
 
-  // Get user's organization
-  const { data: membership } = await supabase
+  // Verify organization membership
+  const { data: membership, error: membershipError } = await supabase
     .from("organization_members")
     .select("organization_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
+  if (membershipError) {
+    console.error("Error loading organization membership:", membershipError);
+  }
+
   if (!membership) {
     redirect("/onboarding");
   }
 
-  // Get property
+  // Load the property
   const { data: property, error: propertyError } = await supabase
     .from("properties")
     .select(`
@@ -53,381 +79,386 @@ export default async function PropertyProfilePage({
       asking_price,
       mortgage_balance,
       notes,
-      created_at
+      created_at,
+      updated_at
     `)
-    .eq("id", id)
+    .eq("id", propertyId)
     .eq("organization_id", membership.organization_id)
     .maybeSingle();
 
   if (propertyError) {
     console.error("Error loading property:", propertyError);
+    notFound();
   }
 
   if (!property) {
     notFound();
   }
 
-  // Get relationships for this property
-  const { data: relationships, error: relationshipsError } = await supabase
-    .from("contact_property_relationships")
-    .select(`
-      contact_id,
-      relationship_type,
-      is_primary
-    `)
-    .eq("organization_id", membership.organization_id)
-    .eq("property_id", property.id);
+  // Load existing property-contact relationships and all available contacts.
+  const [
+    { data: relationshipsData, error: relationshipsError },
+    { data: allContactsData, error: contactsError },
+  ] = await Promise.all([
+    supabase
+      .from("contact_property_relationships")
+      .select(`
+        contact_id,
+        relationship_type,
+        is_primary
+      `)
+      .eq("organization_id", membership.organization_id)
+      .eq("property_id", property.id),
 
-  if (relationshipsError) {
-    console.error(
-      "Error loading property relationships:",
-      relationshipsError,
-    );
-  }
-
-  // Get related contacts separately so we do not assume
-  // a nested Supabase relationship exists.
-  const contactIds = Array.from(
-    new Set(
-      (relationships ?? [])
-        .map((relationship) => relationship.contact_id)
-        .filter(Boolean),
-    ),
-  );
-
-  let relatedContacts: RelatedContact[] = [];
-
-  if (contactIds.length > 0) {
-    const { data: contacts, error: contactsError } = await supabase
+    supabase
       .from("contacts")
       .select(`
         id,
         first_name,
         last_name,
         email,
-        cell_phone,
-        cell_phone_type,
-        business_phone,
-        business_phone_type,
-        contact_type,
-        status
+        primary_phone,
+        secondary_phone,
+        contact_type
       `)
       .eq("organization_id", membership.organization_id)
-      .in("id", contactIds);
+      .order("first_name", { ascending: true })
+      .order("last_name", { ascending: true }),
+  ]);
 
-    if (contactsError) {
-      console.error("Error loading related contacts:", contactsError);
-    }
-
-    relatedContacts = contacts ?? [];
+  if (relationshipsError) {
+    console.error(
+      "Error loading property contact relationships:",
+      relationshipsError,
+    );
   }
 
-  const contactsById = new Map(
-    relatedContacts.map((contact) => [contact.id, contact]),
+  if (contactsError) {
+    console.error(
+      "Error loading contacts for property linking:",
+      contactsError,
+    );
+  }
+
+  const relationships = (relationshipsData ?? []) as ContactRelationship[];
+  const allContacts = (allContactsData ?? []) as ContactRecord[];
+
+  const linkedContactIds = relationships.map(
+    (relationship) => relationship.contact_id,
   );
 
-  const linkedContacts = (relationships ?? []).map((relationship) => ({
-    ...relationship,
-    contact: contactsById.get(relationship.contact_id) ?? null,
-  }));
+  // Load full contact records for contacts already linked to this property.
+  let linkedContacts: ContactRecord[] = [];
 
-  const fullAddress = formatAddress(
-    property.property_address_line_1,
-    property.property_address_line_2,
-    property.property_city,
-    property.property_state,
-    property.property_postal_code,
-  );
+  if (linkedContactIds.length > 0) {
+    const { data, error } = await supabase
+      .from("contacts")
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        primary_phone,
+        secondary_phone,
+        contact_type
+      `)
+      .eq("organization_id", membership.organization_id)
+      .in("id", linkedContactIds);
 
-  const financialValues = [
+    if (error) {
+      console.error("Error loading linked contacts:", error);
+    } else {
+      linkedContacts = (data ?? []) as ContactRecord[];
+    }
+  }
+
+  const linkedContactRows = relationships
+    .map((relationship) => {
+      const contact = linkedContacts.find(
+        (item) => item.id === relationship.contact_id,
+      );
+
+      if (!contact) {
+        return null;
+      }
+
+      return {
+        ...contact,
+        relationship_type: relationship.relationship_type,
+        is_primary: relationship.is_primary,
+      };
+    })
+    .filter(
+      (
+        contact,
+      ): contact is ContactRecord & {
+        relationship_type: string | null;
+        is_primary: boolean | null;
+      } => contact !== null,
+    );
+
+  const estimatedEquity = calculateEstimatedEquity(
     property.estimated_value,
-    property.asking_price,
     property.mortgage_balance,
-  ].filter(
-    (value): value is number =>
-      value !== null &&
-      value !== undefined &&
-      Number.isFinite(Number(value)),
   );
-
-  const hasFinancialInformation = financialValues.length > 0;
-
-  const estimatedEquity =
-    property.estimated_value !== null &&
-    property.estimated_value !== undefined &&
-    property.mortgage_balance !== null &&
-    property.mortgage_balance !== undefined
-      ? Number(property.estimated_value) - Number(property.mortgage_balance)
-      : null;
 
   return (
     <div className="p-8">
       <div className="mx-auto max-w-7xl">
-        {/* Back navigation */}
-        <Link
-          href="/properties"
-          className="mb-5 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
-        >
-          ← Back to Properties
-        </Link>
-
         {/* Header */}
-        <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
-          <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <Link
+              href="/properties"
+              className="mb-4 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+            >
+              ← Back to Properties
+            </Link>
+
+            <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-semibold text-white">
                 {property.property_address_line_1 || "Unnamed Property"}
               </h1>
 
-              <StatusBadge status={property.property_status} />
+              {property.property_status && (
+                <span className="rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-1 text-xs font-medium capitalize text-[#d4af37]">
+                  {formatLabel(property.property_status)}
+                </span>
+              )}
             </div>
 
-            <p className="text-gray-400">
-              {formatCityStateZip(property)}
+            <p className="mt-2 text-gray-400">
+              {formatPropertyLocation(
+                property.property_city,
+                property.property_state,
+                property.property_postal_code,
+              )}
             </p>
-
-            {property.property_type && (
-              <p className="mt-2 text-sm text-gray-500">
-                {formatLabel(property.property_type)}
-              </p>
-            )}
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/properties/${property.id}/edit`}
-              className="rounded-lg bg-[#d4af37] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
-            >
-              Edit Property
-            </Link>
-          </div>
+          <Link
+            href={`/properties/${property.id}/edit`}
+            className="rounded-lg bg-[#d4af37] px-5 py-3 text-center text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+          >
+            Edit Property
+          </Link>
         </div>
 
-        {/* Snapshot cards */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SnapshotCard
+        {/* Financial summary cards */}
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
             label="Estimated Value"
             value={formatCurrency(property.estimated_value)}
           />
 
-          <SnapshotCard
+          <SummaryCard
             label="Asking Price"
             value={formatCurrency(property.asking_price)}
           />
 
-          <SnapshotCard
+          <SummaryCard
             label="Mortgage Balance"
             value={formatCurrency(property.mortgage_balance)}
           />
 
-          <SnapshotCard
+          <SummaryCard
             label="Estimated Equity"
             value={formatCurrency(estimatedEquity)}
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          {/* Main content */}
-          <div className="space-y-6 xl:col-span-2">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_370px]">
+          {/* Main column */}
+          <div className="space-y-6">
             {/* Property Address */}
-            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-              <SectionHeader
-                title="Property Address"
-                description="The physical location associated with this property record."
-              />
+            <SectionCard
+              title="Property Address"
+              description="The physical location associated with this property record."
+            >
+              <div className="text-sm leading-7 text-white">
+                <p>
+                  {property.property_address_line_1 || "—"}
+                </p>
 
-              <p className="whitespace-pre-line text-sm leading-7 text-gray-200">
-                {fullAddress || "—"}
-              </p>
-            </section>
+                {property.property_address_line_2 && (
+                  <p>{property.property_address_line_2}</p>
+                )}
+
+                <p>
+                  {formatPropertyLocation(
+                    property.property_city,
+                    property.property_state,
+                    property.property_postal_code,
+                  )}
+                </p>
+              </div>
+            </SectionCard>
 
             {/* Property Details */}
-            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-              <SectionHeader
-                title="Property Details"
-                description="Physical characteristics and identifying information."
-              />
-
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                <InfoItem
+            <SectionCard
+              title="Property Details"
+              description="Physical characteristics and identifying information."
+            >
+              <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+                <DetailItem
                   label="Property Type"
-                  value={
-                    property.property_type
-                      ? formatLabel(property.property_type)
-                      : null
-                  }
+                  value={formatLabel(property.property_type)}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Status"
-                  value={
-                    property.property_status
-                      ? formatLabel(property.property_status)
-                      : null
-                  }
+                  value={formatLabel(property.property_status)}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="County"
                   value={property.county}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Parcel Number"
                   value={property.parcel_number}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Bedrooms"
                   value={formatNumber(property.bedrooms)}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Bathrooms"
                   value={formatNumber(property.bathrooms)}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Square Feet"
-                  value={formatSquareFeet(property.square_feet)}
+                  value={
+                    property.square_feet !== null &&
+                    property.square_feet !== undefined
+                      ? Number(property.square_feet).toLocaleString("en-US")
+                      : null
+                  }
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Year Built"
                   value={formatNumber(property.year_built)}
                 />
               </div>
-            </section>
+            </SectionCard>
 
             {/* Financial Information */}
-            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-              <SectionHeader
-                title="Financial Information"
-                description="Known property values, seller expectations, and mortgage information."
-              />
+            <SectionCard
+              title="Financial Information"
+              description="Property valuation, seller expectations, mortgage balance, and estimated equity."
+            >
+              <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+                <DetailItem
+                  label="Estimated Value"
+                  value={formatCurrency(property.estimated_value)}
+                />
 
-              {hasFinancialInformation ? (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <InfoItem
-                    label="Estimated Value"
-                    value={formatCurrency(property.estimated_value)}
-                  />
+                <DetailItem
+                  label="Asking Price"
+                  value={formatCurrency(property.asking_price)}
+                />
 
-                  <InfoItem
-                    label="Asking Price"
-                    value={formatCurrency(property.asking_price)}
-                  />
+                <DetailItem
+                  label="Mortgage Balance"
+                  value={formatCurrency(property.mortgage_balance)}
+                />
 
-                  <InfoItem
-                    label="Mortgage Balance"
-                    value={formatCurrency(property.mortgage_balance)}
-                  />
-
-                  <InfoItem
-                    label="Estimated Equity"
-                    value={formatCurrency(estimatedEquity)}
-                    accent={estimatedEquity !== null}
-                  />
-                </div>
-              ) : (
-                <EmptyStateText>
-                  No financial information has been added yet.
-                </EmptyStateText>
-              )}
-            </section>
+                <DetailItem
+                  label="Estimated Equity"
+                  value={formatCurrency(estimatedEquity)}
+                />
+              </div>
+            </SectionCard>
 
             {/* Linked Contacts */}
             <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-              <SectionHeader
-                title="Linked Contacts"
-                description="People and business relationships associated with this property."
-              />
+              <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Linked Contacts
+                  </h2>
 
-              {linkedContacts.length === 0 ? (
-                <EmptyStateText>
-                  No contacts are currently linked to this property.
-                </EmptyStateText>
+                  <p className="mt-1 text-sm text-gray-500">
+                    People and business relationships associated with this
+                    property.
+                  </p>
+                </div>
+
+                <PropertyContactManager
+                  propertyId={property.id}
+                  organizationId={membership.organization_id}
+                  contacts={allContacts}
+                  linkedContactIds={linkedContactIds}
+                />
+              </div>
+
+              {linkedContactRows.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#333333] bg-[#111111] px-5 py-10 text-center">
+                  <p className="text-sm text-gray-500">
+                    No contacts are currently linked to this property.
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-gray-600">
+                    Use the Link Contact button above to connect an existing
+                    RoseVault contact to this property.
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-3">
-                  {linkedContacts.map((relationship, index) => {
-                    const contact = relationship.contact;
-
-                    if (!contact) {
-                      return (
-                        <div
-                          key={`${relationship.contact_id}-${relationship.relationship_type}-${index}`}
-                          className="rounded-xl border border-[#2a2a2a] bg-[#111111] p-5"
-                        >
-                          <p className="text-sm text-gray-400">
-                            Linked contact record unavailable.
-                          </p>
-
-                          <p className="mt-2 text-xs text-gray-600">
-                            Relationship:{" "}
-                            {formatLabel(relationship.relationship_type)}
-                          </p>
-                        </div>
-                      );
-                    }
-
+                  {linkedContactRows.map((contact) => {
                     const fullName =
                       [contact.first_name, contact.last_name]
                         .filter(Boolean)
                         .join(" ") || "Unnamed Contact";
 
+                    const displayPhone =
+                      contact.primary_phone || contact.secondary_phone;
+
                     return (
                       <div
-                        key={`${contact.id}-${relationship.relationship_type}-${index}`}
-                        className="rounded-xl border border-[#2a2a2a] bg-[#111111] p-5"
+                        key={contact.id}
+                        className="flex flex-col gap-4 rounded-xl border border-[#2a2a2a] bg-[#111111] p-4 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Link
-                                href={`/contacts/${contact.id}`}
-                                className="font-medium text-white transition hover:text-[#d4af37]"
-                              >
-                                {fullName}
-                              </Link>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/contacts/${contact.id}`}
+                              className="font-medium text-white transition hover:text-[#d4af37]"
+                            >
+                              {fullName}
+                            </Link>
 
-                              <RelationshipBadge
-                                type={relationship.relationship_type}
-                              />
-
-                              {relationship.is_primary && (
-                                <span className="rounded-full border border-[#d4af37]/20 bg-[#d4af37]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#d4af37]">
-                                  Primary
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="mt-3 space-y-1">
-                              {contact.email && (
-                                <a
-                                  href={`mailto:${contact.email}`}
-                                  className="block break-all text-sm text-gray-400 transition hover:text-[#d4af37]"
-                                >
-                                  {contact.email}
-                                </a>
-                              )}
-
-                              {contact.cell_phone && (
-                                <a
-                                  href={`tel:${contact.cell_phone}`}
-                                  className="block text-sm text-gray-400 transition hover:text-[#d4af37]"
-                                >
-                                  {contact.cell_phone}
-                                </a>
-                              )}
-                            </div>
+                            {contact.is_primary && (
+                              <span className="rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-2.5 py-1 text-xs font-medium text-[#d4af37]">
+                                Primary
+                              </span>
+                            )}
                           </div>
 
-                          <Link
-                            href={`/contacts/${contact.id}`}
-                            className="shrink-0 rounded-lg border border-[#333333] px-4 py-2 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
-                          >
-                            View Contact
-                          </Link>
+                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                            {contact.email && <span>{contact.email}</span>}
+
+                            {displayPhone && <span>{displayPhone}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {contact.relationship_type && (
+                            <span className="rounded-full border border-[#333333] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium capitalize text-gray-300">
+                              {formatLabel(contact.relationship_type)}
+                            </span>
+                          )}
+
+                          {contact.contact_type && (
+                            <span className="rounded-full border border-[#333333] px-3 py-1.5 text-xs capitalize text-gray-500">
+                              {formatLabel(contact.contact_type)}
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
@@ -437,59 +468,62 @@ export default async function PropertyProfilePage({
             </section>
 
             {/* Notes */}
-            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-              <SectionHeader
-                title="Property Notes"
-                description="Condition, seller situation, repair needs, and other important context."
-              />
-
-              <p className="whitespace-pre-wrap text-sm leading-7 text-gray-400">
-                {property.notes || "No property notes have been added yet."}
-              </p>
-            </section>
+            <SectionCard
+              title="Notes"
+              description="Property condition, seller situation, repair needs, and other important context."
+            >
+              {property.notes ? (
+                <p className="whitespace-pre-wrap text-sm leading-7 text-gray-300">
+                  {property.notes}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  No notes have been added to this property.
+                </p>
+              )}
+            </SectionCard>
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <aside className="space-y-6">
             {/* Property Record */}
             <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
               <h2 className="text-xl font-semibold text-white">
                 Property Record
               </h2>
 
-              <div className="mt-6 space-y-5">
-                <InfoItem
+              <div className="mt-6 space-y-6">
+                <DetailItem
                   label="Status"
-                  value={
-                    property.property_status
-                      ? formatLabel(property.property_status)
-                      : null
-                  }
+                  value={formatLabel(property.property_status)}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Property Type"
-                  value={
-                    property.property_type
-                      ? formatLabel(property.property_type)
-                      : null
-                  }
+                  value={formatLabel(property.property_type)}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="County"
                   value={property.county}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Parcel Number"
                   value={property.parcel_number}
                 />
 
-                <InfoItem
+                <DetailItem
                   label="Created"
                   value={formatDate(property.created_at)}
                 />
+
+                {property.updated_at && (
+                  <DetailItem
+                    label="Last Updated"
+                    value={formatDate(property.updated_at)}
+                  />
+                )}
               </div>
             </section>
 
@@ -513,101 +547,23 @@ export default async function PropertyProfilePage({
                 >
                   Add New Contact
                 </Link>
+
+                <Link
+                  href="/properties"
+                  className="block w-full rounded-lg border border-[#333333] px-4 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                >
+                  View All Properties
+                </Link>
               </div>
             </section>
-
-            {/* Future related records */}
-            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-              <h2 className="text-xl font-semibold text-white">
-                Related Records
-              </h2>
-
-              <p className="mt-2 text-sm leading-6 text-gray-500">
-                Additional RoseVault records that will eventually connect to
-                this property.
-              </p>
-
-              <div className="mt-5 space-y-3">
-                <FutureRecordRow
-                  label="Transactions"
-                  status="Coming soon"
-                />
-
-                <FutureRecordRow
-                  label="Tasks"
-                  status="Coming soon"
-                />
-
-                <FutureRecordRow
-                  label="Documents"
-                  status="Coming soon"
-                />
-              </div>
-            </section>
-
-            {/* Rosie AI */}
-            <section className="rounded-2xl border border-[#d4af37]/30 bg-[#151515] p-6">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
-                Rosie AI
-              </p>
-
-              <h2 className="mt-3 text-xl font-semibold text-white">
-                Property Intelligence
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-gray-400">
-                Rosie will eventually analyze property details, equity,
-                seller context, linked contacts, transactions, and activity
-                to recommend the next best action.
-              </p>
-            </section>
-          </div>
+          </aside>
         </div>
       </div>
     </div>
   );
 }
 
-type RelatedContact = {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  cell_phone: string | null;
-  cell_phone_type: string | null;
-  business_phone: string | null;
-  business_phone_type: string | null;
-  contact_type: string | null;
-  status: string | null;
-};
-
-type PropertyAddressFields = {
-  property_city: string | null;
-  property_state: string | null;
-  property_postal_code: string | null;
-};
-
-function SectionHeader({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="mb-6">
-      <h2 className="text-xl font-semibold text-white">
-        {title}
-      </h2>
-
-      <p className="mt-1 text-sm text-gray-500">
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function SnapshotCard({
+function SummaryCard({
   label,
   value,
 }: {
@@ -616,131 +572,66 @@ function SnapshotCard({
 }) {
   return (
     <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-5">
-      <p className="text-sm text-gray-400">
-        {label}
-      </p>
+      <p className="text-sm text-gray-400">{label}</p>
 
-      <p className="mt-2 text-2xl font-semibold text-[#d4af37]">
+      <p className="mt-3 text-2xl font-semibold text-[#d4af37]">
         {value}
       </p>
     </div>
   );
 }
 
-function InfoItem({
+function SectionCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-white">{title}</h2>
+
+        <p className="mt-1 text-sm text-gray-500">{description}</p>
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+function DetailItem({
   label,
   value,
-  accent = false,
 }: {
   label: string;
-  value: string | null | undefined;
-  accent?: boolean;
+  value: string | number | null | undefined;
 }) {
+  const hasValue =
+    value !== null &&
+    value !== undefined &&
+    String(value).trim() !== "";
+
   return (
     <div>
       <p className="text-xs uppercase tracking-wider text-gray-600">
         {label}
       </p>
 
-      <p
-        className={`mt-2 ${
-          accent ? "font-medium text-[#d4af37]" : "text-gray-200"
-        }`}
-      >
-        {value || "—"}
+      <p className="mt-2 text-sm text-white">
+        {hasValue ? value : "—"}
       </p>
     </div>
   );
 }
 
-function EmptyStateText({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-dashed border-[#333333] bg-[#111111] px-5 py-8 text-center">
-      <p className="text-sm text-gray-500">
-        {children}
-      </p>
-    </div>
-  );
-}
-
-function RelationshipBadge({
-  type,
-}: {
-  type: string;
-}) {
-  return (
-    <span className="rounded-full border border-[#333333] bg-[#1a1a1a] px-2.5 py-1 text-xs font-medium text-gray-300">
-      {formatLabel(type)}
-    </span>
-  );
-}
-
-function FutureRecordRow({
-  label,
-  status,
-}: {
-  label: string;
-  status: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-[#2a2a2a] bg-[#111111] px-4 py-3">
-      <span className="text-sm text-gray-300">
-        {label}
-      </span>
-
-      <span className="text-xs text-gray-600">
-        {status}
-      </span>
-    </div>
-  );
-}
-
-function StatusBadge({
-  status,
-}: {
-  status: string | null;
-}) {
-  if (!status) {
-    return null;
-  }
-
-  const styles: Record<string, string> = {
-    prospect:
-      "border-amber-900/50 bg-amber-950/30 text-amber-300",
-    active:
-      "border-green-900/50 bg-green-950/30 text-green-300",
-    under_contract:
-      "border-blue-900/50 bg-blue-950/30 text-blue-300",
-    closed:
-      "border-purple-900/50 bg-purple-950/30 text-purple-300",
-    inactive:
-      "border-gray-700 bg-gray-900/50 text-gray-400",
-  };
-
-  return (
-    <span
-      className={`rounded-full border px-3 py-1 text-xs font-medium ${
-        styles[status] ??
-        "border-gray-700 bg-gray-900/50 text-gray-300"
-      }`}
-    >
-      {formatLabel(status)}
-    </span>
-  );
-}
-
-function formatLabel(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined) {
+function formatCurrency(
+  value: number | string | null | undefined,
+): string {
+  if (value === null || value === undefined || value === "") {
     return "—";
   }
 
@@ -757,62 +648,72 @@ function formatCurrency(value: number | null | undefined) {
   }).format(numericValue);
 }
 
-function formatNumber(value: number | null | undefined) {
-  if (value === null || value === undefined) {
+function formatNumber(
+  value: number | string | null | undefined,
+): string {
+  if (value === null || value === undefined || value === "") {
     return "—";
   }
 
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 1,
-  }).format(Number(value));
-}
+  const numericValue = Number(value);
 
-function formatSquareFeet(value: number | null | undefined) {
-  if (value === null || value === undefined) {
+  if (!Number.isFinite(numericValue)) {
     return "—";
   }
 
-  return `${new Intl.NumberFormat("en-US").format(Number(value))} sq ft`;
+  return numericValue.toLocaleString("en-US");
 }
 
-function formatCityStateZip(property: PropertyAddressFields) {
-  const cityState = [
-    property.property_city,
-    property.property_state,
-  ]
-    .filter(Boolean)
-    .join(", ");
+function calculateEstimatedEquity(
+  estimatedValue: number | string | null | undefined,
+  mortgageBalance: number | string | null | undefined,
+): number | null {
+  if (
+    estimatedValue === null ||
+    estimatedValue === undefined ||
+    estimatedValue === ""
+  ) {
+    return null;
+  }
 
-  return [
-    cityState,
-    property.property_postal_code,
-  ]
-    .filter(Boolean)
-    .join(" ") || "—";
+  const value = Number(estimatedValue);
+  const mortgage =
+    mortgageBalance === null ||
+    mortgageBalance === undefined ||
+    mortgageBalance === ""
+      ? 0
+      : Number(mortgageBalance);
+
+  if (!Number.isFinite(value) || !Number.isFinite(mortgage)) {
+    return null;
+  }
+
+  return value - mortgage;
 }
 
-function formatAddress(
-  line1: string | null | undefined,
-  line2: string | null | undefined,
+function formatPropertyLocation(
   city: string | null | undefined,
   state: string | null | undefined,
   postalCode: string | null | undefined,
-) {
-  const streetLines = [line1, line2].filter(Boolean);
+): string {
+  const cityState = [city, state].filter(Boolean).join(", ");
 
-  const cityStateZip = [
-    city,
-    [state, postalCode].filter(Boolean).join(" "),
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const location = [cityState, postalCode].filter(Boolean).join(" ");
 
-  return [...streetLines, cityStateZip]
-    .filter(Boolean)
-    .join("\n");
+  return location || "Location not provided";
 }
 
-function formatDate(value: string | null | undefined) {
+function formatLabel(value: string | null | undefined): string {
+  if (!value) {
+    return "—";
+  }
+
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatDate(value: string | null | undefined): string {
   if (!value) {
     return "—";
   }
