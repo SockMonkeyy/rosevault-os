@@ -9,38 +9,56 @@ export default function NewContactPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Primary Contact State
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [cellPhone, setCellPhone] = useState("");
-  const [businessPhone, setBusinessPhone] = useState("");
 
+  // Primary Contact Phone Setup
+  const [primaryPhone, setPrimaryPhone] = useState("");
+  const [primaryPhoneType, setPrimaryPhoneType] = useState("mobile"); // Changed from "cell"
+  const [secondaryPhone, setSecondaryPhone] = useState("");
+  const [secondaryPhoneType, setSecondaryPhoneType] = useState("work"); // Changed from "business"
+
+  // Spouse Contact State
   const [spouseFirstName, setSpouseFirstName] = useState("");
   const [spouseLastName, setSpouseLastName] = useState("");
   const [spouseEmail, setSpouseEmail] = useState("");
-  const [spouseCellPhone, setSpouseCellPhone] = useState("");
-  const [spouseBusinessPhone, setSpouseBusinessPhone] = useState("");
+  const [spousePrimaryPhone, setSpousePrimaryPhone] = useState("");
+  const [spousePrimaryPhoneType, setSpousePrimaryPhoneType] =
+    useState("mobile"); // Changed from "cell"
+  const [spouseSecondaryPhone, setSpouseSecondaryPhone] = useState("");
+  const [spouseSecondaryPhoneType, setSpouseSecondaryPhoneType] =
+    useState("work"); // Changed from "business"
 
+  // Classification & CRM Info
   const [contactType, setContactType] = useState("lead");
   const [status, setStatus] = useState("active");
   const [company, setCompany] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [leadSource, setLeadSource] = useState("");
+  const [preferredContactMethod, setPreferredContactMethod] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Mailing Address State
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [postalCode, setPostalCode] = useState("");
-  const [leadSource, setLeadSource] = useState("");
-  const [preferredContactMethod, setPreferredContactMethod] = useState("");
-  const [notes, setNotes] = useState("");
+
+  // Property Address State
+  const [propertyAddressLine1, setPropertyAddressLine1] = useState("");
+  const [propertyAddressLine2, setPropertyAddressLine2] = useState("");
+  const [propertyCity, setPropertyCity] = useState("");
+  const [propertyState, setPropertyState] = useState("");
+  const [propertyPostalCode, setPropertyPostalCode] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     setMessage("");
     setIsSubmitting(true);
 
@@ -62,37 +80,63 @@ export default function NewContactPage() {
       .maybeSingle();
 
     if (membershipError || !membership) {
-      setMessage("We could not find your RoseVault organization workspace.");
+      setMessage("We could not find your organization workspace.");
       setIsSubmitting(false);
       return;
     }
 
     const { error: insertError } = await supabase.from("contacts").insert({
       organization_id: membership.organization_id,
+
+      // Primary contact information
       first_name: firstName.trim(),
       last_name: lastName.trim() || null,
       email: email.trim() || null,
-      cell_phone: cellPhone.trim() || null,
-      business_phone: businessPhone.trim() || null,
 
+      // Primary contact phone information (CORRECTED MAPPING)
+      cell_phone: primaryPhone.trim() || null,
+      cell_phone_type: primaryPhoneType || null,
+
+      business_phone: secondaryPhone.trim() || null,
+      business_phone_type: secondaryPhoneType || null,
+
+      // Spouse contact information
       spouse_first_name: spouseFirstName.trim() || null,
       spouse_last_name: spouseLastName.trim() || null,
       spouse_email: spouseEmail.trim() || null,
-      spouse_cell_phone: spouseCellPhone.trim() || null,
-      spouse_business_phone: spouseBusinessPhone.trim() || null,
 
+      // Spouse contact phone information (CORRECTED MAPPING)
+      spouse_cell_phone: spousePrimaryPhone.trim() || null,
+      spouse_cell_phone_type: spousePrimaryPhoneType || null,
+
+      spouse_business_phone: spouseSecondaryPhone.trim() || null,
+      spouse_business_phone_type: spouseSecondaryPhoneType || null,
+
+      // Contact classification
       contact_type: contactType,
       status,
       company: company.trim() || null,
       job_title: jobTitle.trim() || null,
+
+      // Mailing address
       mailing_address_line_1: addressLine1.trim() || null,
       mailing_address_line_2: addressLine2.trim() || null,
       mailing_city: city.trim() || null,
-      mailing_state: state.trim() || null,
+      mailing_state: state.trim().toUpperCase() || null,
       mailing_postal_code: postalCode.trim() || null,
+
+      // Property address
+      property_address_line_1: propertyAddressLine1.trim() || null,
+      property_address_line_2: propertyAddressLine2.trim() || null,
+      property_city: propertyCity.trim() || null,
+      property_state: propertyState.trim().toUpperCase() || null,
+      property_postal_code: propertyPostalCode.trim() || null,
+
+      // Additional contact details
       lead_source: leadSource.trim() || null,
       preferred_contact_method: preferredContactMethod || null,
       notes: notes.trim() || null,
+
       created_by: user.id,
     });
 
@@ -109,6 +153,12 @@ export default function NewContactPage() {
   const inputClasses =
     "w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
 
+  const selectClasses =
+    "rounded-l-lg border-y border-l border-[#333333] bg-[#111111] px-3 py-3 text-sm text-gray-300 outline-none transition focus:border-[#d4af37] focus:text-white";
+
+  const inputGroupClasses =
+    "w-full rounded-r-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
+
   const labelClasses = "mb-2 block text-sm font-medium text-gray-300";
 
   return (
@@ -122,12 +172,10 @@ export default function NewContactPage() {
           >
             ← Back to Contacts
           </Link>
-
           <h1 className="text-3xl font-semibold">Add New Contact</h1>
-
           <p className="mt-2 text-gray-400">
             Add a client, lead, investor, agent, vendor, or other business
-            relationship to RoseVault OS.
+            relationship.
           </p>
         </div>
 
@@ -136,7 +184,6 @@ export default function NewContactPage() {
           <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
             <div className="mb-6">
               <h2 className="text-xl font-semibold">Basic Information</h2>
-
               <p className="mt-1 text-sm text-gray-500">
                 Enter the contact&apos;s primary information.
               </p>
@@ -147,13 +194,12 @@ export default function NewContactPage() {
                 <label htmlFor="firstName" className={labelClasses}>
                   First name *
                 </label>
-
                 <input
                   id="firstName"
                   type="text"
                   required
                   value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
+                  onChange={(e) => setFirstName(e.target.value)}
                   className={inputClasses}
                 />
               </div>
@@ -162,58 +208,86 @@ export default function NewContactPage() {
                 <label htmlFor="lastName" className={labelClasses}>
                   Last name
                 </label>
-
                 <input
                   id="lastName"
                   type="text"
                   value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
+                  onChange={(e) => setLastName(e.target.value)}
                   className={inputClasses}
                 />
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label htmlFor="email" className={labelClasses}>
                   Email address
                 </label>
-
                 <input
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   className={inputClasses}
                 />
               </div>
 
+              {/* Primary Phone Input Group */}
               <div>
-                <label htmlFor="cellPhone" className={labelClasses}>
-                  Cell phone
+                <label htmlFor="primaryPhone" className={labelClasses}>
+                  Primary phone
                 </label>
-
-                <input
-                  id="cellPhone"
-                  type="tel"
-                  value={cellPhone}
-                  onChange={(event) => setCellPhone(event.target.value)}
-                  placeholder="(205) 555-1234"
-                  className={inputClasses}
-                />
+                <div className="flex">
+                  <select
+                    aria-label="Primary phone type"
+                    value={primaryPhoneType}
+                    onChange={(e) => setPrimaryPhoneType(e.target.value)}
+                    className={selectClasses}
+                  >
+                    <option value="mobile">Cell</option>{" "}
+                    {/* Changed value to "mobile" */}
+                    <option value="work">Business</option>{" "}
+                    {/* Changed value to "work" */}
+                    <option value="home">Home</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input
+                    id="primaryPhone"
+                    type="tel"
+                    value={primaryPhone}
+                    onChange={(e) => setPrimaryPhone(e.target.value)}
+                    placeholder="(205) 555-1234"
+                    className={inputGroupClasses}
+                  />
+                </div>
               </div>
 
+              {/* Secondary Phone Input Group */}
               <div>
-                <label htmlFor="businessPhone" className={labelClasses}>
-                  Business phone
+                <label htmlFor="secondaryPhone" className={labelClasses}>
+                  Secondary phone
                 </label>
-
-                <input
-                  id="businessPhone"
-                  type="tel"
-                  value={businessPhone}
-                  onChange={(event) => setBusinessPhone(event.target.value)}
-                  placeholder="(205) 555-5678"
-                  className={inputClasses}
-                />
+                <div className="flex">
+                  <select
+                    aria-label="Secondary phone type"
+                    value={secondaryPhoneType}
+                    onChange={(e) => setSecondaryPhoneType(e.target.value)}
+                    className={selectClasses}
+                  >
+                    <option value="mobile">Cell</option>{" "}
+                    {/* Changed value to "mobile" */}
+                    <option value="work">Business</option>{" "}
+                    {/* Changed value to "work" */}
+                    <option value="home">Home</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input
+                    id="secondaryPhone"
+                    type="tel"
+                    value={secondaryPhone}
+                    onChange={(e) => setSecondaryPhone(e.target.value)}
+                    placeholder="(205) 555-5678"
+                    className={inputGroupClasses}
+                  />
+                </div>
               </div>
             </div>
           </section>
@@ -224,10 +298,9 @@ export default function NewContactPage() {
               <h2 className="text-xl font-semibold">
                 Spouse Contact Information
               </h2>
-
               <p className="mt-1 text-sm text-gray-500">
                 Optional information for a spouse or partner involved in the
-                buying, selling, or investment process.
+                transaction process.
               </p>
             </div>
 
@@ -236,12 +309,11 @@ export default function NewContactPage() {
                 <label htmlFor="spouseFirstName" className={labelClasses}>
                   First name
                 </label>
-
                 <input
                   id="spouseFirstName"
                   type="text"
                   value={spouseFirstName}
-                  onChange={(event) => setSpouseFirstName(event.target.value)}
+                  onChange={(e) => setSpouseFirstName(e.target.value)}
                   className={inputClasses}
                 />
               </div>
@@ -250,60 +322,86 @@ export default function NewContactPage() {
                 <label htmlFor="spouseLastName" className={labelClasses}>
                   Last name
                 </label>
-
                 <input
                   id="spouseLastName"
                   type="text"
                   value={spouseLastName}
-                  onChange={(event) => setSpouseLastName(event.target.value)}
+                  onChange={(e) => setSpouseLastName(e.target.value)}
                   className={inputClasses}
                 />
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label htmlFor="spouseEmail" className={labelClasses}>
                   Email address
                 </label>
-
                 <input
                   id="spouseEmail"
                   type="email"
                   value={spouseEmail}
-                  onChange={(event) => setSpouseEmail(event.target.value)}
+                  onChange={(e) => setSpouseEmail(e.target.value)}
                   className={inputClasses}
                 />
               </div>
 
+              {/* Spouse Primary Phone */}
               <div>
-                <label htmlFor="spouseCellPhone" className={labelClasses}>
-                  Cell phone
+                <label htmlFor="spousePrimaryPhone" className={labelClasses}>
+                  Spouse primary phone
                 </label>
-
-                <input
-                  id="spouseCellPhone"
-                  type="tel"
-                  value={spouseCellPhone}
-                  onChange={(event) => setSpouseCellPhone(event.target.value)}
-                  placeholder="(205) 555-1234"
-                  className={inputClasses}
-                />
+                <div className="flex">
+                  <select
+                    aria-label="Spouse primary phone type"
+                    value={spousePrimaryPhoneType}
+                    onChange={(e) => setSpousePrimaryPhoneType(e.target.value)}
+                    className={selectClasses}
+                  >
+                    <option value="cell">Cell</option>
+                    <option value="business">Business</option>
+                    <option value="home">Home</option>
+                    <option value="work">Work</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input
+                    id="spousePrimaryPhone"
+                    type="tel"
+                    value={spousePrimaryPhone}
+                    onChange={(e) => setSpousePrimaryPhone(e.target.value)}
+                    placeholder="(205) 555-1234"
+                    className={inputGroupClasses}
+                  />
+                </div>
               </div>
 
+              {/* Spouse Secondary Phone */}
               <div>
-                <label htmlFor="spouseBusinessPhone" className={labelClasses}>
-                  Business phone
+                <label htmlFor="spouseSecondaryPhone" className={labelClasses}>
+                  Spouse secondary phone
                 </label>
-
-                <input
-                  id="spouseBusinessPhone"
-                  type="tel"
-                  value={spouseBusinessPhone}
-                  onChange={(event) =>
-                    setSpouseBusinessPhone(event.target.value)
-                  }
-                  placeholder="(205) 555-5678"
-                  className={inputClasses}
-                />
+                <div className="flex">
+                  <select
+                    aria-label="Spouse secondary phone type"
+                    value={spouseSecondaryPhoneType}
+                    onChange={(e) =>
+                      setSpouseSecondaryPhoneType(e.target.value)
+                    }
+                    className={selectClasses}
+                  >
+                    <option value="cell">Cell</option>
+                    <option value="business">Business</option>
+                    <option value="home">Home</option>
+                    <option value="work">Work</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input
+                    id="spouseSecondaryPhone"
+                    type="tel"
+                    value={spouseSecondaryPhone}
+                    onChange={(e) => setSpouseSecondaryPhone(e.target.value)}
+                    placeholder="(205) 555-5678"
+                    className={inputGroupClasses}
+                  />
+                </div>
               </div>
             </div>
           </section>
@@ -312,7 +410,6 @@ export default function NewContactPage() {
           <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
             <div className="mb-6">
               <h2 className="text-xl font-semibold">CRM Classification</h2>
-
               <p className="mt-1 text-sm text-gray-500">
                 Categorize this contact for filtering, workflows, and future
                 automations.
@@ -324,11 +421,10 @@ export default function NewContactPage() {
                 <label htmlFor="contactType" className={labelClasses}>
                   Contact type
                 </label>
-
                 <select
                   id="contactType"
                   value={contactType}
-                  onChange={(event) => setContactType(event.target.value)}
+                  onChange={(e) => setContactType(e.target.value)}
                   className={inputClasses}
                 >
                   <option value="lead">Lead</option>
@@ -350,11 +446,10 @@ export default function NewContactPage() {
                 <label htmlFor="status" className={labelClasses}>
                   Status
                 </label>
-
                 <select
                   id="status"
                   value={status}
-                  onChange={(event) => setStatus(event.target.value)}
+                  onChange={(e) => setStatus(e.target.value)}
                   className={inputClasses}
                 >
                   <option value="active">Active</option>
@@ -370,12 +465,11 @@ export default function NewContactPage() {
                 <label htmlFor="leadSource" className={labelClasses}>
                   Lead source
                 </label>
-
                 <input
                   id="leadSource"
                   type="text"
                   value={leadSource}
-                  onChange={(event) => setLeadSource(event.target.value)}
+                  onChange={(e) => setLeadSource(e.target.value)}
                   placeholder="Referral, website, Facebook, open house..."
                   className={inputClasses}
                 />
@@ -388,13 +482,10 @@ export default function NewContactPage() {
                 >
                   Preferred contact method
                 </label>
-
                 <select
                   id="preferredContactMethod"
                   value={preferredContactMethod}
-                  onChange={(event) =>
-                    setPreferredContactMethod(event.target.value)
-                  }
+                  onChange={(e) => setPreferredContactMethod(e.target.value)}
                   className={inputClasses}
                 >
                   <option value="">Not specified</option>
@@ -410,7 +501,6 @@ export default function NewContactPage() {
           <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
             <div className="mb-6">
               <h2 className="text-xl font-semibold">Company Information</h2>
-
               <p className="mt-1 text-sm text-gray-500">
                 Optional professional or business details.
               </p>
@@ -421,12 +511,11 @@ export default function NewContactPage() {
                 <label htmlFor="company" className={labelClasses}>
                   Company
                 </label>
-
                 <input
                   id="company"
                   type="text"
                   value={company}
-                  onChange={(event) => setCompany(event.target.value)}
+                  onChange={(e) => setCompany(e.target.value)}
                   className={inputClasses}
                 />
               </div>
@@ -435,12 +524,11 @@ export default function NewContactPage() {
                 <label htmlFor="jobTitle" className={labelClasses}>
                   Job title
                 </label>
-
                 <input
                   id="jobTitle"
                   type="text"
                   value={jobTitle}
-                  onChange={(event) => setJobTitle(event.target.value)}
+                  onChange={(e) => setJobTitle(e.target.value)}
                   className={inputClasses}
                 />
               </div>
@@ -451,7 +539,6 @@ export default function NewContactPage() {
           <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
             <div className="mb-6">
               <h2 className="text-xl font-semibold">Mailing Address</h2>
-
               <p className="mt-1 text-sm text-gray-500">
                 Used for client records and future mailing-label generation.
               </p>
@@ -462,12 +549,11 @@ export default function NewContactPage() {
                 <label htmlFor="addressLine1" className={labelClasses}>
                   Address line 1
                 </label>
-
                 <input
                   id="addressLine1"
                   type="text"
                   value={addressLine1}
-                  onChange={(event) => setAddressLine1(event.target.value)}
+                  onChange={(e) => setAddressLine1(e.target.value)}
                   className={inputClasses}
                 />
               </div>
@@ -476,12 +562,11 @@ export default function NewContactPage() {
                 <label htmlFor="addressLine2" className={labelClasses}>
                   Address line 2
                 </label>
-
                 <input
                   id="addressLine2"
                   type="text"
                   value={addressLine2}
-                  onChange={(event) => setAddressLine2(event.target.value)}
+                  onChange={(e) => setAddressLine2(e.target.value)}
                   placeholder="Apartment, suite, unit..."
                   className={inputClasses}
                 />
@@ -491,12 +576,11 @@ export default function NewContactPage() {
                 <label htmlFor="city" className={labelClasses}>
                   City
                 </label>
-
                 <input
                   id="city"
                   type="text"
                   value={city}
-                  onChange={(event) => setCity(event.target.value)}
+                  onChange={(e) => setCity(e.target.value)}
                   className={inputClasses}
                 />
               </div>
@@ -505,12 +589,11 @@ export default function NewContactPage() {
                 <label htmlFor="state" className={labelClasses}>
                   State
                 </label>
-
                 <input
                   id="state"
                   type="text"
                   value={state}
-                  onChange={(event) => setState(event.target.value)}
+                  onChange={(e) => setState(e.target.value)}
                   className={inputClasses}
                 />
               </div>
@@ -519,13 +602,95 @@ export default function NewContactPage() {
                 <label htmlFor="postalCode" className={labelClasses}>
                   ZIP / Postal code
                 </label>
-
                 <input
                   id="postalCode"
                   type="text"
                   value={postalCode}
-                  onChange={(event) => setPostalCode(event.target.value)}
+                  onChange={(e) => setPostalCode(e.target.value)}
                   className={inputClasses}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Property Address */}
+          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold">Property Address</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                The address of the property associated with this contact.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label htmlFor="propertyAddressLine1" className={labelClasses}>
+                  Address line 1
+                </label>
+                <input
+                  id="propertyAddressLine1"
+                  type="text"
+                  value={propertyAddressLine1}
+                  onChange={(e) => setPropertyAddressLine1(e.target.value)}
+                  className={inputClasses}
+                  placeholder="123 Main Street"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="propertyAddressLine2" className={labelClasses}>
+                  Address line 2
+                </label>
+                <input
+                  id="propertyAddressLine2"
+                  type="text"
+                  value={propertyAddressLine2}
+                  onChange={(e) => setPropertyAddressLine2(e.target.value)}
+                  className={inputClasses}
+                  placeholder="Unit, suite, apartment, etc."
+                />
+              </div>
+
+              <div>
+                <label htmlFor="propertyCity" className={labelClasses}>
+                  City
+                </label>
+                <input
+                  id="propertyCity"
+                  type="text"
+                  value={propertyCity}
+                  onChange={(e) => setPropertyCity(e.target.value)}
+                  className={inputClasses}
+                  placeholder="Birmingham"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="propertyState" className={labelClasses}>
+                  State
+                </label>
+                <input
+                  id="propertyState"
+                  type="text"
+                  value={propertyState}
+                  onChange={(e) => setPropertyState(e.target.value)}
+                  className={inputClasses}
+                  placeholder="AL"
+                  maxLength={2}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="propertyPostalCode" className={labelClasses}>
+                  ZIP / Postal code
+                </label>
+                <input
+                  id="propertyPostalCode"
+                  type="text"
+                  value={propertyPostalCode}
+                  onChange={(e) => setPropertyPostalCode(e.target.value)}
+                  className={inputClasses}
+                  placeholder="35203"
                 />
               </div>
             </div>
@@ -535,15 +700,13 @@ export default function NewContactPage() {
           <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
             <div className="mb-6">
               <h2 className="text-xl font-semibold">Notes</h2>
-
               <p className="mt-1 text-sm text-gray-500">
                 Add anything important about this relationship.
               </p>
             </div>
-
             <textarea
               value={notes}
-              onChange={(event) => setNotes(event.target.value)}
+              onChange={(e) => setNotes(e.target.value)}
               rows={6}
               placeholder="Add notes about this contact..."
               className={inputClasses}
@@ -565,7 +728,6 @@ export default function NewContactPage() {
             >
               Cancel
             </Link>
-
             <button
               type="submit"
               disabled={isSubmitting}

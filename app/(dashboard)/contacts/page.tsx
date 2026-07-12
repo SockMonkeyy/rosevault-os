@@ -35,32 +35,38 @@ export default async function ContactsPage() {
       .from("contacts")
       .select(
         `
-  id,
-  first_name,
-  last_name,
-  email,
-  phone,
-  cell_phone,
-  business_phone,
-  contact_type,
-  status,
-  lead_source,
-  mailing_address_line_1,
-  mailing_address_line_2,
-  mailing_city,
-  mailing_state,
-  mailing_postal_code,
-  property_address_line_1,
-  property_address_line_2,
-  property_city,
-  property_state,
-  property_postal_code,
-  created_at
-`,
+          id,
+          first_name,
+          last_name,
+          email,
+          cell_phone,
+cell_phone_type,
+business_phone,
+business_phone_type,
+spouse_cell_phone,
+spouse_cell_phone_type,
+spouse_business_phone,
+spouse_business_phone_type,
+          contact_type,
+          status,
+          lead_source,
+          mailing_address_line_1,
+          mailing_address_line_2,
+          mailing_city,
+          mailing_state,
+          mailing_postal_code,
+          property_address_line_1,
+          property_address_line_2,
+          property_city,
+          property_state,
+          property_postal_code,
+          created_at
+        `,
       )
       .eq("organization_id", membership.organization_id)
       .order("created_at", { ascending: false }),
 
+    // ... rest of the promise blocks remain the same
     supabase
       .from("contact_groups")
       .select("id, name")
