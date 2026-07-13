@@ -63,6 +63,10 @@ app/
       campaigns/
         page.tsx
     properties/
+      [id]/
+        edit/
+          page.tsx
+        page.tsx
       new/
         page.tsx
       page.tsx
@@ -79,6 +83,7 @@ app/
     GroupsTagsManager.tsx
     LogoutButton.tsx
     PropertiesTable.tsx
+    PropertyContactManager.tsx
   login/
     page.tsx
   onboarding/
@@ -2194,6 +2199,811 @@ export default async function CampaignsPage() {
     </div>
   );
 }
+</file>
+
+<file path="app/(dashboard)/properties/[id]/edit/page.tsx">
+"use client";
+
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+type PropertyRecord = {
+  id: string;
+  property_address_line_1: string | null;
+  property_address_line_2: string | null;
+  property_city: string | null;
+  property_state: string | null;
+  property_postal_code: string | null;
+  county: string | null;
+  parcel_number: string | null;
+  property_type: string | null;
+  property_status: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  square_feet: number | null;
+  year_built: number | null;
+  estimated_value: number | null;
+  asking_price: number | null;
+  mortgage_balance: number | null;
+  notes: string | null;
+};
+
+export default function EditPropertyPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+
+  const propertyId = params.id;
+
+  // Property address
+  const [propertyAddressLine1, setPropertyAddressLine1] = useState("");
+  const [propertyAddressLine2, setPropertyAddressLine2] = useState("");
+  const [propertyCity, setPropertyCity] = useState("");
+  const [propertyState, setPropertyState] = useState("");
+  const [propertyPostalCode, setPropertyPostalCode] = useState("");
+
+  // Property identification
+  const [county, setCounty] = useState("");
+  const [parcelNumber, setParcelNumber] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [propertyStatus, setPropertyStatus] = useState("");
+
+  // Property details
+  const [bedrooms, setBedrooms] = useState("");
+  const [bathrooms, setBathrooms] = useState("");
+  const [squareFeet, setSquareFeet] = useState("");
+  const [yearBuilt, setYearBuilt] = useState("");
+
+  // Financial information
+  const [estimatedValue, setEstimatedValue] = useState("");
+  const [askingPrice, setAskingPrice] = useState("");
+  const [mortgageBalance, setMortgageBalance] = useState("");
+
+  // Additional information
+  const [notes, setNotes] = useState("");
+
+  // Page state
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProperty() {
+      if (!propertyId) {
+        if (isMounted) {
+          setLoadFailed(true);
+          setErrorMessage("Property ID is missing.");
+          setIsLoading(false);
+        }
+
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadFailed(false);
+      setErrorMessage("");
+
+      const supabase = createClient();
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (userError || !user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: membership, error: membershipError } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (membershipError) {
+        setLoadFailed(true);
+        setErrorMessage(
+          `Unable to load your organization: ${membershipError.message}`,
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      if (!membership) {
+        router.replace("/onboarding");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("properties")
+        .select(`
+          id,
+          property_address_line_1,
+          property_address_line_2,
+          property_city,
+          property_state,
+          property_postal_code,
+          county,
+          parcel_number,
+          property_type,
+          property_status,
+          bedrooms,
+          bathrooms,
+          square_feet,
+          year_built,
+          estimated_value,
+          asking_price,
+          mortgage_balance,
+          notes
+        `)
+        .eq("id", propertyId)
+        .eq("organization_id", membership.organization_id)
+        .maybeSingle();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        setLoadFailed(true);
+        setErrorMessage(`Unable to load property: ${error.message}`);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!data) {
+        setLoadFailed(true);
+        setErrorMessage(
+          "Property not found or you do not have access to this property.",
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const property = data as PropertyRecord;
+
+      setPropertyAddressLine1(property.property_address_line_1 ?? "");
+      setPropertyAddressLine2(property.property_address_line_2 ?? "");
+      setPropertyCity(property.property_city ?? "");
+      setPropertyState(property.property_state ?? "");
+      setPropertyPostalCode(property.property_postal_code ?? "");
+
+      setCounty(property.county ?? "");
+      setParcelNumber(property.parcel_number ?? "");
+      setPropertyType(property.property_type ?? "");
+      setPropertyStatus(property.property_status ?? "");
+
+      setBedrooms(numberToInputValue(property.bedrooms));
+      setBathrooms(numberToInputValue(property.bathrooms));
+      setSquareFeet(numberToInputValue(property.square_feet));
+      setYearBuilt(numberToInputValue(property.year_built));
+
+      setEstimatedValue(numberToInputValue(property.estimated_value));
+      setAskingPrice(numberToInputValue(property.asking_price));
+      setMortgageBalance(numberToInputValue(property.mortgage_balance));
+
+      setNotes(property.notes ?? "");
+
+      setLoadFailed(false);
+      setIsLoading(false);
+    }
+
+    void loadProperty();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propertyId, router]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!propertyId) {
+      setErrorMessage("Property ID is missing.");
+      return;
+    }
+
+    if (!propertyAddressLine1.trim()) {
+      setErrorMessage("Property address line 1 is required.");
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage("");
+
+    try {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setErrorMessage("You must be signed in to edit this property.");
+        setIsSaving(false);
+        return;
+      }
+
+      const { data: membership, error: membershipError } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (membershipError) {
+        setErrorMessage(
+          `Unable to verify your organization: ${membershipError.message}`,
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      if (!membership) {
+        setErrorMessage("Your organization workspace could not be found.");
+        setIsSaving(false);
+        return;
+      }
+
+      const updatePayload = {
+        property_address_line_1: propertyAddressLine1.trim(),
+        property_address_line_2: propertyAddressLine2.trim() || null,
+        property_city: propertyCity.trim() || null,
+        property_state: propertyState.trim().toUpperCase() || null,
+        property_postal_code: propertyPostalCode.trim() || null,
+
+        county: county.trim() || null,
+        parcel_number: parcelNumber.trim() || null,
+        property_type: propertyType.trim() || null,
+
+        // Preserve the currently loaded database value.
+        // Do not invent a new status value.
+        property_status: propertyStatus.trim() || "prospect",
+
+        bedrooms: parseOptionalNumber(bedrooms),
+        bathrooms: parseOptionalNumber(bathrooms),
+        square_feet: parseOptionalInteger(squareFeet),
+        year_built: parseOptionalInteger(yearBuilt),
+
+        estimated_value: parseOptionalNumber(estimatedValue),
+        asking_price: parseOptionalNumber(askingPrice),
+        mortgage_balance: parseOptionalNumber(mortgageBalance),
+
+        notes: notes.trim() || null,
+      };
+
+      const { data: updatedProperty, error: updateError } = await supabase
+        .from("properties")
+        .update(updatePayload)
+        .eq("id", propertyId)
+        .eq("organization_id", membership.organization_id)
+        .select("id")
+        .maybeSingle();
+
+      if (updateError) {
+        setErrorMessage(`Unable to update property: ${updateError.message}`);
+        setIsSaving(false);
+        return;
+      }
+
+      if (!updatedProperty) {
+        setErrorMessage(
+          "The property was not updated. The record may no longer exist or may not belong to your organization.",
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      router.push(`/properties/${updatedProperty.id}`);
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? `Unable to update property: ${error.message}`
+          : "An unexpected error occurred while updating the property.",
+      );
+
+      setIsSaving(false);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] px-6 py-16 text-center">
+            <p className="text-sm text-gray-400">Loading property...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <div className="p-8">
+        <div className="mx-auto max-w-5xl">
+          <Link
+            href="/properties"
+            className="mb-5 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+          >
+            ← Back to Properties
+          </Link>
+
+          <div className="rounded-2xl border border-red-900/40 bg-red-950/20 p-6">
+            <h1 className="text-xl font-semibold text-white">
+              Unable to Load Property
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-red-300">
+              {errorMessage}
+            </p>
+
+            <Link
+              href="/properties"
+              className="mt-6 inline-block rounded-lg border border-[#333333] px-4 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+            >
+              Return to Properties
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8">
+      <div className="mx-auto max-w-5xl">
+        {/* Header */}
+        <div className="mb-8">
+          <Link
+            href={`/properties/${propertyId}`}
+            className="mb-4 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+          >
+            ← Back to Property
+          </Link>
+
+          <h1 className="text-3xl font-semibold text-white">Edit Property</h1>
+
+          <p className="mt-2 text-gray-400">
+            Update property details, financial information, and notes.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Property Address */}
+          <FormSection
+            title="Property Address"
+            description="The physical location of the property."
+          >
+            <div className="md:col-span-2">
+              <label
+                htmlFor="propertyAddressLine1"
+                className={labelClasses}
+              >
+                Address line 1 *
+              </label>
+
+              <input
+                id="propertyAddressLine1"
+                type="text"
+                required
+                value={propertyAddressLine1}
+                onChange={(event) =>
+                  setPropertyAddressLine1(event.target.value)
+                }
+                placeholder="123 Main Street"
+                className={inputClasses}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label
+                htmlFor="propertyAddressLine2"
+                className={labelClasses}
+              >
+                Address line 2
+              </label>
+
+              <input
+                id="propertyAddressLine2"
+                type="text"
+                value={propertyAddressLine2}
+                onChange={(event) =>
+                  setPropertyAddressLine2(event.target.value)
+                }
+                placeholder="Apartment, suite, unit..."
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="propertyCity" className={labelClasses}>
+                City
+              </label>
+
+              <input
+                id="propertyCity"
+                type="text"
+                value={propertyCity}
+                onChange={(event) => setPropertyCity(event.target.value)}
+                placeholder="Birmingham"
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="propertyState" className={labelClasses}>
+                State
+              </label>
+
+              <input
+                id="propertyState"
+                type="text"
+                value={propertyState}
+                onChange={(event) => setPropertyState(event.target.value)}
+                placeholder="AL"
+                maxLength={2}
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="propertyPostalCode" className={labelClasses}>
+                ZIP / Postal code
+              </label>
+
+              <input
+                id="propertyPostalCode"
+                type="text"
+                value={propertyPostalCode}
+                onChange={(event) =>
+                  setPropertyPostalCode(event.target.value)
+                }
+                placeholder="35203"
+                className={inputClasses}
+              />
+            </div>
+          </FormSection>
+
+          {/* Property Identification */}
+          <FormSection
+            title="Property Identification"
+            description="County, parcel number, classification, and current status."
+          >
+            <div>
+              <label htmlFor="county" className={labelClasses}>
+                County
+              </label>
+
+              <input
+                id="county"
+                type="text"
+                value={county}
+                onChange={(event) => setCounty(event.target.value)}
+                placeholder="Jefferson"
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="parcelNumber" className={labelClasses}>
+                Parcel number
+              </label>
+
+              <input
+                id="parcelNumber"
+                type="text"
+                value={parcelNumber}
+                onChange={(event) => setParcelNumber(event.target.value)}
+                placeholder="Parcel or APN number"
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="propertyType" className={labelClasses}>
+                Property type
+              </label>
+
+              <input
+                id="propertyType"
+                type="text"
+                value={propertyType}
+                onChange={(event) => setPropertyType(event.target.value)}
+                placeholder="Single family, condo, land..."
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="propertyStatus" className={labelClasses}>
+                Property status
+              </label>
+
+              <input
+                id="propertyStatus"
+                type="text"
+                value={propertyStatus}
+                readOnly
+                className={`${inputClasses} cursor-not-allowed text-gray-500`}
+              />
+
+              <p className="mt-2 text-xs leading-5 text-gray-600">
+                Status remains read-only until the live database constraint
+                values are verified.
+              </p>
+            </div>
+          </FormSection>
+
+          {/* Property Details */}
+          <FormSection
+            title="Property Details"
+            description="Physical characteristics and construction information."
+          >
+            <div>
+              <label htmlFor="bedrooms" className={labelClasses}>
+                Bedrooms
+              </label>
+
+              <input
+                id="bedrooms"
+                type="number"
+                min="0"
+                step="1"
+                value={bedrooms}
+                onChange={(event) => setBedrooms(event.target.value)}
+                placeholder="3"
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="bathrooms" className={labelClasses}>
+                Bathrooms
+              </label>
+
+              <input
+                id="bathrooms"
+                type="number"
+                min="0"
+                step="0.5"
+                value={bathrooms}
+                onChange={(event) => setBathrooms(event.target.value)}
+                placeholder="2"
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="squareFeet" className={labelClasses}>
+                Square feet
+              </label>
+
+              <input
+                id="squareFeet"
+                type="number"
+                min="0"
+                step="1"
+                value={squareFeet}
+                onChange={(event) => setSquareFeet(event.target.value)}
+                placeholder="1800"
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="yearBuilt" className={labelClasses}>
+                Year built
+              </label>
+
+              <input
+                id="yearBuilt"
+                type="number"
+                min="1000"
+                max="9999"
+                step="1"
+                value={yearBuilt}
+                onChange={(event) => setYearBuilt(event.target.value)}
+                placeholder="1998"
+                className={inputClasses}
+              />
+            </div>
+          </FormSection>
+
+          {/* Financial Information */}
+          <FormSection
+            title="Financial Information"
+            description="Known values, seller expectations, and mortgage information."
+          >
+            <CurrencyField
+              id="estimatedValue"
+              label="Estimated value"
+              value={estimatedValue}
+              onChange={setEstimatedValue}
+              placeholder="250000"
+            />
+
+            <CurrencyField
+              id="askingPrice"
+              label="Asking price"
+              value={askingPrice}
+              onChange={setAskingPrice}
+              placeholder="225000"
+            />
+
+            <CurrencyField
+              id="mortgageBalance"
+              label="Mortgage balance"
+              value={mortgageBalance}
+              onChange={setMortgageBalance}
+              placeholder="150000"
+            />
+          </FormSection>
+
+          {/* Notes */}
+          <FormSection
+            title="Notes"
+            description="Property condition, seller situation, repair needs, or other important context."
+          >
+            <div className="md:col-span-2">
+              <label htmlFor="notes" className={labelClasses}>
+                Property notes
+              </label>
+
+              <textarea
+                id="notes"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                rows={7}
+                placeholder="Add any important details about the property..."
+                className={inputClasses}
+              />
+            </div>
+          </FormSection>
+
+          {/* Save error */}
+          {errorMessage && (
+            <div className="rounded-xl border border-red-900/40 bg-red-950/20 px-5 py-4 text-sm text-red-300">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex flex-col-reverse gap-3 border-t border-[#2a2a2a] pt-6 sm:flex-row sm:justify-end">
+            <Link
+              href={`/properties/${propertyId}`}
+              className="rounded-lg border border-[#333333] px-5 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#555555] hover:text-white"
+            >
+              Cancel
+            </Link>
+
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="rounded-lg bg-[#d4af37] px-6 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? "Saving Changes..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-white">{title}</h2>
+
+        <p className="mt-1 text-sm text-gray-500">{description}</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function CurrencyField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className={labelClasses}>
+        {label}
+      </label>
+
+      <div className="relative">
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-600">
+          $
+        </span>
+
+        <input
+          id={id}
+          type="number"
+          min="0"
+          step="0.01"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className={`${inputClasses} pl-8`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function numberToInputValue(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value);
+}
+
+function parseOptionalNumber(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseOptionalInteger(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(trimmed, 10);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+const labelClasses = "mb-2 block text-sm font-medium text-gray-300";
+
+const inputClasses =
+  "w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
 </file>
 
 <file path="app/(dashboard)/properties/new/page.tsx">
@@ -6292,6 +7102,407 @@ function formatPropertyDetails(property: Property) {
 }
 </file>
 
+<file path="app/components/PropertyContactManager.tsx">
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
+type Contact = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  primary_phone: string | null;
+  secondary_phone: string | null;
+  contact_type: string | null;
+};
+
+type Props = {
+  propertyId: string;
+  organizationId: string;
+  contacts: Contact[];
+  linkedContactIds: string[];
+};
+
+const RELATIONSHIP_OPTIONS = [
+  { value: "owner", label: "Owner" },
+  { value: "seller", label: "Seller" },
+  { value: "buyer", label: "Buyer" },
+  { value: "tenant", label: "Tenant" },
+  { value: "landlord", label: "Landlord" },
+  { value: "agent", label: "Agent" },
+  { value: "investor", label: "Investor" },
+  { value: "contractor", label: "Contractor" },
+  { value: "property_manager", label: "Property Manager" },
+  { value: "other", label: "Other" },
+];
+
+export default function PropertyContactManager({
+  propertyId,
+  organizationId,
+  contacts,
+  linkedContactIds,
+}: Props) {
+  const router = useRouter();
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [relationshipType, setRelationshipType] = useState("owner");
+  const [isPrimary, setIsPrimary] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const linkedIds = useMemo(
+    () => new Set(linkedContactIds),
+    [linkedContactIds],
+  );
+
+  const availableContacts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return contacts
+      .filter((contact) => !linkedIds.has(contact.id))
+      .filter((contact) => {
+        if (!query) {
+          return true;
+        }
+
+        const fullName = [contact.first_name, contact.last_name]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return (
+          fullName.includes(query) ||
+          contact.email?.toLowerCase().includes(query) ||
+          contact.primary_phone?.toLowerCase().includes(query) ||
+          contact.secondary_phone?.toLowerCase().includes(query) ||
+          contact.contact_type?.toLowerCase().includes(query)
+        );
+      });
+  }, [contacts, linkedIds, search]);
+
+  const selectedContact =
+    contacts.find((contact) => contact.id === selectedContactId) ?? null;
+
+  function openModal() {
+    setSearch("");
+    setSelectedContactId("");
+    setRelationshipType("owner");
+    setIsPrimary(false);
+    setErrorMessage("");
+    setIsOpen(true);
+  }
+
+  function closeModal() {
+    if (isSaving) {
+      return;
+    }
+
+    setIsOpen(false);
+    setErrorMessage("");
+  }
+
+  async function handleLinkContact() {
+    if (!selectedContactId) {
+      setErrorMessage("Select a contact to link to this property.");
+      return;
+    }
+
+    if (!relationshipType) {
+      setErrorMessage("Select a relationship type.");
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage("");
+
+    try {
+      const supabase = createClient();
+
+      const { error } = await supabase
+        .from("contact_property_relationships")
+        .insert({
+          organization_id: organizationId,
+          property_id: propertyId,
+          contact_id: selectedContactId,
+          relationship_type: relationshipType,
+          is_primary: isPrimary,
+        });
+
+      if (error) {
+        setErrorMessage(`Unable to link contact: ${error.message}`);
+        setIsSaving(false);
+        return;
+      }
+
+      setIsOpen(false);
+      setIsSaving(false);
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? `Unable to link contact: ${error.message}`
+          : "An unexpected error occurred while linking the contact.",
+      );
+
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={openModal}
+        className="rounded-lg bg-[#d4af37] px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+      >
+        + Link Contact
+      </button>
+
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeModal();
+            }
+          }}
+        >
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#333333] bg-[#151515] shadow-2xl">
+            {/* Modal header */}
+            <div className="flex items-start justify-between gap-4 border-b border-[#2a2a2a] p-6">
+              <div>
+                <h2 className="text-2xl font-semibold text-white">
+                  Link Existing Contact
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-gray-500">
+                  Search your RoseVault contacts and connect an existing
+                  person or business to this property.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={isSaving}
+                aria-label="Close"
+                className="shrink-0 rounded-lg border border-[#333333] px-3 py-2 text-gray-400 transition hover:border-[#555555] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6 p-6">
+              {/* Search */}
+              <div>
+                <label
+                  htmlFor="contact-search"
+                  className="mb-2 block text-sm font-medium text-gray-300"
+                >
+                  Search contacts
+                </label>
+
+                <input
+                  id="contact-search"
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search by name, email, phone, or contact type..."
+                  className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]"
+                />
+              </div>
+
+              {/* Contact results */}
+              <div>
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <p className="text-sm font-medium text-gray-300">
+                    Available contacts
+                  </p>
+
+                  <p className="text-xs text-gray-600">
+                    {availableContacts.length} available
+                  </p>
+                </div>
+
+                {availableContacts.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[#333333] bg-[#111111] px-5 py-8 text-center">
+                    <p className="text-sm text-gray-500">
+                      {contacts.length === 0
+                        ? "No contacts exist in RoseVault yet."
+                        : "No available contacts match your search."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                    {availableContacts.map((contact) => {
+                      const fullName =
+                        [contact.first_name, contact.last_name]
+                          .filter(Boolean)
+                          .join(" ") || "Unnamed Contact";
+
+                      const isSelected =
+                        selectedContactId === contact.id;
+
+                      return (
+                        <button
+                          key={contact.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedContactId(contact.id)
+                          }
+                          className={`w-full rounded-xl border p-4 text-left transition ${
+                            isSelected
+                              ? "border-[#d4af37] bg-[#d4af37]/10"
+                              : "border-[#2a2a2a] bg-[#111111] hover:border-[#444444]"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p
+                                className={`font-medium ${
+                                  isSelected
+                                    ? "text-[#d4af37]"
+                                    : "text-white"
+                                }`}
+                              >
+                                {fullName}
+                              </p>
+
+                              {contact.email && (
+                                <p className="mt-1 truncate text-sm text-gray-500">
+                                  {contact.email}
+                                </p>
+                              )}
+
+                              {(contact.primary_phone ||
+                                contact.secondary_phone) && (
+                                <p className="mt-1 text-sm text-gray-600">
+                                  {contact.primary_phone ||
+                                    contact.secondary_phone}
+                                </p>
+                              )}
+                            </div>
+
+                            {contact.contact_type && (
+                              <span className="shrink-0 rounded-full border border-[#333333] bg-[#1a1a1a] px-2.5 py-1 text-xs capitalize text-gray-400">
+                                {contact.contact_type.replace(/_/g, " ")}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Relationship settings */}
+              {selectedContact && (
+                <div className="space-y-5 rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/5 p-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#d4af37]">
+                      Selected Contact
+                    </p>
+
+                    <p className="mt-2 font-medium text-white">
+                      {[selectedContact.first_name, selectedContact.last_name]
+                        .filter(Boolean)
+                        .join(" ") || "Unnamed Contact"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="relationship-type"
+                      className="mb-2 block text-sm font-medium text-gray-300"
+                    >
+                      Relationship to property
+                    </label>
+
+                    <select
+                      id="relationship-type"
+                      value={relationshipType}
+                      onChange={(event) =>
+                        setRelationshipType(event.target.value)
+                      }
+                      className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition focus:border-[#d4af37]"
+                    >
+                      {RELATIONSHIP_OPTIONS.map((option) => (
+                        <option
+                          key={option.value}
+                          value={option.value}
+                        >
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#333333] bg-[#111111] p-4">
+                    <input
+                      type="checkbox"
+                      checked={isPrimary}
+                      onChange={(event) =>
+                        setIsPrimary(event.target.checked)
+                      }
+                      className="mt-1 h-4 w-4 accent-[#d4af37]"
+                    />
+
+                    <span>
+                      <span className="block text-sm font-medium text-white">
+                        Primary relationship
+                      </span>
+
+                      <span className="mt-1 block text-xs leading-5 text-gray-500">
+                        Mark this contact as a primary person associated with
+                        this property.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {/* Error */}
+              {errorMessage && (
+                <div className="rounded-xl border border-red-900/40 bg-red-950/20 px-5 py-4 text-sm text-red-300">
+                  {errorMessage}
+                </div>
+              )}
+            </div>
+
+            {/* Modal actions */}
+            <div className="flex flex-col-reverse gap-3 border-t border-[#2a2a2a] p-6 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={isSaving}
+                className="rounded-lg border border-[#333333] px-5 py-3 text-sm font-medium text-gray-300 transition hover:border-[#555555] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLinkContact}
+                disabled={isSaving || !selectedContactId}
+                className="rounded-lg bg-[#d4af37] px-6 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSaving ? "Linking Contact..." : "Link Contact"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+</file>
+
 <file path="app/login/page.tsx">
 "use client";
 
@@ -8975,6 +10186,741 @@ export default async function ComposeEmailPage({
       </div>
     </div>
   );
+}
+</file>
+
+<file path="app/(dashboard)/properties/[id]/page.tsx">
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import PropertyContactManager from "@/app/components/PropertyContactManager";
+import { createClient } from "@/lib/supabase/server";
+
+type PropertyProfilePageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+type ContactRelationship = {
+  contact_id: string;
+  relationship_type: string | null;
+  is_primary: boolean | null;
+};
+
+type ContactRecord = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  primary_phone: string | null;
+  secondary_phone: string | null;
+  contact_type: string | null;
+};
+
+export default async function PropertyProfilePage({
+  params,
+}: PropertyProfilePageProps) {
+  const { id: propertyId } = await params;
+
+  const supabase = await createClient();
+
+  // Verify signed-in user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Verify organization membership
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError) {
+    console.error("Error loading organization membership:", membershipError);
+  }
+
+  if (!membership) {
+    redirect("/onboarding");
+  }
+
+  // Load the property
+  const { data: property, error: propertyError } = await supabase
+    .from("properties")
+    .select(`
+      id,
+      organization_id,
+      property_address_line_1,
+      property_address_line_2,
+      property_city,
+      property_state,
+      property_postal_code,
+      county,
+      parcel_number,
+      property_type,
+      property_status,
+      bedrooms,
+      bathrooms,
+      square_feet,
+      year_built,
+      estimated_value,
+      asking_price,
+      mortgage_balance,
+      notes,
+      created_at,
+      updated_at
+    `)
+    .eq("id", propertyId)
+    .eq("organization_id", membership.organization_id)
+    .maybeSingle();
+
+  if (propertyError) {
+    console.error("Error loading property:", propertyError);
+    notFound();
+  }
+
+  if (!property) {
+    notFound();
+  }
+
+  // Load existing property-contact relationships and all available contacts.
+  const [
+    { data: relationshipsData, error: relationshipsError },
+    { data: allContactsData, error: contactsError },
+  ] = await Promise.all([
+    supabase
+      .from("contact_property_relationships")
+      .select(`
+        contact_id,
+        relationship_type,
+        is_primary
+      `)
+      .eq("organization_id", membership.organization_id)
+      .eq("property_id", property.id),
+
+    supabase
+      .from("contacts")
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        primary_phone,
+        secondary_phone,
+        contact_type
+      `)
+      .eq("organization_id", membership.organization_id)
+      .order("first_name", { ascending: true })
+      .order("last_name", { ascending: true }),
+  ]);
+
+  if (relationshipsError) {
+    console.error(
+      "Error loading property contact relationships:",
+      relationshipsError,
+    );
+  }
+
+  if (contactsError) {
+    console.error(
+      "Error loading contacts for property linking:",
+      contactsError,
+    );
+  }
+
+  const relationships = (relationshipsData ?? []) as ContactRelationship[];
+  const allContacts = (allContactsData ?? []) as ContactRecord[];
+
+  const linkedContactIds = relationships.map(
+    (relationship) => relationship.contact_id,
+  );
+
+  // Load full contact records for contacts already linked to this property.
+  let linkedContacts: ContactRecord[] = [];
+
+  if (linkedContactIds.length > 0) {
+    const { data, error } = await supabase
+      .from("contacts")
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        primary_phone,
+        secondary_phone,
+        contact_type
+      `)
+      .eq("organization_id", membership.organization_id)
+      .in("id", linkedContactIds);
+
+    if (error) {
+      console.error("Error loading linked contacts:", error);
+    } else {
+      linkedContacts = (data ?? []) as ContactRecord[];
+    }
+  }
+
+  const linkedContactRows = relationships
+    .map((relationship) => {
+      const contact = linkedContacts.find(
+        (item) => item.id === relationship.contact_id,
+      );
+
+      if (!contact) {
+        return null;
+      }
+
+      return {
+        ...contact,
+        relationship_type: relationship.relationship_type,
+        is_primary: relationship.is_primary,
+      };
+    })
+    .filter(
+      (
+        contact,
+      ): contact is ContactRecord & {
+        relationship_type: string | null;
+        is_primary: boolean | null;
+      } => contact !== null,
+    );
+
+  const estimatedEquity = calculateEstimatedEquity(
+    property.estimated_value,
+    property.mortgage_balance,
+  );
+
+  return (
+    <div className="p-8">
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <Link
+              href="/properties"
+              className="mb-4 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+            >
+              ← Back to Properties
+            </Link>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-semibold text-white">
+                {property.property_address_line_1 || "Unnamed Property"}
+              </h1>
+
+              {property.property_status && (
+                <span className="rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-1 text-xs font-medium capitalize text-[#d4af37]">
+                  {formatLabel(property.property_status)}
+                </span>
+              )}
+            </div>
+
+            <p className="mt-2 text-gray-400">
+              {formatPropertyLocation(
+                property.property_city,
+                property.property_state,
+                property.property_postal_code,
+              )}
+            </p>
+          </div>
+
+          <Link
+            href={`/properties/${property.id}/edit`}
+            className="rounded-lg bg-[#d4af37] px-5 py-3 text-center text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+          >
+            Edit Property
+          </Link>
+        </div>
+
+        {/* Financial summary cards */}
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            label="Estimated Value"
+            value={formatCurrency(property.estimated_value)}
+          />
+
+          <SummaryCard
+            label="Asking Price"
+            value={formatCurrency(property.asking_price)}
+          />
+
+          <SummaryCard
+            label="Mortgage Balance"
+            value={formatCurrency(property.mortgage_balance)}
+          />
+
+          <SummaryCard
+            label="Estimated Equity"
+            value={formatCurrency(estimatedEquity)}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_370px]">
+          {/* Main column */}
+          <div className="space-y-6">
+            {/* Property Address */}
+            <SectionCard
+              title="Property Address"
+              description="The physical location associated with this property record."
+            >
+              <div className="text-sm leading-7 text-white">
+                <p>
+                  {property.property_address_line_1 || "—"}
+                </p>
+
+                {property.property_address_line_2 && (
+                  <p>{property.property_address_line_2}</p>
+                )}
+
+                <p>
+                  {formatPropertyLocation(
+                    property.property_city,
+                    property.property_state,
+                    property.property_postal_code,
+                  )}
+                </p>
+              </div>
+            </SectionCard>
+
+            {/* Property Details */}
+            <SectionCard
+              title="Property Details"
+              description="Physical characteristics and identifying information."
+            >
+              <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+                <DetailItem
+                  label="Property Type"
+                  value={formatLabel(property.property_type)}
+                />
+
+                <DetailItem
+                  label="Status"
+                  value={formatLabel(property.property_status)}
+                />
+
+                <DetailItem
+                  label="County"
+                  value={property.county}
+                />
+
+                <DetailItem
+                  label="Parcel Number"
+                  value={property.parcel_number}
+                />
+
+                <DetailItem
+                  label="Bedrooms"
+                  value={formatNumber(property.bedrooms)}
+                />
+
+                <DetailItem
+                  label="Bathrooms"
+                  value={formatNumber(property.bathrooms)}
+                />
+
+                <DetailItem
+                  label="Square Feet"
+                  value={
+                    property.square_feet !== null &&
+                    property.square_feet !== undefined
+                      ? Number(property.square_feet).toLocaleString("en-US")
+                      : null
+                  }
+                />
+
+                <DetailItem
+                  label="Year Built"
+                  value={formatNumber(property.year_built)}
+                />
+              </div>
+            </SectionCard>
+
+            {/* Financial Information */}
+            <SectionCard
+              title="Financial Information"
+              description="Property valuation, seller expectations, mortgage balance, and estimated equity."
+            >
+              <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+                <DetailItem
+                  label="Estimated Value"
+                  value={formatCurrency(property.estimated_value)}
+                />
+
+                <DetailItem
+                  label="Asking Price"
+                  value={formatCurrency(property.asking_price)}
+                />
+
+                <DetailItem
+                  label="Mortgage Balance"
+                  value={formatCurrency(property.mortgage_balance)}
+                />
+
+                <DetailItem
+                  label="Estimated Equity"
+                  value={formatCurrency(estimatedEquity)}
+                />
+              </div>
+            </SectionCard>
+
+            {/* Linked Contacts */}
+            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+              <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Linked Contacts
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    People and business relationships associated with this
+                    property.
+                  </p>
+                </div>
+
+                <PropertyContactManager
+                  propertyId={property.id}
+                  organizationId={membership.organization_id}
+                  contacts={allContacts}
+                  linkedContactIds={linkedContactIds}
+                />
+              </div>
+
+              {linkedContactRows.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#333333] bg-[#111111] px-5 py-10 text-center">
+                  <p className="text-sm text-gray-500">
+                    No contacts are currently linked to this property.
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-gray-600">
+                    Use the Link Contact button above to connect an existing
+                    RoseVault contact to this property.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {linkedContactRows.map((contact) => {
+                    const fullName =
+                      [contact.first_name, contact.last_name]
+                        .filter(Boolean)
+                        .join(" ") || "Unnamed Contact";
+
+                    const displayPhone =
+                      contact.primary_phone || contact.secondary_phone;
+
+                    return (
+                      <div
+                        key={contact.id}
+                        className="flex flex-col gap-4 rounded-xl border border-[#2a2a2a] bg-[#111111] p-4 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/contacts/${contact.id}`}
+                              className="font-medium text-white transition hover:text-[#d4af37]"
+                            >
+                              {fullName}
+                            </Link>
+
+                            {contact.is_primary && (
+                              <span className="rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-2.5 py-1 text-xs font-medium text-[#d4af37]">
+                                Primary
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                            {contact.email && <span>{contact.email}</span>}
+
+                            {displayPhone && <span>{displayPhone}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {contact.relationship_type && (
+                            <span className="rounded-full border border-[#333333] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium capitalize text-gray-300">
+                              {formatLabel(contact.relationship_type)}
+                            </span>
+                          )}
+
+                          {contact.contact_type && (
+                            <span className="rounded-full border border-[#333333] px-3 py-1.5 text-xs capitalize text-gray-500">
+                              {formatLabel(contact.contact_type)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Notes */}
+            <SectionCard
+              title="Notes"
+              description="Property condition, seller situation, repair needs, and other important context."
+            >
+              {property.notes ? (
+                <p className="whitespace-pre-wrap text-sm leading-7 text-gray-300">
+                  {property.notes}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  No notes have been added to this property.
+                </p>
+              )}
+            </SectionCard>
+          </div>
+
+          {/* Sidebar */}
+          <aside className="space-y-6">
+            {/* Property Record */}
+            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+              <h2 className="text-xl font-semibold text-white">
+                Property Record
+              </h2>
+
+              <div className="mt-6 space-y-6">
+                <DetailItem
+                  label="Status"
+                  value={formatLabel(property.property_status)}
+                />
+
+                <DetailItem
+                  label="Property Type"
+                  value={formatLabel(property.property_type)}
+                />
+
+                <DetailItem
+                  label="County"
+                  value={property.county}
+                />
+
+                <DetailItem
+                  label="Parcel Number"
+                  value={property.parcel_number}
+                />
+
+                <DetailItem
+                  label="Created"
+                  value={formatDate(property.created_at)}
+                />
+
+                {property.updated_at && (
+                  <DetailItem
+                    label="Last Updated"
+                    value={formatDate(property.updated_at)}
+                  />
+                )}
+              </div>
+            </section>
+
+            {/* Quick Actions */}
+            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+              <h2 className="text-xl font-semibold text-white">
+                Quick Actions
+              </h2>
+
+              <div className="mt-5 space-y-3">
+                <Link
+                  href={`/properties/${property.id}/edit`}
+                  className="block w-full rounded-lg border border-[#333333] px-4 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                >
+                  Edit Property
+                </Link>
+
+                <Link
+                  href="/contacts/new"
+                  className="block w-full rounded-lg border border-[#333333] px-4 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                >
+                  Add New Contact
+                </Link>
+
+                <Link
+                  href="/properties"
+                  className="block w-full rounded-lg border border-[#333333] px-4 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                >
+                  View All Properties
+                </Link>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-5">
+      <p className="text-sm text-gray-400">{label}</p>
+
+      <p className="mt-3 text-2xl font-semibold text-[#d4af37]">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-white">{title}</h2>
+
+        <p className="mt-1 text-sm text-gray-500">{description}</p>
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+function DetailItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number | null | undefined;
+}) {
+  const hasValue =
+    value !== null &&
+    value !== undefined &&
+    String(value).trim() !== "";
+
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wider text-gray-600">
+        {label}
+      </p>
+
+      <p className="mt-2 text-sm text-white">
+        {hasValue ? value : "—"}
+      </p>
+    </div>
+  );
+}
+
+function formatCurrency(
+  value: number | string | null | undefined,
+): string {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(numericValue);
+}
+
+function formatNumber(
+  value: number | string | null | undefined,
+): string {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "—";
+  }
+
+  return numericValue.toLocaleString("en-US");
+}
+
+function calculateEstimatedEquity(
+  estimatedValue: number | string | null | undefined,
+  mortgageBalance: number | string | null | undefined,
+): number | null {
+  if (
+    estimatedValue === null ||
+    estimatedValue === undefined ||
+    estimatedValue === ""
+  ) {
+    return null;
+  }
+
+  const value = Number(estimatedValue);
+  const mortgage =
+    mortgageBalance === null ||
+    mortgageBalance === undefined ||
+    mortgageBalance === ""
+      ? 0
+      : Number(mortgageBalance);
+
+  if (!Number.isFinite(value) || !Number.isFinite(mortgage)) {
+    return null;
+  }
+
+  return value - mortgage;
+}
+
+function formatPropertyLocation(
+  city: string | null | undefined,
+  state: string | null | undefined,
+  postalCode: string | null | undefined,
+): string {
+  const cityState = [city, state].filter(Boolean).join(", ");
+
+  const location = [cityState, postalCode].filter(Boolean).join(" ");
+
+  return location || "Location not provided";
+}
+
+function formatLabel(value: string | null | undefined): string {
+  if (!value) {
+    return "—";
+  }
+
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 }
 </file>
 

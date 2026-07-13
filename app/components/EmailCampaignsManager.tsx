@@ -488,7 +488,7 @@ export default function EmailCampaignsManager({
       {/* RoseVault delete confirmation modal */}
       {campaignToDelete && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
+          className="fixed inset-0 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-campaign-title"
@@ -536,7 +536,7 @@ export default function EmailCampaignsManager({
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-gray-400">
-                You're about to permanently delete:
+                You&apos;re about to permanently delete:
               </p>
 
               {/* Campaign preview */}

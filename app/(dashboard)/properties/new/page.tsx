@@ -309,7 +309,7 @@ export default function AddPropertyPage() {
               />
 
               <p className="mt-2 text-xs text-gray-600">
-                We're keeping this field open until the allowed property-type
+                We&apos;re keeping this field open until the allowed property-type
                 values in the live database are verified.
               </p>
             </div>

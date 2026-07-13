@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import PropertyContactManager from "@/app/components/PropertyContactManager";
 import { createClient } from "@/lib/supabase/server";
+import PropertyRelationshipActions from "@/app/components/PropertyRelationshipActions";
 
 type PropertyProfilePageProps = {
   params: Promise<{
@@ -59,7 +60,8 @@ export default async function PropertyProfilePage({
   // Load the property
   const { data: property, error: propertyError } = await supabase
     .from("properties")
-    .select(`
+    .select(
+      `
       id,
       organization_id,
       property_address_line_1,
@@ -81,7 +83,8 @@ export default async function PropertyProfilePage({
       notes,
       created_at,
       updated_at
-    `)
+    `,
+    )
     .eq("id", propertyId)
     .eq("organization_id", membership.organization_id)
     .maybeSingle();
@@ -102,17 +105,20 @@ export default async function PropertyProfilePage({
   ] = await Promise.all([
     supabase
       .from("contact_property_relationships")
-      .select(`
+      .select(
+        `
         contact_id,
         relationship_type,
         is_primary
-      `)
+      `,
+      )
       .eq("organization_id", membership.organization_id)
       .eq("property_id", property.id),
 
     supabase
       .from("contacts")
-      .select(`
+      .select(
+        `
         id,
         first_name,
         last_name,
@@ -120,7 +126,8 @@ export default async function PropertyProfilePage({
         primary_phone,
         secondary_phone,
         contact_type
-      `)
+      `,
+      )
       .eq("organization_id", membership.organization_id)
       .order("first_name", { ascending: true })
       .order("last_name", { ascending: true }),
@@ -153,7 +160,8 @@ export default async function PropertyProfilePage({
   if (linkedContactIds.length > 0) {
     const { data, error } = await supabase
       .from("contacts")
-      .select(`
+      .select(
+        `
         id,
         first_name,
         last_name,
@@ -161,7 +169,8 @@ export default async function PropertyProfilePage({
         primary_phone,
         secondary_phone,
         contact_type
-      `)
+      `,
+      )
       .eq("organization_id", membership.organization_id)
       .in("id", linkedContactIds);
 
@@ -276,9 +285,7 @@ export default async function PropertyProfilePage({
               description="The physical location associated with this property record."
             >
               <div className="text-sm leading-7 text-white">
-                <p>
-                  {property.property_address_line_1 || "—"}
-                </p>
+                <p>{property.property_address_line_1 || "—"}</p>
 
                 {property.property_address_line_2 && (
                   <p>{property.property_address_line_2}</p>
@@ -310,10 +317,7 @@ export default async function PropertyProfilePage({
                   value={formatLabel(property.property_status)}
                 />
 
-                <DetailItem
-                  label="County"
-                  value={property.county}
-                />
+                <DetailItem label="County" value={property.county} />
 
                 <DetailItem
                   label="Parcel Number"
@@ -393,7 +397,7 @@ export default async function PropertyProfilePage({
                   propertyId={property.id}
                   organizationId={membership.organization_id}
                   contacts={allContacts}
-                  linkedContactIds={linkedContactIds}
+                  relationships={relationships}
                 />
               </div>
 
@@ -447,18 +451,29 @@ export default async function PropertyProfilePage({
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                          {contact.relationship_type && (
-                            <span className="rounded-full border border-[#333333] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium capitalize text-gray-300">
-                              {formatLabel(contact.relationship_type)}
-                            </span>
-                          )}
+                        <div className="flex flex-col items-start gap-3 sm:items-end">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {contact.relationship_type && (
+                              <span className="rounded-full border border-[#333333] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium capitalize text-gray-300">
+                                {formatLabel(contact.relationship_type)}
+                              </span>
+                            )}
 
-                          {contact.contact_type && (
-                            <span className="rounded-full border border-[#333333] px-3 py-1.5 text-xs capitalize text-gray-500">
-                              {formatLabel(contact.contact_type)}
-                            </span>
-                          )}
+                            {contact.contact_type && (
+                              <span className="rounded-full border border-[#333333] px-3 py-1.5 text-xs capitalize text-gray-500">
+                                {formatLabel(contact.contact_type)}
+                              </span>
+                            )}
+                          </div>
+
+                          <PropertyRelationshipActions
+                            propertyId={property.id}
+                            contactId={contact.id}
+                            organizationId={membership.organization_id}
+                            contactName={fullName}
+                            currentRelationshipType={contact.relationship_type}
+                            currentIsPrimary={contact.is_primary}
+                          />
                         </div>
                       </div>
                     );
@@ -503,10 +518,7 @@ export default async function PropertyProfilePage({
                   value={formatLabel(property.property_type)}
                 />
 
-                <DetailItem
-                  label="County"
-                  value={property.county}
-                />
+                <DetailItem label="County" value={property.county} />
 
                 <DetailItem
                   label="Parcel Number"
@@ -563,20 +575,12 @@ export default async function PropertyProfilePage({
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-5">
       <p className="text-sm text-gray-400">{label}</p>
 
-      <p className="mt-3 text-2xl font-semibold text-[#d4af37]">
-        {value}
-      </p>
+      <p className="mt-3 text-2xl font-semibold text-[#d4af37]">{value}</p>
     </div>
   );
 }
@@ -611,26 +615,18 @@ function DetailItem({
   value: string | number | null | undefined;
 }) {
   const hasValue =
-    value !== null &&
-    value !== undefined &&
-    String(value).trim() !== "";
+    value !== null && value !== undefined && String(value).trim() !== "";
 
   return (
     <div>
-      <p className="text-xs uppercase tracking-wider text-gray-600">
-        {label}
-      </p>
+      <p className="text-xs uppercase tracking-wider text-gray-600">{label}</p>
 
-      <p className="mt-2 text-sm text-white">
-        {hasValue ? value : "—"}
-      </p>
+      <p className="mt-2 text-sm text-white">{hasValue ? value : "—"}</p>
     </div>
   );
 }
 
-function formatCurrency(
-  value: number | string | null | undefined,
-): string {
+function formatCurrency(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") {
     return "—";
   }
@@ -648,9 +644,7 @@ function formatCurrency(
   }).format(numericValue);
 }
 
-function formatNumber(
-  value: number | string | null | undefined,
-): string {
+function formatNumber(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") {
     return "—";
   }

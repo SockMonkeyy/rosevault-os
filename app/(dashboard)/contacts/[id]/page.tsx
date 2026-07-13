@@ -3,6 +3,24 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ContactGroupsTags from "@/app/components/ContactGroupsTags";
 
+type ContactPropertyRelationship = {
+  property_id: string;
+  relationship_type: string | null;
+  is_primary: boolean | null;
+};
+
+type PropertyRecord = {
+  id: string;
+  property_address_line_1: string | null;
+  property_address_line_2: string | null;
+  property_city: string | null;
+  property_state: string | null;
+  property_postal_code: string | null;
+  property_type: string | null;
+  property_status: string | null;
+  estimated_value: number | string | null;
+};
+
 export default async function ContactProfilePage({
   params,
 }: {
@@ -45,6 +63,7 @@ export default async function ContactProfilePage({
     { data: tags },
     { data: groupMemberships },
     { data: tagAssignments },
+    { data: propertyRelationshipsData, error: propertyRelationshipsError },
   ] = await Promise.all([
     supabase
       .from("contact_groups")
@@ -69,13 +88,92 @@ export default async function ContactProfilePage({
       .select("tag_id")
       .eq("organization_id", membership.organization_id)
       .eq("contact_id", contact.id),
+
+    supabase
+      .from("contact_property_relationships")
+      .select(`
+        property_id,
+        relationship_type,
+        is_primary
+      `)
+      .eq("organization_id", membership.organization_id)
+      .eq("contact_id", contact.id),
   ]);
+
+  if (propertyRelationshipsError) {
+    console.error(
+      "Error loading contact property relationships:",
+      propertyRelationshipsError,
+    );
+  }
 
   const assignedGroupIds =
     groupMemberships?.map((membership) => membership.group_id) ?? [];
 
   const assignedTagIds =
     tagAssignments?.map((assignment) => assignment.tag_id) ?? [];
+
+  const propertyRelationships = (propertyRelationshipsData ??
+    []) as ContactPropertyRelationship[];
+
+  const linkedPropertyIds = propertyRelationships.map(
+    (relationship) => relationship.property_id,
+  );
+
+  let linkedProperties: PropertyRecord[] = [];
+
+  if (linkedPropertyIds.length > 0) {
+    const { data: linkedPropertiesData, error: linkedPropertiesError } =
+      await supabase
+        .from("properties")
+        .select(`
+          id,
+          property_address_line_1,
+          property_address_line_2,
+          property_city,
+          property_state,
+          property_postal_code,
+          property_type,
+          property_status,
+          estimated_value
+        `)
+        .eq("organization_id", membership.organization_id)
+        .in("id", linkedPropertyIds);
+
+    if (linkedPropertiesError) {
+      console.error(
+        "Error loading properties linked to contact:",
+        linkedPropertiesError,
+      );
+    } else {
+      linkedProperties = (linkedPropertiesData ?? []) as PropertyRecord[];
+    }
+  }
+
+  const linkedPropertyRows = propertyRelationships
+    .map((relationship) => {
+      const property = linkedProperties.find(
+        (item) => item.id === relationship.property_id,
+      );
+
+      if (!property) {
+        return null;
+      }
+
+      return {
+        ...property,
+        relationship_type: relationship.relationship_type,
+        is_primary: relationship.is_primary,
+      };
+    })
+    .filter(
+      (
+        property,
+      ): property is PropertyRecord & {
+        relationship_type: string | null;
+        is_primary: boolean | null;
+      } => property !== null,
+    );
 
   const fullName =
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
@@ -87,10 +185,10 @@ export default async function ContactProfilePage({
 
   const hasSpouseInfo = Boolean(
     contact.spouse_first_name ||
-    contact.spouse_last_name ||
-    contact.spouse_email ||
-    contact.spouse_cell_phone ||
-    contact.spouse_business_phone,
+      contact.spouse_last_name ||
+      contact.spouse_email ||
+      contact.spouse_primary_phone ||
+      contact.spouse_secondary_phone,
   );
 
   const mailingAddress = formatAddress(
@@ -103,10 +201,10 @@ export default async function ContactProfilePage({
 
   const hasPropertyAddress = Boolean(
     contact.property_address_line_1 ||
-    contact.property_address_line_2 ||
-    contact.property_city ||
-    contact.property_state ||
-    contact.property_postal_code,
+      contact.property_address_line_2 ||
+      contact.property_city ||
+      contact.property_state ||
+      contact.property_postal_code,
   );
 
   const propertyAddress = formatAddress(
@@ -192,14 +290,14 @@ export default async function ContactProfilePage({
 
                 <PhoneItem
                   label="Primary Phone"
-                  value={contact.cell_phone}
-                  type={contact.cell_phone_type}
+                  value={contact.primary_phone}
+                  type={contact.primary_phone_type}
                 />
 
                 <PhoneItem
                   label="Secondary Phone"
-                  value={contact.business_phone}
-                  type={contact.business_phone_type}
+                  value={contact.secondary_phone}
+                  type={contact.secondary_phone_type}
                 />
 
                 <InfoItem
@@ -207,6 +305,110 @@ export default async function ContactProfilePage({
                   value={contact.preferred_contact_method}
                 />
               </div>
+            </section>
+
+            {/* Linked Properties */}
+            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+              <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Linked Properties
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Properties associated with this contact through RoseVault
+                    relationship records.
+                  </p>
+                </div>
+
+                <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-[#d4af37]/10 px-3 text-sm font-semibold text-[#d4af37]">
+                  {linkedPropertyRows.length}
+                </span>
+              </div>
+
+              {linkedPropertyRows.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#333333] bg-[#111111] px-5 py-10 text-center">
+                  <p className="text-sm text-gray-500">
+                    No properties are currently linked to this contact.
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-gray-600">
+                    Link this contact from a Property Profile to create a
+                    property relationship.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {linkedPropertyRows.map((property) => {
+                    const address =
+                      property.property_address_line_1 || "Unnamed Property";
+
+                    const location = formatPropertyLocation(
+                      property.property_city,
+                      property.property_state,
+                      property.property_postal_code,
+                    );
+
+                    return (
+                      <Link
+                        key={property.id}
+                        href={`/properties/${property.id}`}
+                        className="group block rounded-xl border border-[#2a2a2a] bg-[#111111] p-5 transition hover:border-[#d4af37]/50 hover:bg-[#131313]"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-medium text-white transition group-hover:text-[#d4af37]">
+                                {address}
+                              </h3>
+
+                              {property.is_primary && (
+                                <span className="rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-2.5 py-1 text-xs font-medium text-[#d4af37]">
+                                  Primary
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="mt-2 text-sm text-gray-500">
+                              {location}
+                            </p>
+
+                            {property.estimated_value !== null &&
+                              property.estimated_value !== undefined && (
+                                <p className="mt-2 text-sm font-medium text-gray-300">
+                                  Estimated Value:{" "}
+                                  <span className="text-[#d4af37]">
+                                    {formatCurrency(property.estimated_value)}
+                                  </span>
+                                </p>
+                              )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {property.relationship_type && (
+                              <span className="rounded-full border border-[#333333] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium text-gray-300">
+                                {formatLabel(property.relationship_type)}
+                              </span>
+                            )}
+
+                            {property.property_status && (
+                              <span className="rounded-full border border-[#333333] px-3 py-1.5 text-xs text-gray-500">
+                                {formatLabel(property.property_status)}
+                              </span>
+                            )}
+
+                            {property.property_type && (
+                              <span className="rounded-full border border-[#333333] px-3 py-1.5 text-xs text-gray-500">
+                                {formatLabel(property.property_type)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </section>
 
             {/* Related Records */}
@@ -217,19 +419,12 @@ export default async function ContactProfilePage({
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  Properties, transactions, tasks, documents, and other records
-                  connected to this contact.
+                  Transactions, tasks, documents, and other records connected
+                  to this contact.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <RelatedRecordCard
-                  title="Properties"
-                  description="Properties associated with this contact."
-                  count={0}
-                  status="Coming soon"
-                />
-
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <RelatedRecordCard
                   title="Transactions"
                   description="Purchase, sale, wholesale, and other transaction records."
@@ -282,14 +477,14 @@ export default async function ContactProfilePage({
 
                   <PhoneItem
                     label="Primary Phone"
-                    value={contact.spouse_cell_phone}
-                    type={contact.spouse_cell_phone_type}
+                    value={contact.spouse_primary_phone}
+                    type={contact.spouse_primary_phone_type}
                   />
 
                   <PhoneItem
                     label="Secondary Phone"
-                    value={contact.spouse_business_phone}
-                    type={contact.spouse_business_phone_type}
+                    value={contact.spouse_secondary_phone}
+                    type={contact.spouse_secondary_phone_type}
                   />
                 </div>
               </section>
@@ -319,7 +514,7 @@ export default async function ContactProfilePage({
                   </h2>
 
                   <p className="mt-1 text-sm text-gray-500">
-                    The property address associated with this contact.
+                    The property address stored directly on this contact record.
                   </p>
                 </div>
 
@@ -403,6 +598,15 @@ export default async function ContactProfilePage({
                 >
                   Edit Contact
                 </Link>
+
+                {linkedPropertyRows.length > 0 && (
+                  <Link
+                    href={`/properties/${linkedPropertyRows[0].id}`}
+                    className="block w-full rounded-lg border border-[#333333] px-4 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                  >
+                    View Linked Property
+                  </Link>
+                )}
               </div>
             </section>
 
@@ -614,4 +818,35 @@ function formatAddress(
     .join(", ");
 
   return [...streetLines, cityStateZip].filter(Boolean).join("\n");
+}
+
+function formatPropertyLocation(
+  city: string | null | undefined,
+  state: string | null | undefined,
+  postalCode: string | null | undefined,
+): string {
+  const cityState = [city, state].filter(Boolean).join(", ");
+  const location = [cityState, postalCode].filter(Boolean).join(" ");
+
+  return location || "Location not provided";
+}
+
+function formatCurrency(
+  value: number | string | null | undefined,
+): string {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(numericValue);
 }

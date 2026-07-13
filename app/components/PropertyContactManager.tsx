@@ -14,11 +14,17 @@ type Contact = {
   contact_type: string | null;
 };
 
+type PropertyRelationship = {
+  contact_id: string;
+  relationship_type: string | null;
+  is_primary: boolean | null;
+};
+
 type Props = {
   propertyId: string;
   organizationId: string;
   contacts: Contact[];
-  linkedContactIds: string[];
+  relationships: PropertyRelationship[];
 };
 
 const RELATIONSHIP_OPTIONS = [
@@ -38,7 +44,7 @@ export default function PropertyContactManager({
   propertyId,
   organizationId,
   contacts,
-  linkedContactIds,
+  relationships,
 }: Props) {
   const router = useRouter();
 
@@ -51,9 +57,9 @@ export default function PropertyContactManager({
   const [errorMessage, setErrorMessage] = useState("");
 
   const linkedIds = useMemo(
-    () => new Set(linkedContactIds),
-    [linkedContactIds],
-  );
+  () => new Set(relationships.map((relationship) => relationship.contact_id)),
+  [relationships],
+);
 
   const availableContacts = useMemo(() => {
     const query = search.trim().toLowerCase();
