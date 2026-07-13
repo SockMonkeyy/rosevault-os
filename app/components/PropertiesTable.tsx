@@ -177,7 +177,7 @@ export default function PropertiesTable({
       ) : (
         <section className="overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#151515]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px]">
+            <table className="w-full `min-w-275`">
               <thead className="bg-[#111111]">
                 <tr className="text-left text-xs uppercase tracking-wider text-gray-500">
                   <th className="px-5 py-4 font-medium">

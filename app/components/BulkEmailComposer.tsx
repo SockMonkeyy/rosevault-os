@@ -369,7 +369,7 @@ export default function BulkEmailComposer({
             </button>
           </div>
 
-          <div className="mt-5 max-h-[650px] space-y-2 overflow-y-auto pr-1">
+          <div className="mt-5 max-h-162.5 space-y-2 overflow-y-auto pr-1">
             {filteredContacts.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[#333333] p-6 text-center text-sm text-gray-500">
                 No contacts with email addresses found.
