@@ -47,7 +47,7 @@ export default function ContactGroupsTags({
     setSelectedGroups((current) =>
       current.includes(groupId)
         ? current.filter((id) => id !== groupId)
-        : [...current, groupId]
+        : [...current, groupId],
     );
   }
 
@@ -55,7 +55,7 @@ export default function ContactGroupsTags({
     setSelectedTags((current) =>
       current.includes(tagId)
         ? current.filter((id) => id !== tagId)
-        : [...current, tagId]
+        : [...current, tagId],
     );
   }
 
@@ -132,27 +132,43 @@ export default function ContactGroupsTags({
   }
 
   return (
-    <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold">
+    <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
+      {/* Header */}
+      <div className="mb-7">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+          Contact Classification
+        </p>
+
+        <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
           Groups & Tags
         </h2>
 
-        <p className="mt-1 text-sm leading-6 text-gray-500">
-          Organize this contact for filtering, marketing, workflows,
-          and future automations.
+        <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
+          Organize this contact for filtering, marketing, workflows, and future
+          automations.
         </p>
       </div>
 
+      {/* Groups */}
       <div>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Groups
-        </p>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8F8578]">
+            Groups
+          </p>
+
+          {selectedGroups.length > 0 && (
+            <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#B7832F]">
+              {selectedGroups.length} selected
+            </span>
+          )}
+        </div>
 
         {groups.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            No groups have been created yet.
-          </p>
+          <div className="rounded-lg border border-dashed border-[#E3DCD0] bg-[#12110F]/[0.01] px-4 py-5 text-center">
+            <p className="text-xs text-[#7C7265]">
+              No groups have been created yet.
+            </p>
+          </div>
         ) : (
           <div className="flex flex-wrap gap-2">
             {groups.map((group) => {
@@ -163,13 +179,17 @@ export default function ContactGroupsTags({
                   key={group.id}
                   type="button"
                   onClick={() => toggleGroup(group.id)}
-                  className={`rounded-full border px-3 py-2 text-sm transition ${
+                  aria-pressed={selected}
+                  className={`cursor-pointer rounded-full border px-3 py-2 text-[11px] font-medium tracking-wide transition-all duration-300 ${
                     selected
-                      ? "border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]"
-                      : "border-[#333333] text-gray-400 hover:border-[#d4af37]/60 hover:text-[#d4af37]"
+                      ? "border-[#D8B66A]/60 bg-[#B7832F]/10 text-[#916520] shadow-sm"
+                      : "border-[#E3DCD0] bg-white/60 text-[#5F574D] hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F]"
                   }`}
                 >
-                  {selected ? "✓ " : ""}
+                  {selected && (
+                    <span className="mr-1 text-[#B7832F]">✓</span>
+                  )}
+
                   {group.name}
                 </button>
               );
@@ -178,15 +198,26 @@ export default function ContactGroupsTags({
         )}
       </div>
 
-      <div className="mt-7">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Tags
-        </p>
+      {/* Tags */}
+      <div className="mt-7 border-t border-[#EDE7DC]/70 pt-6">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8F8578]">
+            Tags
+          </p>
+
+          {selectedTags.length > 0 && (
+            <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#B7832F]">
+              {selectedTags.length} selected
+            </span>
+          )}
+        </div>
 
         {tags.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            No tags have been created yet.
-          </p>
+          <div className="rounded-lg border border-dashed border-[#E3DCD0] bg-[#12110F]/[0.01] px-4 py-5 text-center">
+            <p className="text-xs text-[#7C7265]">
+              No tags have been created yet.
+            </p>
+          </div>
         ) : (
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => {
@@ -197,13 +228,17 @@ export default function ContactGroupsTags({
                   key={tag.id}
                   type="button"
                   onClick={() => toggleTag(tag.id)}
-                  className={`rounded-full border px-3 py-2 text-sm transition ${
+                  aria-pressed={selected}
+                  className={`cursor-pointer rounded-full border px-3 py-2 text-[11px] font-medium tracking-wide transition-all duration-300 ${
                     selected
-                      ? "border-[#d4af37] bg-[#d4af37]/15 text-[#d4af37]"
-                      : "border-[#333333] text-gray-400 hover:border-[#d4af37]/60 hover:text-[#d4af37]"
+                      ? "border-[#D8B66A]/60 bg-[#B7832F]/10 text-[#916520] shadow-sm"
+                      : "border-[#E3DCD0] bg-white/60 text-[#5F574D] hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F]"
                   }`}
                 >
-                  {selected ? "✓ " : ""}
+                  {selected && (
+                    <span className="mr-1 text-[#B7832F]">✓</span>
+                  )}
+
                   {tag.name}
                 </button>
               );
@@ -212,25 +247,27 @@ export default function ContactGroupsTags({
         )}
       </div>
 
+      {/* Status Message */}
       {message && (
         <div
-          className={`mt-6 rounded-lg border px-4 py-3 text-sm ${
-            message.includes("successfully")
-              ? "border-green-900/50 bg-green-950/30 text-green-300"
-              : "border-red-900/50 bg-red-950/30 text-red-300"
+          className={`mt-6 rounded-md border px-4 py-3 text-xs leading-relaxed ${
+            message.toLowerCase().includes("successfully")
+              ? "border-emerald-200 bg-emerald-50/70 text-emerald-700"
+              : "border-red-200 bg-red-50/70 text-red-700"
           }`}
         >
           {message}
         </div>
       )}
 
+      {/* Save Action */}
       <button
         type="button"
         onClick={handleSave}
         disabled={isSaving}
-        className="mt-6 w-full rounded-lg bg-[#d4af37] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-6 w-full cursor-pointer rounded-md bg-[#0D0C0A] px-4 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isSaving ? "Saving..." : "Save Groups & Tags"}
+        {isSaving ? "Saving Changes..." : "Save Groups & Tags"}
       </button>
     </section>
   );

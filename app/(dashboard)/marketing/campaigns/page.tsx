@@ -44,33 +44,35 @@ export default async function CampaignsPage() {
     console.error("Error loading email campaigns:", error);
   }
 
-  return (
-    <div className="p-8">
+    return (
+    <div className="px-6 py-10 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        {/* Page Header */}
+        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d4af37]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
               RoseVault Communications
             </p>
 
-            <h1 className="mt-2 text-3xl font-semibold text-white">
+            <h1 className="mt-2 font-serif text-3xl font-normal tracking-wide text-[#29231D]">
               Email Campaigns
             </h1>
 
-            <p className="mt-2 max-w-3xl text-gray-400">
-              Manage draft, scheduled, active, and completed email
-              campaigns from one place.
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7C7265]">
+              Manage draft, scheduled, active, and completed email campaigns
+              from one place.
             </p>
           </div>
 
           <Link
             href="/email/compose"
-            className="rounded-lg bg-[#d4af37] px-5 py-3 text-center text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+            className="cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-3 text-center text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
           >
             Create Campaign
           </Link>
         </div>
 
+        {/* Campaign Manager */}
         <EmailCampaignsManager
           initialCampaigns={campaigns ?? []}
           organizationId={membership.organization_id}

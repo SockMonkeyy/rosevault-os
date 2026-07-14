@@ -41,9 +41,7 @@ export default function GroupsTagsManager({
   const [groupMessage, setGroupMessage] = useState("");
   const [tagMessage, setTagMessage] = useState("");
 
-  async function handleCreateGroup(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleCreateGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedName = groupName.trim();
@@ -81,9 +79,7 @@ export default function GroupsTagsManager({
 
     if (error) {
       if (error.code === "23505") {
-        setGroupMessage(
-          "A group with that name already exists."
-        );
+        setGroupMessage("A group with that name already exists.");
       } else {
         setGroupMessage(error.message);
       }
@@ -93,9 +89,7 @@ export default function GroupsTagsManager({
     }
 
     setGroups((current) =>
-      [...current, data].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
+      [...current, data].sort((a, b) => a.name.localeCompare(b.name)),
     );
 
     setGroupName("");
@@ -106,9 +100,7 @@ export default function GroupsTagsManager({
     router.refresh();
   }
 
-  async function handleCreateTag(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleCreateTag(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedName = tagName.trim();
@@ -145,9 +137,7 @@ export default function GroupsTagsManager({
 
     if (error) {
       if (error.code === "23505") {
-        setTagMessage(
-          "A tag with that name already exists."
-        );
+        setTagMessage("A tag with that name already exists.");
       } else {
         setTagMessage(error.message);
       }
@@ -157,9 +147,7 @@ export default function GroupsTagsManager({
     }
 
     setTags((current) =>
-      [...current, data].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
+      [...current, data].sort((a, b) => a.name.localeCompare(b.name)),
     );
 
     setTagName("");
@@ -171,7 +159,7 @@ export default function GroupsTagsManager({
 
   async function handleDeleteGroup(group: Group) {
     const confirmed = window.confirm(
-      `Delete the group "${group.name}"? Contacts will not be deleted, but their membership in this group will be removed.`
+      `Delete the group "${group.name}"? Contacts will not be deleted, but their membership in this group will be removed.`,
     );
 
     if (!confirmed) {
@@ -194,7 +182,7 @@ export default function GroupsTagsManager({
     }
 
     setGroups((current) =>
-      current.filter((item) => item.id !== group.id)
+      current.filter((item) => item.id !== group.id),
     );
 
     setGroupMessage("Group deleted successfully.");
@@ -203,7 +191,7 @@ export default function GroupsTagsManager({
 
   async function handleDeleteTag(tag: Tag) {
     const confirmed = window.confirm(
-      `Delete the tag "${tag.name}"? Contacts will not be deleted, but this tag will be removed from them.`
+      `Delete the tag "${tag.name}"? Contacts will not be deleted, but this tag will be removed from them.`,
     );
 
     if (!confirmed) {
@@ -226,7 +214,7 @@ export default function GroupsTagsManager({
     }
 
     setTags((current) =>
-      current.filter((item) => item.id !== tag.id)
+      current.filter((item) => item.id !== tag.id),
     );
 
     setTagMessage("Tag deleted successfully.");
@@ -234,114 +222,116 @@ export default function GroupsTagsManager({
   }
 
   const inputClasses =
-    "w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
+    "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#B7AEA2] hover:border-[#D5CABB] focus:border-[#B7832F]/60 focus:bg-white focus:ring-2 focus:ring-[#B7832F]/10";
+
+  const labelClasses =
+    "mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]";
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-
+    <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
       {/* Groups */}
-      <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold">
-            Contact Groups
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-gray-500">
-            Organize contacts into broader lists for filtering,
-            marketing, workflows, and relationship management.
+      <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
+        <div className="mb-7">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+            Relationship Collections
           </p>
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
+                Contact Groups
+              </h2>
+
+              <p className="mt-2 max-w-lg text-xs leading-relaxed text-[#7C7265]">
+                Organize contacts into broader lists for filtering, marketing,
+                workflows, and relationship management.
+              </p>
+            </div>
+
+            <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-[#171512] px-2.5 text-[10px] font-semibold tracking-wider text-[#D8B66A]">
+              {groups.length}
+            </span>
+          </div>
         </div>
 
-        <form
-          onSubmit={handleCreateGroup}
-          className="space-y-4"
-        >
+        <form onSubmit={handleCreateGroup} className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
-              Group name
-            </label>
+            <label className={labelClasses}>Group Name</label>
 
             <input
               type="text"
               value={groupName}
-              onChange={(event) =>
-                setGroupName(event.target.value)
-              }
+              onChange={(event) => setGroupName(event.target.value)}
               placeholder="Example: Birmingham Buyers"
               className={inputClasses}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
-              Description
-            </label>
+            <label className={labelClasses}>Description</label>
 
             <textarea
               value={groupDescription}
-              onChange={(event) =>
-                setGroupDescription(event.target.value)
-              }
+              onChange={(event) => setGroupDescription(event.target.value)}
               rows={3}
               placeholder="Optional description..."
-              className={inputClasses}
+              className={`${inputClasses} resize-none`}
             />
           </div>
 
           <button
             type="submit"
             disabled={isCreatingGroup}
-            className="w-full rounded-lg bg-[#d4af37] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full cursor-pointer rounded-md bg-[#0D0C0A] px-4 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isCreatingGroup
-              ? "Creating group..."
-              : "+ Create Group"}
+            {isCreatingGroup ? "Creating Group..." : "+ Create Group"}
           </button>
         </form>
 
-        {groupMessage && (
-          <Message text={groupMessage} />
-        )}
+        {groupMessage && <Message text={groupMessage} />}
 
-        <div className="mt-8 border-t border-[#2a2a2a] pt-6">
+        <div className="mt-8 border-t border-[#EDE7DC]/80 pt-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">
+            <h3 className="font-serif text-sm font-normal tracking-wide text-[#29231D]">
               Your Groups
             </h3>
 
-            <span className="text-sm text-gray-500">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#A89C8D]">
               {groups.length} total
             </span>
           </div>
 
           {groups.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-[#333333] p-5 text-center text-sm text-gray-500">
-              No groups created yet.
-            </p>
+            <div className="rounded-xl border border-dashed border-[#E3DCD0] bg-[#12110F]/[0.01] px-5 py-8 text-center">
+              <p className="text-xs text-[#7C7265]">
+                No groups created yet.
+              </p>
+
+              <p className="mt-1.5 text-[10px] leading-relaxed text-[#A89C8D]">
+                Create your first relationship collection above.
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {groups.map((group) => (
                 <div
                   key={group.id}
-                  className="flex items-start justify-between gap-4 rounded-xl border border-[#2a2a2a] bg-[#111111] p-4"
+                  className="group flex items-start justify-between gap-4 rounded-xl border border-[#EDE7DC] bg-white/50 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/30 hover:bg-white/80"
                 >
                   <div className="min-w-0">
-                    <p className="font-medium text-white">
+                    <p className="font-serif text-sm font-medium tracking-wide text-[#29231D] transition-colors duration-300 group-hover:text-[#B7832F]">
                       {group.name}
                     </p>
 
-                    <p className="mt-1 text-sm leading-5 text-gray-500">
-                      {group.description ||
-                        "No description provided."}
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-[#7C7265]">
+                      {group.description || "No description provided."}
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      handleDeleteGroup(group)
-                    }
-                    className="shrink-0 text-sm text-gray-600 transition hover:text-red-400"
+                    onClick={() => handleDeleteGroup(group)}
+                    className="shrink-0 cursor-pointer text-[10px] font-semibold uppercase tracking-wider text-[#A89C8D] transition-colors duration-300 hover:text-red-600"
                   >
                     Delete
                   </button>
@@ -353,34 +343,38 @@ export default function GroupsTagsManager({
       </section>
 
       {/* Tags */}
-      <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold">
-            Contact Tags
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-gray-500">
-            Add flexible labels for lead temperature,
-            opportunities, property interests, follow-up needs,
-            and other useful details.
+      <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
+        <div className="mb-7">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+            Flexible Classifications
           </p>
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
+                Contact Tags
+              </h2>
+
+              <p className="mt-2 max-w-lg text-xs leading-relaxed text-[#7C7265]">
+                Add flexible labels for lead temperature, opportunities,
+                property interests, follow-up needs, and other useful details.
+              </p>
+            </div>
+
+            <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-[#171512] px-2.5 text-[10px] font-semibold tracking-wider text-[#D8B66A]">
+              {tags.length}
+            </span>
+          </div>
         </div>
 
-        <form
-          onSubmit={handleCreateTag}
-          className="space-y-4"
-        >
+        <form onSubmit={handleCreateTag} className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
-              Tag name
-            </label>
+            <label className={labelClasses}>Tag Name</label>
 
             <input
               type="text"
               value={tagName}
-              onChange={(event) =>
-                setTagName(event.target.value)
-              }
+              onChange={(event) => setTagName(event.target.value)}
               placeholder="Example: Jefferson County"
               className={inputClasses}
             />
@@ -389,51 +383,51 @@ export default function GroupsTagsManager({
           <button
             type="submit"
             disabled={isCreatingTag}
-            className="w-full rounded-lg bg-[#d4af37] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full cursor-pointer rounded-md bg-[#0D0C0A] px-4 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isCreatingTag
-              ? "Creating tag..."
-              : "+ Create Tag"}
+            {isCreatingTag ? "Creating Tag..." : "+ Create Tag"}
           </button>
         </form>
 
-        {tagMessage && (
-          <Message text={tagMessage} />
-        )}
+        {tagMessage && <Message text={tagMessage} />}
 
-        <div className="mt-8 border-t border-[#2a2a2a] pt-6">
+        <div className="mt-8 border-t border-[#EDE7DC]/80 pt-6">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">
+            <h3 className="font-serif text-sm font-normal tracking-wide text-[#29231D]">
               Your Tags
             </h3>
 
-            <span className="text-sm text-gray-500">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#A89C8D]">
               {tags.length} total
             </span>
           </div>
 
           {tags.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-[#333333] p-5 text-center text-sm text-gray-500">
-              No tags created yet.
-            </p>
+            <div className="rounded-xl border border-dashed border-[#E3DCD0] bg-[#12110F]/[0.01] px-5 py-8 text-center">
+              <p className="text-xs text-[#7C7265]">
+                No tags created yet.
+              </p>
+
+              <p className="mt-1.5 text-[10px] leading-relaxed text-[#A89C8D]">
+                Create your first flexible classification above.
+              </p>
+            </div>
           ) : (
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2.5">
               {tags.map((tag) => (
                 <div
                   key={tag.id}
-                  className="flex items-center gap-2 rounded-full border border-[#333333] bg-[#111111] px-4 py-2"
+                  className="group flex items-center gap-2 rounded-full border border-[#E3DCD0] bg-white/60 px-3.5 py-2 transition-all duration-300 hover:border-[#D8B66A]/50 hover:bg-[#B7832F]/5"
                 >
-                  <span className="text-sm text-gray-300">
+                  <span className="text-[11px] font-medium tracking-wide text-[#5F574D] transition-colors duration-300 group-hover:text-[#B7832F]">
                     {tag.name}
                   </span>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      handleDeleteTag(tag)
-                    }
+                    onClick={() => handleDeleteTag(tag)}
                     aria-label={`Delete ${tag.name}`}
-                    className="text-xs text-gray-600 transition hover:text-red-400"
+                    className="cursor-pointer text-xs leading-none text-[#B7AEA2] transition-colors duration-300 hover:text-red-600"
                   >
                     ×
                   </button>
@@ -452,10 +446,10 @@ function Message({ text }: { text: string }) {
 
   return (
     <div
-      className={`mt-5 rounded-lg border px-4 py-3 text-sm ${
+      className={`mt-5 rounded-md border px-4 py-3 text-xs leading-relaxed ${
         isSuccess
-          ? "border-green-900/50 bg-green-950/30 text-green-300"
-          : "border-red-900/50 bg-red-950/30 text-red-300"
+          ? "border-emerald-200 bg-emerald-50/70 text-emerald-700"
+          : "border-red-200 bg-red-50/70 text-red-700"
       }`}
     >
       {text}

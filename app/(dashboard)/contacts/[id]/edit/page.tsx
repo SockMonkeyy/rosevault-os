@@ -225,50 +225,81 @@ export default function EditContactPage() {
     router.refresh();
   }
 
-  const inputClasses =
-    "w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
+   const inputClasses =
+    "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#A89C8D] hover:border-[#CFC5B6] focus:border-[#D8B66A] focus:bg-white focus:ring-2 focus:ring-[#D8B66A]/10";
 
-  const labelClasses = "mb-2 block text-sm font-medium text-gray-300";
+  const labelClasses =
+    "mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]";
+
+  const secondaryButtonClasses =
+    "cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-6 py-3 text-center text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]";
+
+  const primaryButtonClasses =
+    "cursor-pointer rounded-md bg-[#0D0C0A] px-6 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#0D0C0A] disabled:hover:text-[#D8B66A] disabled:hover:shadow-none";
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-8">
-        <p className="text-gray-400">Loading contact...</p>
+      <div className="flex min-h-[60vh] items-center justify-center px-8 py-10">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#E3DCD0] border-t-[#B7832F]" />
+
+          <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8F8578]">
+            Loading Contact
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="px-8 py-10">
+    <div className="px-6 py-10 lg:px-8">
       <div className="mx-auto max-w-5xl">
+        {/* Page Header */}
         <div className="mb-8">
           <Link
             href={`/contacts/${contactId}`}
-            className="mb-4 inline-block text-sm text-[#d4af37] hover:underline"
+            className="group inline-flex items-center gap-2 text-xs font-medium tracking-wide text-[#B7832F] transition-all duration-300 hover:-translate-x-0.5 hover:text-[#916520]"
           >
-            ← Back to Contact
+            <span
+              aria-hidden="true"
+              className="transition-transform duration-300 group-hover:-translate-x-0.5"
+            >
+              ←
+            </span>
+            Back to Contact
           </Link>
 
-          <h1 className="text-3xl font-semibold">Edit Contact</h1>
+          <div className="mt-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Relationship Record
+            </p>
 
-          <p className="mt-2 text-gray-400">
-            Update contact details, CRM information, spouse information, mailing
-            address, and notes.
-          </p>
+            <h1 className="mt-2 font-serif text-3xl font-normal tracking-wide text-[#29231D]">
+              Edit Contact
+            </h1>
+
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7C7265]">
+              Update contact details, CRM information, spouse information,
+              mailing and property addresses, and relationship notes.
+            </p>
+          </div>
         </div>
 
+        {/* Top Error Message */}
         {message && (
-          <div className="mb-6 rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+          <div className="mb-6 rounded-md border border-red-200 bg-red-50/70 px-4 py-3 text-xs leading-relaxed text-red-700">
             {message}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Information */}
           <FormSection
+            eyebrow="Primary Record"
             title="Basic Information"
-            description="Update the contact's primary information."
+            description="Update the contact's primary information and communication details."
           >
-            <Field label="First name *">
+            <Field label="First Name *">
               <input
                 type="text"
                 required
@@ -278,7 +309,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Last name">
+            <Field label="Last Name">
               <input
                 type="text"
                 value={lastName}
@@ -287,7 +318,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Email address">
+            <Field label="Email Address">
               <input
                 type="email"
                 value={email}
@@ -296,8 +327,8 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Primary phone">
-              <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-3">
+            <Field label="Primary Phone">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={cellPhoneType}
                   onChange={(event) => setCellPhoneType(event.target.value)}
@@ -319,8 +350,8 @@ export default function EditContactPage() {
               </div>
             </Field>
 
-            <Field label="Secondary phone">
-              <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-3">
+            <Field label="Secondary Phone">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={businessPhoneType}
                   onChange={(event) => setBusinessPhoneType(event.target.value)}
@@ -343,11 +374,13 @@ export default function EditContactPage() {
             </Field>
           </FormSection>
 
+          {/* Spouse Information */}
           <FormSection
+            eyebrow="Household Relationship"
             title="Spouse Information"
-            description="Optional contact information for the contact's spouse."
+            description="Optional contact and communication information for the contact's spouse."
           >
-            <Field label="Spouse first name">
+            <Field label="Spouse First Name">
               <input
                 type="text"
                 value={spouseFirstName}
@@ -356,7 +389,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Spouse last name">
+            <Field label="Spouse Last Name">
               <input
                 type="text"
                 value={spouseLastName}
@@ -365,7 +398,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Spouse email">
+            <Field label="Spouse Email">
               <input
                 type="email"
                 value={spouseEmail}
@@ -374,8 +407,8 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Spouse primary phone">
-              <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-3">
+            <Field label="Spouse Primary Phone">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={spouseCellPhoneType}
                   onChange={(event) =>
@@ -399,8 +432,8 @@ export default function EditContactPage() {
               </div>
             </Field>
 
-            <Field label="Spouse secondary phone">
-              <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-3">
+            <Field label="Spouse Secondary Phone">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={spouseBusinessPhoneType}
                   onChange={(event) =>
@@ -427,11 +460,13 @@ export default function EditContactPage() {
             </Field>
           </FormSection>
 
+          {/* CRM Classification */}
           <FormSection
+            eyebrow="Relationship Intelligence"
             title="CRM Classification"
-            description="Categorize this contact for filtering, workflows, and future automations."
+            description="Categorize this contact for filtering, workflows, marketing, and future RoseVault automations."
           >
-            <Field label="Contact type">
+            <Field label="Contact Type">
               <select
                 value={contactType}
                 onChange={(event) => setContactType(event.target.value)}
@@ -467,7 +502,7 @@ export default function EditContactPage() {
               </select>
             </Field>
 
-            <Field label="Lead source">
+            <Field label="Lead Source">
               <input
                 type="text"
                 value={leadSource}
@@ -477,7 +512,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Preferred contact method">
+            <Field label="Preferred Contact Method">
               <select
                 value={preferredContactMethod}
                 onChange={(event) =>
@@ -493,9 +528,11 @@ export default function EditContactPage() {
             </Field>
           </FormSection>
 
+          {/* Company Information */}
           <FormSection
+            eyebrow="Professional Profile"
             title="Company Information"
-            description="Optional professional or business details."
+            description="Optional professional, business, or organizational details."
           >
             <Field label="Company">
               <input
@@ -506,7 +543,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Job title">
+            <Field label="Job Title">
               <input
                 type="text"
                 value={jobTitle}
@@ -516,12 +553,14 @@ export default function EditContactPage() {
             </Field>
           </FormSection>
 
+          {/* Mailing Address */}
           <FormSection
+            eyebrow="Correspondence"
             title="Mailing Address"
-            description="Used for client records and future mailing-label generation."
+            description="Used for client records, correspondence, and mailing-label generation."
           >
             <div className="md:col-span-2">
-              <label className={labelClasses}>Address line 1</label>
+              <label className={labelClasses}>Address Line 1</label>
               <input
                 type="text"
                 value={addressLine1}
@@ -531,7 +570,7 @@ export default function EditContactPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className={labelClasses}>Address line 2</label>
+              <label className={labelClasses}>Address Line 2</label>
               <input
                 type="text"
                 value={addressLine2}
@@ -558,7 +597,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="ZIP / Postal code">
+            <Field label="ZIP / Postal Code">
               <input
                 type="text"
                 value={postalCode}
@@ -568,12 +607,14 @@ export default function EditContactPage() {
             </Field>
           </FormSection>
 
+          {/* Property Address */}
           <FormSection
+            eyebrow="Real Estate Relationship"
             title="Property Address"
-            description="The address of the property associated with this contact or real estate lead. This may be different from the contact's mailing address."
+            description="The property associated with this contact or real estate lead. This may be different from the contact's mailing address."
           >
             <div className="md:col-span-2">
-              <label className={labelClasses}>Property address line 1</label>
+              <label className={labelClasses}>Property Address Line 1</label>
               <input
                 type="text"
                 value={propertyAddressLine1}
@@ -586,7 +627,7 @@ export default function EditContactPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className={labelClasses}>Property address line 2</label>
+              <label className={labelClasses}>Property Address Line 2</label>
               <input
                 type="text"
                 value={propertyAddressLine2}
@@ -619,7 +660,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="ZIP / Postal code">
+            <Field label="ZIP / Postal Code">
               <input
                 type="text"
                 value={propertyPostalCode}
@@ -630,10 +671,18 @@ export default function EditContactPage() {
             </Field>
           </FormSection>
 
-          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+          {/* Notes */}
+          <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
             <div className="mb-6">
-              <h2 className="text-xl font-semibold">Notes</h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+                Relationship Context
+              </p>
+
+              <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
+                Notes
+              </h2>
+
+              <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
                 Add or update anything important about this relationship.
               </p>
             </div>
@@ -647,16 +696,18 @@ export default function EditContactPage() {
             />
           </section>
 
+          {/* Bottom Error Message */}
           {message && (
-            <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            <div className="rounded-md border border-red-200 bg-red-50/70 px-4 py-3 text-xs leading-relaxed text-red-700">
               {message}
             </div>
           )}
 
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          {/* Form Actions */}
+          <div className="flex flex-col-reverse gap-3 border-t border-[#EDE7DC]/80 pt-6 sm:flex-row sm:justify-end">
             <Link
               href={`/contacts/${contactId}`}
-              className="rounded-lg border border-[#333333] px-6 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+              className={secondaryButtonClasses}
             >
               Cancel
             </Link>
@@ -664,9 +715,9 @@ export default function EditContactPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-lg bg-[#d4af37] px-6 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-60"
+              className={primaryButtonClasses}
             >
-              {isSubmitting ? "Saving changes..." : "Save Changes"}
+              {isSubmitting ? "Saving Changes..." : "Save Changes"}
             </button>
           </div>
         </form>
@@ -676,19 +727,30 @@ export default function EditContactPage() {
 }
 
 function FormSection({
+  eyebrow,
   title,
   description,
   children,
 }: {
+  eyebrow: string;
   title: string;
   description: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+    <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+          {eyebrow}
+        </p>
+
+        <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
+          {title}
+        </h2>
+
+        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[#7C7265]">
+          {description}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{children}</div>
@@ -705,9 +767,10 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-gray-300">
+      <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
         {label}
       </label>
+
       {children}
     </div>
   );

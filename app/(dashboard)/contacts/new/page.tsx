@@ -150,593 +150,618 @@ export default function NewContactPage() {
     router.refresh();
   }
 
-  const inputClasses =
-    "w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
+    const inputClasses =
+    "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#B7AEA2] hover:border-[#D5CABB] focus:border-[#B7832F]/60 focus:bg-white focus:ring-2 focus:ring-[#B7832F]/10";
 
   const selectClasses =
-    "rounded-l-lg border-y border-l border-[#333333] bg-[#111111] px-3 py-3 text-sm text-gray-300 outline-none transition focus:border-[#d4af37] focus:text-white";
+    "rounded-l-md border-y border-l border-[#E3DCD0] bg-[#F5EEDF]/70 px-3 py-3 text-xs font-medium text-[#5F574D] outline-none transition-all duration-300 hover:border-[#D5CABB] focus:border-[#B7832F]/60 focus:bg-white focus:ring-2 focus:ring-[#B7832F]/10";
 
   const inputGroupClasses =
-    "w-full rounded-r-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
+    "w-full rounded-r-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#B7AEA2] hover:border-[#D5CABB] focus:border-[#B7832F]/60 focus:bg-white focus:ring-2 focus:ring-[#B7832F]/10";
 
-  const labelClasses = "mb-2 block text-sm font-medium text-gray-300";
+  const labelClasses =
+    "mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]";
+
+  const sectionClasses =
+    "rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-all duration-300 hover:border-[#D8B66A]/25 hover:bg-white/50 hover:shadow-sm sm:p-8";
+
+  const secondaryButtonClasses =
+    "cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-6 py-3 text-center text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]";
 
   return (
-    <div className="px-8 py-10">
-      <div className="mx-auto max-w-5xl">
-        {/* Page Header */}
-        <div className="mb-8">
-          <Link
-            href="/contacts"
-            className="mb-4 inline-block text-sm text-[#d4af37] hover:underline"
-          >
-            ← Back to Contacts
-          </Link>
-          <h1 className="text-3xl font-semibold">Add New Contact</h1>
-          <p className="mt-2 text-gray-400">
+    <div className="mx-auto w-full max-w-6xl px-8 py-12 lg:px-12 lg:py-16">
+      {/* Editorial Page Header */}
+      <header className="mb-12 border-b border-[#EDE7DC]/60 pb-8">
+        <Link
+          href="/contacts"
+          className="group inline-flex cursor-pointer items-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F] transition-colors duration-300 hover:text-[#916520]"
+        >
+          <span className="mr-1 transform transition-transform duration-300 group-hover:-translate-x-1">
+            ←
+          </span>
+          Back to Contact Registry
+        </Link>
+
+        <div className="mt-6">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+            Contact Registry
+          </p>
+
+          <h1 className="font-serif text-3xl font-normal tracking-wide text-[#29231D] sm:text-4xl">
+            Add New Contact
+          </h1>
+
+          <p className="mt-3 max-w-3xl text-xs leading-relaxed tracking-wide text-[#7C7265]">
             Add a client, lead, investor, agent, vendor, or other business
-            relationship.
+            relationship to your RoseVault contact registry.
           </p>
         </div>
+      </header>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold">Basic Information</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Enter the contact&apos;s primary information.
-              </p>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information */}
+        <section className={sectionClasses}>
+          <SectionHeader
+            eyebrow="Contact Identity"
+            title="Basic Information"
+            description="Enter the contact's primary identity and communication details."
+          />
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label htmlFor="firstName" className={labelClasses}>
+                First Name *
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className={inputClasses}
+              />
             </div>
 
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <label htmlFor="firstName" className={labelClasses}>
-                  First name *
-                </label>
-                <input
-                  id="firstName"
-                  type="text"
-                  required
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="lastName" className={labelClasses}>
-                  Last name
-                </label>
-                <input
-                  id="lastName"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="email" className={labelClasses}>
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              {/* Primary Phone Input Group */}
-              <div>
-                <label htmlFor="primaryPhone" className={labelClasses}>
-                  Primary phone
-                </label>
-                <div className="flex">
-                  <select
-                    aria-label="Primary phone type"
-                    value={primaryPhoneType}
-                    onChange={(e) => setPrimaryPhoneType(e.target.value)}
-                    className={selectClasses}
-                  >
-                    <option value="mobile">Cell</option>{" "}
-                    {/* Changed value to "mobile" */}
-                    <option value="work">Business</option>{" "}
-                    {/* Changed value to "work" */}
-                    <option value="home">Home</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <input
-                    id="primaryPhone"
-                    type="tel"
-                    value={primaryPhone}
-                    onChange={(e) => setPrimaryPhone(e.target.value)}
-                    placeholder="(205) 555-1234"
-                    className={inputGroupClasses}
-                  />
-                </div>
-              </div>
-
-              {/* Secondary Phone Input Group */}
-              <div>
-                <label htmlFor="secondaryPhone" className={labelClasses}>
-                  Secondary phone
-                </label>
-                <div className="flex">
-                  <select
-                    aria-label="Secondary phone type"
-                    value={secondaryPhoneType}
-                    onChange={(e) => setSecondaryPhoneType(e.target.value)}
-                    className={selectClasses}
-                  >
-                    <option value="mobile">Cell</option>{" "}
-                    {/* Changed value to "mobile" */}
-                    <option value="work">Business</option>{" "}
-                    {/* Changed value to "work" */}
-                    <option value="home">Home</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <input
-                    id="secondaryPhone"
-                    type="tel"
-                    value={secondaryPhone}
-                    onChange={(e) => setSecondaryPhone(e.target.value)}
-                    placeholder="(205) 555-5678"
-                    className={inputGroupClasses}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Spouse Contact Information */}
-          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold">
-                Spouse Contact Information
-              </h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Optional information for a spouse or partner involved in the
-                transaction process.
-              </p>
+            <div>
+              <label htmlFor="lastName" className={labelClasses}>
+                Last Name
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className={inputClasses}
+              />
             </div>
 
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <label htmlFor="spouseFirstName" className={labelClasses}>
-                  First name
-                </label>
-                <input
-                  id="spouseFirstName"
-                  type="text"
-                  value={spouseFirstName}
-                  onChange={(e) => setSpouseFirstName(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="spouseLastName" className={labelClasses}>
-                  Last name
-                </label>
-                <input
-                  id="spouseLastName"
-                  type="text"
-                  value={spouseLastName}
-                  onChange={(e) => setSpouseLastName(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="spouseEmail" className={labelClasses}>
-                  Email address
-                </label>
-                <input
-                  id="spouseEmail"
-                  type="email"
-                  value={spouseEmail}
-                  onChange={(e) => setSpouseEmail(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              {/* Spouse Primary Phone */}
-              <div>
-                <label htmlFor="spousePrimaryPhone" className={labelClasses}>
-                  Spouse primary phone
-                </label>
-                <div className="flex">
-                  <select
-                    aria-label="Spouse primary phone type"
-                    value={spousePrimaryPhoneType}
-                    onChange={(e) => setSpousePrimaryPhoneType(e.target.value)}
-                    className={selectClasses}
-                  >
-                    <option value="cell">Cell</option>
-                    <option value="business">Business</option>
-                    <option value="home">Home</option>
-                    <option value="work">Work</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <input
-                    id="spousePrimaryPhone"
-                    type="tel"
-                    value={spousePrimaryPhone}
-                    onChange={(e) => setSpousePrimaryPhone(e.target.value)}
-                    placeholder="(205) 555-1234"
-                    className={inputGroupClasses}
-                  />
-                </div>
-              </div>
-
-              {/* Spouse Secondary Phone */}
-              <div>
-                <label htmlFor="spouseSecondaryPhone" className={labelClasses}>
-                  Spouse secondary phone
-                </label>
-                <div className="flex">
-                  <select
-                    aria-label="Spouse secondary phone type"
-                    value={spouseSecondaryPhoneType}
-                    onChange={(e) =>
-                      setSpouseSecondaryPhoneType(e.target.value)
-                    }
-                    className={selectClasses}
-                  >
-                    <option value="cell">Cell</option>
-                    <option value="business">Business</option>
-                    <option value="home">Home</option>
-                    <option value="work">Work</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <input
-                    id="spouseSecondaryPhone"
-                    type="tel"
-                    value={spouseSecondaryPhone}
-                    onChange={(e) => setSpouseSecondaryPhone(e.target.value)}
-                    placeholder="(205) 555-5678"
-                    className={inputGroupClasses}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* CRM Classification */}
-          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold">CRM Classification</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Categorize this contact for filtering, workflows, and future
-                automations.
-              </p>
+            <div className="md:col-span-2">
+              <label htmlFor="email" className={labelClasses}>
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputClasses}
+              />
             </div>
 
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <label htmlFor="contactType" className={labelClasses}>
-                  Contact type
-                </label>
-                <select
-                  id="contactType"
-                  value={contactType}
-                  onChange={(e) => setContactType(e.target.value)}
-                  className={inputClasses}
-                >
-                  <option value="lead">Lead</option>
-                  <option value="buyer">Buyer</option>
-                  <option value="seller">Seller</option>
-                  <option value="investor">Investor</option>
-                  <option value="agent">Agent</option>
-                  <option value="lender">Lender</option>
-                  <option value="attorney">Attorney</option>
-                  <option value="contractor">Contractor</option>
-                  <option value="vendor">Vendor</option>
-                  <option value="tenant">Tenant</option>
-                  <option value="landlord">Landlord</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="status" className={labelClasses}>
-                  Status
-                </label>
-                <select
-                  id="status"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className={inputClasses}
-                >
-                  <option value="active">Active</option>
-                  <option value="new">New</option>
-                  <option value="nurture">Nurture</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="past_client">Past Client</option>
-                  <option value="do_not_contact">Do Not Contact</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="leadSource" className={labelClasses}>
-                  Lead source
-                </label>
-                <input
-                  id="leadSource"
-                  type="text"
-                  value={leadSource}
-                  onChange={(e) => setLeadSource(e.target.value)}
-                  placeholder="Referral, website, Facebook, open house..."
-                  className={inputClasses}
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="preferredContactMethod"
-                  className={labelClasses}
-                >
-                  Preferred contact method
-                </label>
-                <select
-                  id="preferredContactMethod"
-                  value={preferredContactMethod}
-                  onChange={(e) => setPreferredContactMethod(e.target.value)}
-                  className={inputClasses}
-                >
-                  <option value="">Not specified</option>
-                  <option value="email">Email</option>
-                  <option value="phone">Phone</option>
-                  <option value="text">Text message</option>
-                </select>
-              </div>
-            </div>
-          </section>
-
-          {/* Company Information */}
-          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold">Company Information</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Optional professional or business details.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div>
-                <label htmlFor="company" className={labelClasses}>
-                  Company
-                </label>
-                <input
-                  id="company"
-                  type="text"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="jobTitle" className={labelClasses}>
-                  Job title
-                </label>
-                <input
-                  id="jobTitle"
-                  type="text"
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Mailing Address */}
-          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold">Mailing Address</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Used for client records and future mailing-label generation.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label htmlFor="addressLine1" className={labelClasses}>
-                  Address line 1
-                </label>
-                <input
-                  id="addressLine1"
-                  type="text"
-                  value={addressLine1}
-                  onChange={(e) => setAddressLine1(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="addressLine2" className={labelClasses}>
-                  Address line 2
-                </label>
-                <input
-                  id="addressLine2"
-                  type="text"
-                  value={addressLine2}
-                  onChange={(e) => setAddressLine2(e.target.value)}
-                  placeholder="Apartment, suite, unit..."
-                  className={inputClasses}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="city" className={labelClasses}>
-                  City
-                </label>
-                <input
-                  id="city"
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="state" className={labelClasses}>
-                  State
-                </label>
-                <input
-                  id="state"
-                  type="text"
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="postalCode" className={labelClasses}>
-                  ZIP / Postal code
-                </label>
-                <input
-                  id="postalCode"
-                  type="text"
-                  value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
-                  className={inputClasses}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Property Address */}
-          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold">Property Address</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                The address of the property associated with this contact.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label htmlFor="propertyAddressLine1" className={labelClasses}>
-                  Address line 1
-                </label>
-                <input
-                  id="propertyAddressLine1"
-                  type="text"
-                  value={propertyAddressLine1}
-                  onChange={(e) => setPropertyAddressLine1(e.target.value)}
-                  className={inputClasses}
-                  placeholder="123 Main Street"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="propertyAddressLine2" className={labelClasses}>
-                  Address line 2
-                </label>
-                <input
-                  id="propertyAddressLine2"
-                  type="text"
-                  value={propertyAddressLine2}
-                  onChange={(e) => setPropertyAddressLine2(e.target.value)}
-                  className={inputClasses}
-                  placeholder="Unit, suite, apartment, etc."
-                />
-              </div>
-
-              <div>
-                <label htmlFor="propertyCity" className={labelClasses}>
-                  City
-                </label>
-                <input
-                  id="propertyCity"
-                  type="text"
-                  value={propertyCity}
-                  onChange={(e) => setPropertyCity(e.target.value)}
-                  className={inputClasses}
-                  placeholder="Birmingham"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="propertyState" className={labelClasses}>
-                  State
-                </label>
-                <input
-                  id="propertyState"
-                  type="text"
-                  value={propertyState}
-                  onChange={(e) => setPropertyState(e.target.value)}
-                  className={inputClasses}
-                  placeholder="AL"
-                  maxLength={2}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="propertyPostalCode" className={labelClasses}>
-                  ZIP / Postal code
-                </label>
-                <input
-                  id="propertyPostalCode"
-                  type="text"
-                  value={propertyPostalCode}
-                  onChange={(e) => setPropertyPostalCode(e.target.value)}
-                  className={inputClasses}
-                  placeholder="35203"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Notes */}
-          <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold">Notes</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Add anything important about this relationship.
-              </p>
-            </div>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={6}
-              placeholder="Add notes about this contact..."
-              className={inputClasses}
+            <PhoneField
+              id="primaryPhone"
+              label="Primary Phone"
+              value={primaryPhone}
+              phoneType={primaryPhoneType}
+              onValueChange={setPrimaryPhone}
+              onTypeChange={setPrimaryPhoneType}
+              placeholder="(205) 555-1234"
+              selectClasses={selectClasses}
+              inputClasses={inputGroupClasses}
+              labelClasses={labelClasses}
             />
-          </section>
 
-          {/* Error Message */}
-          {message && (
-            <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
-              {message}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Link
-              href="/contacts"
-              className="rounded-lg border border-[#333333] px-6 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-lg bg-[#d4af37] px-6 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting ? "Saving contact..." : "Save Contact"}
-            </button>
+            <PhoneField
+              id="secondaryPhone"
+              label="Secondary Phone"
+              value={secondaryPhone}
+              phoneType={secondaryPhoneType}
+              onValueChange={setSecondaryPhone}
+              onTypeChange={setSecondaryPhoneType}
+              placeholder="(205) 555-5678"
+              selectClasses={selectClasses}
+              inputClasses={inputGroupClasses}
+              labelClasses={labelClasses}
+            />
           </div>
-        </form>
+        </section>
+
+        {/* Spouse Contact Information */}
+        <section className={sectionClasses}>
+          <SectionHeader
+            eyebrow="Relationship Details"
+            title="Spouse Contact Information"
+            description="Optional information for a spouse or partner involved in the relationship or transaction process."
+          />
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label htmlFor="spouseFirstName" className={labelClasses}>
+                First Name
+              </label>
+              <input
+                id="spouseFirstName"
+                type="text"
+                value={spouseFirstName}
+                onChange={(e) => setSpouseFirstName(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="spouseLastName" className={labelClasses}>
+                Last Name
+              </label>
+              <input
+                id="spouseLastName"
+                type="text"
+                value={spouseLastName}
+                onChange={(e) => setSpouseLastName(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label htmlFor="spouseEmail" className={labelClasses}>
+                Email Address
+              </label>
+              <input
+                id="spouseEmail"
+                type="email"
+                value={spouseEmail}
+                onChange={(e) => setSpouseEmail(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+
+            <PhoneField
+              id="spousePrimaryPhone"
+              label="Spouse Primary Phone"
+              value={spousePrimaryPhone}
+              phoneType={spousePrimaryPhoneType}
+              onValueChange={setSpousePrimaryPhone}
+              onTypeChange={setSpousePrimaryPhoneType}
+              placeholder="(205) 555-1234"
+              selectClasses={selectClasses}
+              inputClasses={inputGroupClasses}
+              labelClasses={labelClasses}
+            />
+
+            <PhoneField
+              id="spouseSecondaryPhone"
+              label="Spouse Secondary Phone"
+              value={spouseSecondaryPhone}
+              phoneType={spouseSecondaryPhoneType}
+              onValueChange={setSpouseSecondaryPhone}
+              onTypeChange={setSpouseSecondaryPhoneType}
+              placeholder="(205) 555-5678"
+              selectClasses={selectClasses}
+              inputClasses={inputGroupClasses}
+              labelClasses={labelClasses}
+            />
+          </div>
+        </section>
+
+        {/* CRM Classification */}
+        <section className={sectionClasses}>
+          <SectionHeader
+            eyebrow="Contact Intelligence"
+            title="CRM Classification"
+            description="Categorize this contact for filtering, workflows, marketing, and future RoseVault automations."
+          />
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label htmlFor="contactType" className={labelClasses}>
+                Contact Type
+              </label>
+              <select
+                id="contactType"
+                value={contactType}
+                onChange={(e) => setContactType(e.target.value)}
+                className={inputClasses}
+              >
+                <option value="lead">Lead</option>
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+                <option value="investor">Investor</option>
+                <option value="agent">Agent</option>
+                <option value="lender">Lender</option>
+                <option value="attorney">Attorney</option>
+                <option value="contractor">Contractor</option>
+                <option value="vendor">Vendor</option>
+                <option value="tenant">Tenant</option>
+                <option value="landlord">Landlord</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="status" className={labelClasses}>
+                Status
+              </label>
+              <select
+                id="status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className={inputClasses}
+              >
+                <option value="active">Active</option>
+                <option value="new">New</option>
+                <option value="nurture">Nurture</option>
+                <option value="inactive">Inactive</option>
+                <option value="past_client">Past Client</option>
+                <option value="do_not_contact">Do Not Contact</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="leadSource" className={labelClasses}>
+                Lead Source
+              </label>
+              <input
+                id="leadSource"
+                type="text"
+                value={leadSource}
+                onChange={(e) => setLeadSource(e.target.value)}
+                placeholder="Referral, website, Facebook, open house..."
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="preferredContactMethod"
+                className={labelClasses}
+              >
+                Preferred Contact Method
+              </label>
+              <select
+                id="preferredContactMethod"
+                value={preferredContactMethod}
+                onChange={(e) => setPreferredContactMethod(e.target.value)}
+                className={inputClasses}
+              >
+                <option value="">Not specified</option>
+                <option value="email">Email</option>
+                <option value="phone">Phone</option>
+                <option value="text">Text message</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        {/* Company Information */}
+        <section className={sectionClasses}>
+          <SectionHeader
+            eyebrow="Professional Details"
+            title="Company Information"
+            description="Optional professional or business details associated with this contact."
+          />
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label htmlFor="company" className={labelClasses}>
+                Company
+              </label>
+              <input
+                id="company"
+                type="text"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="jobTitle" className={labelClasses}>
+                Job Title
+              </label>
+              <input
+                id="jobTitle"
+                type="text"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Mailing Address */}
+        <section className={sectionClasses}>
+          <SectionHeader
+            eyebrow="Correspondence"
+            title="Mailing Address"
+            description="Used for client records, correspondence, and mailing-label generation."
+          />
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label htmlFor="addressLine1" className={labelClasses}>
+                Address Line 1
+              </label>
+              <input
+                id="addressLine1"
+                type="text"
+                value={addressLine1}
+                onChange={(e) => setAddressLine1(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label htmlFor="addressLine2" className={labelClasses}>
+                Address Line 2
+              </label>
+              <input
+                id="addressLine2"
+                type="text"
+                value={addressLine2}
+                onChange={(e) => setAddressLine2(e.target.value)}
+                placeholder="Apartment, suite, unit..."
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="city" className={labelClasses}>
+                City
+              </label>
+              <input
+                id="city"
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="state" className={labelClasses}>
+                State
+              </label>
+              <input
+                id="state"
+                type="text"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="postalCode" className={labelClasses}>
+                ZIP / Postal Code
+              </label>
+              <input
+                id="postalCode"
+                type="text"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                className={inputClasses}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Property Address */}
+        <section className={sectionClasses}>
+          <SectionHeader
+            eyebrow="Real Estate"
+            title="Property Address"
+            description="The address of the property associated with this contact."
+          />
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label
+                htmlFor="propertyAddressLine1"
+                className={labelClasses}
+              >
+                Address Line 1
+              </label>
+              <input
+                id="propertyAddressLine1"
+                type="text"
+                value={propertyAddressLine1}
+                onChange={(e) => setPropertyAddressLine1(e.target.value)}
+                className={inputClasses}
+                placeholder="123 Main Street"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label
+                htmlFor="propertyAddressLine2"
+                className={labelClasses}
+              >
+                Address Line 2
+              </label>
+              <input
+                id="propertyAddressLine2"
+                type="text"
+                value={propertyAddressLine2}
+                onChange={(e) => setPropertyAddressLine2(e.target.value)}
+                className={inputClasses}
+                placeholder="Unit, suite, apartment, etc."
+              />
+            </div>
+
+            <div>
+              <label htmlFor="propertyCity" className={labelClasses}>
+                City
+              </label>
+              <input
+                id="propertyCity"
+                type="text"
+                value={propertyCity}
+                onChange={(e) => setPropertyCity(e.target.value)}
+                className={inputClasses}
+                placeholder="Birmingham"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="propertyState" className={labelClasses}>
+                State
+              </label>
+              <input
+                id="propertyState"
+                type="text"
+                value={propertyState}
+                onChange={(e) => setPropertyState(e.target.value)}
+                className={inputClasses}
+                placeholder="AL"
+                maxLength={2}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="propertyPostalCode" className={labelClasses}>
+                ZIP / Postal Code
+              </label>
+              <input
+                id="propertyPostalCode"
+                type="text"
+                value={propertyPostalCode}
+                onChange={(e) => setPropertyPostalCode(e.target.value)}
+                className={inputClasses}
+                placeholder="35203"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Notes */}
+        <section className={sectionClasses}>
+          <SectionHeader
+            eyebrow="Relationship Notes"
+            title="Notes"
+            description="Record important context, preferences, conversations, or details about this relationship."
+          />
+
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={6}
+            placeholder="Add notes about this contact..."
+            className={`${inputClasses} resize-y`}
+          />
+        </section>
+
+        {/* Error Message */}
+        {message && (
+          <div className="rounded-md border border-red-200 bg-red-50/70 px-4 py-3 text-xs leading-relaxed text-red-700">
+            {message}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-col-reverse gap-3 border-t border-[#EDE7DC]/80 pt-6 sm:flex-row sm:justify-end">
+          <Link href="/contacts" className={secondaryButtonClasses}>
+            Cancel
+          </Link>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="cursor-pointer rounded-md bg-[#0D0C0A] px-6 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? "Saving Contact..." : "Save Contact"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="mb-7">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+        {eyebrow}
+      </p>
+
+      <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
+        {title}
+      </h2>
+
+      <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[#7C7265]">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function PhoneField({
+  id,
+  label,
+  value,
+  phoneType,
+  onValueChange,
+  onTypeChange,
+  placeholder,
+  selectClasses,
+  inputClasses,
+  labelClasses,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  phoneType: string;
+  onValueChange: (value: string) => void;
+  onTypeChange: (value: string) => void;
+  placeholder: string;
+  selectClasses: string;
+  inputClasses: string;
+  labelClasses: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className={labelClasses}>
+        {label}
+      </label>
+
+      <div className="flex">
+        <select
+          aria-label={`${label} type`}
+          value={phoneType}
+          onChange={(e) => onTypeChange(e.target.value)}
+          className={selectClasses}
+        >
+          <option value="mobile">Cell</option>
+          <option value="work">Business</option>
+          <option value="home">Home</option>
+          <option value="other">Other</option>
+        </select>
+
+        <input
+          id={id}
+          type="tel"
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          placeholder={placeholder}
+          className={inputClasses}
+        />
       </div>
     </div>
   );

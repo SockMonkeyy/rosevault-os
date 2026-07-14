@@ -170,59 +170,64 @@ export default async function ComposeEmailPage({
       ? campaignRecipientIds
       : initialSelectedContactIds;
 
-  return (
-    <div className="p-8">
+    return (
+    <div className="px-6 py-10 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Link
-              href={
-                initialCampaign
-                  ? "/marketing/campaigns"
-                  : "/contacts"
-              }
-              className="mb-4 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+        {/* Page Header */}
+        <div className="mb-8">
+          <Link
+            href={initialCampaign ? "/marketing/campaigns" : "/contacts"}
+            className="group inline-flex items-center gap-2 text-xs font-medium tracking-wide text-[#B7832F] transition-all duration-300 hover:-translate-x-0.5 hover:text-[#916520]"
+          >
+            <span
+              aria-hidden="true"
+              className="transition-transform duration-300 group-hover:-translate-x-0.5"
             >
-              ←{" "}
-              {initialCampaign
-                ? "Back to Campaigns"
-                : "Back to Contacts"}
-            </Link>
+              ←
+            </span>
 
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d4af37]">
-              RoseVault Communications
-            </p>
+            {initialCampaign ? "Back to Campaigns" : "Back to Contacts"}
+          </Link>
 
-            <h1 className="mt-2 text-3xl font-semibold text-white">
-              {initialCampaign
-                ? "Edit Email Campaign"
-                : "Bulk Email Composer"}
-            </h1>
+          <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+                RoseVault Communications
+              </p>
 
-            <p className="mt-2 max-w-3xl text-gray-400">
-              {initialCampaign
-                ? "Update your saved campaign draft, recipients, message, and personalization."
-                : "Select recipients, apply a reusable template, personalize each message, and preview your campaign before sending."}
-            </p>
-          </div>
+              <h1 className="mt-2 font-serif text-3xl font-normal tracking-wide text-[#29231D]">
+                {initialCampaign
+                  ? "Edit Email Campaign"
+                  : "Bulk Email Composer"}
+              </h1>
 
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/marketing/campaigns"
-              className="rounded-lg border border-[#333333] px-5 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
-            >
-              View Campaigns
-            </Link>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7C7265]">
+                {initialCampaign
+                  ? "Update your saved campaign draft, recipients, message, and personalization."
+                  : "Select recipients, apply a reusable template, personalize each message, and preview your campaign before sending."}
+              </p>
+            </div>
 
-            <Link
-              href="/email/templates"
-              className="rounded-lg border border-[#333333] px-5 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
-            >
-              Manage Templates
-            </Link>
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/marketing/campaigns"
+                className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-3 text-center text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
+              >
+                View Campaigns
+              </Link>
+
+              <Link
+                href="/email/templates"
+                className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-3 text-center text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
+              >
+                Manage Templates
+              </Link>
+            </div>
           </div>
         </div>
 
+        {/* Composer */}
         <BulkEmailComposer
           contacts={contacts ?? []}
           templates={templates ?? []}

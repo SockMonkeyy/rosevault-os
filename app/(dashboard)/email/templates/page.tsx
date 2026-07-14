@@ -43,41 +43,51 @@ export default async function EmailTemplatesPage() {
     console.error("Error loading email templates:", error);
   }
 
-  return (
-    <div className="p-8">
+    return (
+    <div className="px-6 py-10 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Link
-              href="/contacts"
-              className="mb-4 inline-block text-sm text-[#d4af37] hover:underline"
-            >
-              ← Back to Contacts
-            </Link>
-
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d4af37]">
-              RoseVault Communications
-            </p>
-
-            <h1 className="mt-2 text-3xl font-semibold text-white">
-              Email Templates
-            </h1>
-
-            <p className="mt-2 max-w-3xl text-gray-400">
-              Create reusable email templates for leads, buyers,
-              sellers, investors, follow-ups, transactions, and
-              marketing campaigns.
-            </p>
-          </div>
-
+        {/* Page Header */}
+        <div className="mb-8">
           <Link
-            href="/email/compose"
-            className="rounded-lg bg-[#d4af37] px-5 py-3 text-center text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+            href="/contacts"
+            className="group inline-flex items-center gap-2 text-xs font-medium tracking-wide text-[#B7832F] transition-all duration-300 hover:-translate-x-0.5 hover:text-[#916520]"
           >
-            Compose Email
+            <span
+              aria-hidden="true"
+              className="transition-transform duration-300 group-hover:-translate-x-0.5"
+            >
+              ←
+            </span>
+
+            Back to Contacts
           </Link>
+
+          <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+                RoseVault Communications
+              </p>
+
+              <h1 className="mt-2 font-serif text-3xl font-normal tracking-wide text-[#29231D]">
+                Email Templates
+              </h1>
+
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7C7265]">
+                Create reusable email templates for leads, buyers, sellers,
+                investors, follow-ups, transactions, and marketing campaigns.
+              </p>
+            </div>
+
+            <Link
+              href="/email/compose"
+              className="cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-3 text-center text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
+            >
+              Compose Email
+            </Link>
+          </div>
         </div>
 
+        {/* Templates Manager */}
         <EmailTemplatesManager
           organizationId={membership.organization_id}
           userId={user.id}

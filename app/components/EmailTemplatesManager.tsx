@@ -214,27 +214,43 @@ export default function EmailTemplatesManager({
     }, 5000);
   }
 
-  const inputClasses =
-    "w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
+    const inputClasses =
+    "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#A89C8D] hover:border-[#CFC5B6] focus:border-[#D8B66A] focus:bg-white focus:ring-2 focus:ring-[#D8B66A]/10";
+
+  const labelClasses =
+    "mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]";
+
+  const primaryButtonClasses =
+    "cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#0D0C0A] disabled:hover:text-[#D8B66A] disabled:hover:shadow-none";
+
+  const secondaryButtonClasses =
+    "cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-3 text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]";
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.75fr)]">
-      <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+      {/* Create / Edit Template */}
+      <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
         <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
             {editingId ? "Edit Template" : "New Template"}
           </p>
 
-          <h2 className="mt-2 text-xl font-semibold text-white">
+          <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
             {editingId
               ? "Update Email Template"
               : "Create Email Template"}
           </h2>
+
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[#7C7265]">
+            {editingId
+              ? "Refine your saved template, subject line, message, category, and personalization."
+              : "Build a reusable message for leads, clients, transactions, follow-ups, and marketing campaigns."}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
+            <label className={labelClasses}>
               Template Name
             </label>
 
@@ -247,15 +263,13 @@ export default function EmailTemplatesManager({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
+            <label className={labelClasses}>
               Category
             </label>
 
             <select
               value={category}
-              onChange={(event) =>
-                setCategory(event.target.value)
-              }
+              onChange={(event) => setCategory(event.target.value)}
               className={inputClasses}
             >
               {CATEGORIES.map((item) => (
@@ -267,15 +281,13 @@ export default function EmailTemplatesManager({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-300">
+            <label className={labelClasses}>
               Subject Line
             </label>
 
             <input
               value={subject}
-              onChange={(event) =>
-                setSubject(event.target.value)
-              }
+              onChange={(event) => setSubject(event.target.value)}
               placeholder="Example: Following up about your property"
               className={inputClasses}
             />
@@ -283,12 +295,12 @@ export default function EmailTemplatesManager({
 
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-              <label className="text-sm font-medium text-gray-300">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
                 Message
               </label>
 
-              <span className="text-xs text-gray-600">
-                Personalization supported
+              <span className="text-[9px] font-medium uppercase tracking-[0.12em] text-[#A89C8D]">
+                Personalization Supported
               </span>
             </div>
 
@@ -297,11 +309,11 @@ export default function EmailTemplatesManager({
               onChange={(event) => setBody(event.target.value)}
               rows={14}
               placeholder={`Hi {{first_name}},\n\nThank you for connecting with Rose Key Realty Co...`}
-              className={inputClasses}
+              className={`${inputClasses} resize-y leading-7`}
             />
 
-            <div className="mt-3">
-              <p className="mb-2 text-xs uppercase tracking-wider text-gray-600">
+            <div className="mt-4">
+              <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#A89C8D]">
                 Insert Personalization
               </p>
 
@@ -311,7 +323,7 @@ export default function EmailTemplatesManager({
                     key={variable}
                     type="button"
                     onClick={() => insertVariable(variable)}
-                    className="rounded-full border border-[#333333] bg-[#111111] px-3 py-1.5 text-xs text-gray-400 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                    className="cursor-pointer rounded-full border border-[#E3DCD0] bg-white/60 px-3 py-1.5 text-[10px] font-medium text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0"
                   >
                     {variable}
                   </button>
@@ -321,16 +333,22 @@ export default function EmailTemplatesManager({
           </div>
 
           {message && (
-            <div className="rounded-lg border border-[#333333] bg-[#111111] px-4 py-3 text-sm text-gray-300">
+            <div
+              className={`rounded-md border px-4 py-3 text-xs leading-relaxed ${
+                message.toLowerCase().includes("success")
+                  ? "border-emerald-200 bg-emerald-50/70 text-emerald-700"
+                  : "border-red-200 bg-red-50/70 text-red-700"
+              }`}
+            >
               {message}
             </div>
           )}
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 border-t border-[#EDE7DC]/80 pt-5 sm:flex-row">
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 rounded-lg bg-[#d4af37] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-50"
+              className={`${primaryButtonClasses} flex-1`}
             >
               {isSaving
                 ? "Saving..."
@@ -343,7 +361,7 @@ export default function EmailTemplatesManager({
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-lg border border-[#333333] px-5 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                className={secondaryButtonClasses}
               >
                 Cancel Editing
               </button>
@@ -352,32 +370,36 @@ export default function EmailTemplatesManager({
         </form>
       </section>
 
-      <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-        <div className="mb-6 flex items-center justify-between gap-4">
+      {/* Template Library */}
+      <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
+        <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
               Saved Templates
             </p>
 
-            <h2 className="mt-2 text-xl font-semibold text-white">
+            <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
               Template Library
             </h2>
+
+            <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
+              Reuse, edit, and manage your saved RoseVault communications.
+            </p>
           </div>
 
-          <span className="text-sm text-gray-500">
+          <span className="shrink-0 rounded-full border border-[#D8B66A]/30 bg-[#B7832F]/5 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#B7832F]">
             {templates.length} total
           </span>
         </div>
 
         {templates.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#333333] p-8 text-center">
-            <p className="font-medium text-white">
+          <div className="rounded-xl border border-dashed border-[#D8CDBE] bg-white/30 p-8 text-center">
+            <p className="font-serif text-sm font-medium tracking-wide text-[#29231D]">
               No templates yet
             </p>
 
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Create your first reusable email template using
-              the form.
+            <p className="mt-2 text-xs leading-6 text-[#8F8578]">
+              Create your first reusable email template using the form.
             </p>
           </div>
         ) : (
@@ -385,33 +407,33 @@ export default function EmailTemplatesManager({
             {templates.map((template) => (
               <article
                 key={template.id}
-                className="rounded-xl border border-[#2a2a2a] bg-[#111111] p-5"
+                className="group rounded-xl border border-[#EDE7DC] bg-white/45 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/75 hover:shadow-sm"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <span className="rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-2.5 py-1 text-xs text-[#d4af37]">
+                    <span className="inline-flex rounded-full border border-[#D8B66A]/30 bg-[#B7832F]/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#B7832F]">
                       {formatLabel(template.category)}
                     </span>
 
-                    <h3 className="mt-3 font-semibold text-white">
+                    <h3 className="mt-3 font-serif text-sm font-medium tracking-wide text-[#29231D] transition-colors duration-300 group-hover:text-[#B7832F]">
                       {template.name}
                     </h3>
 
-                    <p className="mt-1 truncate text-sm text-gray-500">
+                    <p className="mt-1 truncate text-xs text-[#8F8578]">
                       {template.subject}
                     </p>
                   </div>
                 </div>
 
-                <p className="mt-4 line-clamp-3 whitespace-pre-line text-sm leading-6 text-gray-500">
+                <p className="mt-4 line-clamp-3 whitespace-pre-line text-xs leading-6 text-[#7C7265]">
                   {template.body}
                 </p>
 
-                <div className="mt-5 flex gap-3 border-t border-[#2a2a2a] pt-4">
+                <div className="mt-5 flex flex-wrap gap-2 border-t border-[#EDE7DC]/80 pt-4">
                   <button
                     type="button"
                     onClick={() => startEditing(template)}
-                    className="text-sm text-[#d4af37] transition hover:text-[#e2c35b]"
+                    className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-4 py-2 text-[10px] font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
                   >
                     Edit
                   </button>
@@ -419,7 +441,7 @@ export default function EmailTemplatesManager({
                   <button
                     type="button"
                     onClick={() => deleteTemplate(template)}
-                    className="text-sm text-gray-600 transition hover:text-red-400"
+                    className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-4 py-2 text-[10px] font-medium tracking-wide text-[#8F8578] transition-all duration-300 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-50/70 hover:text-red-700 hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
                   >
                     Delete
                   </button>

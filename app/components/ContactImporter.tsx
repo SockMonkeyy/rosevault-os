@@ -991,32 +991,45 @@ export default function ContactImporter({
     router.refresh();
   }
 
-  const inputClasses =
-    "w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-sm text-white outline-none transition focus:border-[#d4af37]";
+    const inputClasses =
+    "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#A89C8D] hover:border-[#CFC5B6] focus:border-[#D8B66A] focus:bg-white focus:ring-2 focus:ring-[#D8B66A]/10";
+
+  const secondaryButtonClasses =
+    "cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-3 text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]";
+
+  const primaryButtonClasses =
+    "cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#0D0C0A] disabled:hover:text-[#D8B66A] disabled:hover:shadow-none";
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
-          Step 1
-        </p>
+      {/* Step 1 — Upload */}
+      <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
+        <div className="mb-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+            Step 01 · Data Source
+          </p>
 
-        <h2 className="mt-2 text-xl font-semibold">
-          Upload CSV File
-        </h2>
+          <h2 className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+            Upload CSV File
+          </h2>
 
-        <p className="mt-2 text-sm leading-6 text-gray-500">
-          Import contacts, mailing addresses, properties, or all of
-          them together in one CSV file.
-        </p>
+          <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[#7C7265]">
+            Import contacts, mailing addresses, properties, or all of them
+            together in one CSV file.
+          </p>
+        </div>
 
-        <label className="mt-5 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#444444] bg-[#111111] px-6 text-center transition hover:border-[#d4af37]">
-          <span className="text-lg font-medium text-white">
+        <label className="group mt-5 flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#D8CDBE] bg-white/45 px-6 text-center transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/70 hover:bg-[#B7832F]/5 hover:shadow-sm">
+          <span className="font-serif text-lg font-normal tracking-wide text-[#29231D] transition-colors duration-300 group-hover:text-[#B7832F]">
             {fileName || "Choose a CSV file"}
           </span>
 
-          <span className="mt-2 text-sm text-gray-500">
+          <span className="mt-2 text-xs tracking-wide text-[#8F8578]">
             Click to browse your computer
+          </span>
+
+          <span className="mt-4 rounded-full border border-[#E3DCD0] bg-white/70 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#A89C8D] transition-all duration-300 group-hover:border-[#D8B66A]/40 group-hover:text-[#B7832F]">
+            CSV Files Only
           </span>
 
           <input
@@ -1028,135 +1041,148 @@ export default function ContactImporter({
         </label>
 
         {rows.length > 0 && (
-          <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-gray-400">
-              {rows.length} rows detected
-            </p>
+          <div className="mt-5 flex flex-col gap-3 rounded-lg border border-[#EDE7DC] bg-white/45 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-medium text-[#29231D]">
+                {rows.length} row{rows.length === 1 ? "" : "s"} detected
+              </p>
+
+              <p className="mt-1 text-[10px] text-[#A89C8D]">
+                {fileName}
+              </p>
+            </div>
 
             <button
               type="button"
               onClick={resetImporter}
-              className="text-sm text-gray-500 transition hover:text-[#d4af37]"
+              className="cursor-pointer text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578] transition-colors duration-300 hover:text-[#B7832F] sm:text-right"
             >
-              Choose another file
+              Choose Another File
             </button>
           </div>
         )}
       </section>
 
+      {/* Step 2 — Field Mapping */}
       {rows.length > 0 && (
-        <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
-            Step 2
-          </p>
+        <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
+          <div className="mb-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Step 02 · Field Intelligence
+            </p>
 
-          <h2 className="mt-2 text-xl font-semibold">
-            Map Your Fields
-          </h2>
+            <h2 className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+              Map Your Fields
+            </h2>
 
-          <p className="mt-2 text-sm leading-6 text-gray-500">
-            RoseVault automatically suggests mappings. Review each
-            column before importing.
-          </p>
+            <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[#7C7265]">
+              RoseVault automatically suggests mappings based on your CSV
+              headers. Review each column before importing.
+            </p>
+          </div>
 
-          <div className="mt-6 space-y-3">
-            {headers.map((header) => (
-              <div
-                key={header}
-                className="grid grid-cols-1 items-center gap-3 rounded-xl border border-[#2a2a2a] bg-[#111111] p-4 md:grid-cols-[1fr_auto_1fr]"
-              >
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-gray-600">
-                    CSV Column
-                  </p>
+          <div className="space-y-3">
+            {headers.map((header) => {
+              const isMapped = Boolean(mapping[header]);
 
-                  <p className="mt-1 font-medium text-white">
-                    {header}
-                  </p>
-                </div>
-
-                <span className="hidden text-gray-600 md:block">
-                  →
-                </span>
-
-                <select
-                  value={mapping[header] ?? ""}
-                  onChange={(event) =>
-                    updateMapping(header, event.target.value)
-                  }
-                  className={inputClasses}
+              return (
+                <div
+                  key={header}
+                  className="group grid grid-cols-1 items-center gap-4 rounded-xl border border-[#EDE7DC] bg-white/45 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/70 hover:shadow-sm md:grid-cols-[1fr_auto_1fr]"
                 >
-                  <option value="">Do not import</option>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#A89C8D]">
+                        CSV Column
+                      </p>
 
-                  <optgroup label="Contact Information">
-                    {CONTACT_FIELDS.filter(
-                      (field) => field.category === "contact"
-                    ).map((field) => (
-                      <option
-                        key={field.value}
-                        value={field.value}
-                      >
-                        {field.label}
-                      </option>
-                    ))}
-                  </optgroup>
+                      {isMapped && (
+                        <span className="rounded-full border border-[#D8B66A]/30 bg-[#B7832F]/5 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-[#B7832F]">
+                          Mapped
+                        </span>
+                      )}
+                    </div>
 
-                  <optgroup label="Mailing Address">
-                    {CONTACT_FIELDS.filter(
-                      (field) => field.category === "mailing"
-                    ).map((field) => (
-                      <option
-                        key={field.value}
-                        value={field.value}
-                      >
-                        {field.label}
-                      </option>
-                    ))}
-                  </optgroup>
+                    <p className="mt-1.5 truncate font-serif text-sm font-medium tracking-wide text-[#29231D] transition-colors duration-300 group-hover:text-[#B7832F]">
+                      {header}
+                    </p>
+                  </div>
 
-                  <optgroup label="Property Information">
-                    {CONTACT_FIELDS.filter(
-                      (field) => field.category === "property"
-                    ).map((field) => (
-                      <option
-                        key={field.value}
-                        value={field.value}
-                      >
-                        {field.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-            ))}
+                  <span className="hidden text-sm text-[#C4B8A8] transition-colors duration-300 group-hover:text-[#D8B66A] md:block">
+                    →
+                  </span>
+
+                  <select
+                    value={mapping[header] ?? ""}
+                    onChange={(event) =>
+                      updateMapping(header, event.target.value)
+                    }
+                    className={inputClasses}
+                  >
+                    <option value="">Do not import</option>
+
+                    <optgroup label="Contact Information">
+                      {CONTACT_FIELDS.filter(
+                        (field) => field.category === "contact",
+                      ).map((field) => (
+                        <option key={field.value} value={field.value}>
+                          {field.label}
+                        </option>
+                      ))}
+                    </optgroup>
+
+                    <optgroup label="Mailing Address">
+                      {CONTACT_FIELDS.filter(
+                        (field) => field.category === "mailing",
+                      ).map((field) => (
+                        <option key={field.value} value={field.value}>
+                          {field.label}
+                        </option>
+                      ))}
+                    </optgroup>
+
+                    <optgroup label="Property Information">
+                      {CONTACT_FIELDS.filter(
+                        (field) => field.category === "property",
+                      ).map((field) => (
+                        <option key={field.value} value={field.value}>
+                          {field.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
 
+      {/* Step 3 — Preview */}
       {rows.length > 0 && (
-        <section className="overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#151515]">
-          <div className="border-b border-[#2a2a2a] p-6">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
-              Step 3
+        <section className="overflow-hidden rounded-xl border border-[#EDE7DC] bg-white/40 backdrop-blur-sm">
+          <div className="border-b border-[#EDE7DC] p-6 lg:p-8">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Step 03 · Data Preview
             </p>
 
-            <h2 className="mt-2 text-xl font-semibold">
+            <h2 className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
               Preview
             </h2>
 
-            <p className="mt-2 text-sm text-gray-500">
-              Review the first five rows before importing.
+            <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
+              Review the first five rows before importing them into RoseVault.
             </p>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-[#111111]">
-                <tr className="text-left text-xs uppercase tracking-wider text-gray-500">
+              <thead className="border-b border-[#E3DCD0] bg-[#F5EEDF]/55">
+                <tr className="text-left text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
                   {headers.map((header) => (
                     <th
                       key={header}
-                      className="whitespace-nowrap px-5 py-4 font-medium"
+                      className="whitespace-nowrap px-5 py-4 font-semibold"
                     >
                       {header}
                     </th>
@@ -1164,13 +1190,16 @@ export default function ContactImporter({
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-[#2a2a2a]">
+              <tbody className="divide-y divide-[#EDE7DC]/80">
                 {rows.slice(0, 5).map((row, rowIndex) => (
-                  <tr key={rowIndex}>
+                  <tr
+                    key={rowIndex}
+                    className="transition-colors duration-300 hover:bg-white/65"
+                  >
                     {headers.map((header) => (
                       <td
                         key={header}
-                        className="max-w-xs truncate whitespace-nowrap px-5 py-4 text-sm text-gray-400"
+                        className="max-w-xs truncate whitespace-nowrap px-5 py-4 text-xs text-[#7C7265]"
                       >
                         {row[header] || "—"}
                       </td>
@@ -1183,23 +1212,25 @@ export default function ContactImporter({
         </section>
       )}
 
+      {/* Step 4 — Duplicate Handling */}
       {rows.length > 0 && (
-        <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
-            Step 4
-          </p>
+        <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
+          <div className="mb-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Step 04 · Record Protection
+            </p>
 
-          <h2 className="mt-2 text-xl font-semibold">
-            Handle Contact Duplicates
-          </h2>
+            <h2 className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+              Handle Contact Duplicates
+            </h2>
 
-          <p className="mt-2 text-sm leading-6 text-gray-500">
-            RoseVault checks existing contacts by email address or
-            cell phone. Properties are matched by parcel number or
-            property address.
-          </p>
+            <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[#7C7265]">
+              RoseVault checks existing contacts by email address or cell phone.
+              Properties are matched by parcel number or property address.
+            </p>
+          </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <DuplicateOption
               title="Skip Duplicates"
               description="Keep the existing contact unchanged, but still connect any property from the imported row."
@@ -1224,21 +1255,30 @@ export default function ContactImporter({
         </section>
       )}
 
+      {/* Error Message */}
       {message && (
-        <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-md border border-red-200 bg-red-50/70 px-4 py-3 text-xs leading-relaxed text-red-700">
           {message}
         </div>
       )}
 
+      {/* Import Results */}
       {results && (
-        <section className="rounded-2xl border border-[#d4af37]/30 bg-[#151515] p-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
-            Import Complete
-          </p>
+        <section className="rounded-xl border border-[#D8B66A]/35 bg-white/50 p-6 backdrop-blur-sm lg:p-8">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Import Complete
+            </p>
 
-          <h2 className="mt-2 text-2xl font-semibold">
-            RoseVault finished processing your data.
-          </h2>
+            <h2 className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+              RoseVault finished processing your data.
+            </h2>
+
+            <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
+              Review the import summary below to see exactly what was created,
+              updated, matched, skipped, or unable to process.
+            </p>
+          </div>
 
           <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
             <ResultCard
@@ -1271,24 +1311,18 @@ export default function ContactImporter({
               value={results.relationshipsCreated}
             />
 
-            <ResultCard
-              label="Failed"
-              value={results.failed}
-            />
+            <ResultCard label="Failed" value={results.failed} />
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/contacts"
-              className="rounded-lg bg-[#d4af37] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
-            >
+          <div className="mt-6 flex flex-wrap gap-3 border-t border-[#EDE7DC]/80 pt-6">
+            <Link href="/contacts" className={primaryButtonClasses}>
               View Contacts
             </Link>
 
             <button
               type="button"
               onClick={resetImporter}
-              className="rounded-lg border border-[#333333] px-5 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+              className={secondaryButtonClasses}
             >
               Import Another File
             </button>
@@ -1296,13 +1330,20 @@ export default function ContactImporter({
         </section>
       )}
 
+      {/* Primary Import Action */}
       {rows.length > 0 && !results && (
-        <div className="flex justify-end">
+        <div className="flex flex-col items-end gap-3 border-t border-[#EDE7DC]/70 pt-6">
+          {!hasFirstNameMapping && (
+            <p className="text-xs text-amber-700">
+              Map one CSV column to First Name to enable importing.
+            </p>
+          )}
+
           <button
             type="button"
             onClick={handleImport}
             disabled={isImporting || !hasFirstNameMapping}
-            className="rounded-lg bg-[#d4af37] px-7 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-50"
+            className={`${primaryButtonClasses} px-7`}
           >
             {isImporting
               ? "Importing Data..."
@@ -1331,24 +1372,36 @@ function DuplicateOption({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl border p-5 text-left transition ${
+      aria-pressed={selected}
+      className={`group cursor-pointer rounded-xl border p-5 text-left transition-all duration-300 ${
         selected
-          ? "border-[#d4af37] bg-[#d4af37]/10"
-          : "border-[#333333] bg-[#111111] hover:border-[#d4af37]/50"
+          ? "border-[#D8B66A]/60 bg-[#B7832F]/10 shadow-sm"
+          : "border-[#EDE7DC] bg-white/50 hover:-translate-y-0.5 hover:border-[#D8B66A]/50 hover:bg-[#B7832F]/5 hover:shadow-sm"
       }`}
     >
-      <p
-        className={
-          selected
-            ? "font-semibold text-[#d4af37]"
-            : "font-semibold text-white"
-        }
-      >
-        {selected ? "✓ " : ""}
-        {title}
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <p
+          className={`font-serif text-sm font-medium tracking-wide transition-colors duration-300 ${
+            selected
+              ? "text-[#916520]"
+              : "text-[#29231D] group-hover:text-[#B7832F]"
+          }`}
+        >
+          {title}
+        </p>
 
-      <p className="mt-2 text-sm leading-6 text-gray-500">
+        <span
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] transition-all duration-300 ${
+            selected
+              ? "border-[#D8B66A] bg-[#B7832F] text-white"
+              : "border-[#D8CDBE] bg-white/60 text-transparent group-hover:border-[#D8B66A]"
+          }`}
+        >
+          ✓
+        </span>
+      </div>
+
+      <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
         {description}
       </p>
     </button>
@@ -1363,10 +1416,12 @@ function ResultCard({
   value: number;
 }) {
   return (
-    <div className="rounded-xl border border-[#2a2a2a] bg-[#111111] p-5">
-      <p className="text-sm text-gray-500">{label}</p>
+    <div className="group rounded-xl border border-[#EDE7DC] bg-white/55 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/80 hover:shadow-sm">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#8F8578]">
+        {label}
+      </p>
 
-      <p className="mt-2 text-3xl font-semibold text-[#d4af37]">
+      <p className="mt-3 font-serif text-3xl font-normal text-[#B7832F]">
         {value}
       </p>
     </div>

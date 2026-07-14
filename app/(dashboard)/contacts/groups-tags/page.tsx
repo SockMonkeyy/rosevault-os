@@ -38,34 +38,71 @@ export default async function GroupsTagsPage() {
       .order("name"),
   ]);
 
+  const groupCount = groups?.length ?? 0;
+  const tagCount = tags?.length ?? 0;
+
   return (
-    <div className="p-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <Link
-            href="/contacts"
-            className="mb-4 inline-block text-sm text-[#d4af37] hover:underline"
-          >
-            ← Back to Contacts
-          </Link>
+    <div className="mx-auto w-full max-w-7xl px-8 py-12 lg:px-12 lg:py-16">
+      {/* Editorial Header */}
+      <header className="mb-12 border-b border-[#EDE7DC]/60 pb-8">
+        <Link
+          href="/contacts"
+          className="group inline-flex cursor-pointer items-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F] transition-colors duration-300 hover:text-[#916520]"
+        >
+          <span className="mr-1 transform transition-transform duration-300 group-hover:-translate-x-1">
+            ←
+          </span>
+          Back to Contact Registry
+        </Link>
 
-          <h1 className="text-3xl font-semibold">
-            Groups & Tags
-          </h1>
+        <div className="mt-6 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Contact Intelligence
+            </p>
 
-          <p className="mt-2 max-w-3xl text-gray-400">
-            Create and manage custom contact groups and tags for
-            organization, filtering, marketing campaigns, workflows,
-            and future RoseVault automations.
-          </p>
+            <h1 className="font-serif text-3xl font-normal tracking-wide text-[#29231D] sm:text-4xl">
+              Groups & Tags
+            </h1>
+
+            <p className="mt-3 max-w-3xl text-xs leading-relaxed tracking-wide text-[#7C7265]">
+              Create and manage custom contact classifications for organization,
+              filtering, marketing campaigns, workflows, and future RoseVault
+              automations.
+            </p>
+          </div>
+
+          {/* Classification Summary */}
+          <div className="flex items-center gap-3">
+            <div className="min-w-[110px] rounded-xl border border-[#EDE7DC] bg-white/40 px-5 py-4 text-center backdrop-blur-sm">
+              <p className="font-serif text-xl text-[#29231D]">
+                {groupCount}
+              </p>
+
+              <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A89C8D]">
+                Groups
+              </p>
+            </div>
+
+            <div className="min-w-[110px] rounded-xl border border-[#EDE7DC] bg-white/40 px-5 py-4 text-center backdrop-blur-sm">
+              <p className="font-serif text-xl text-[#29231D]">
+                {tagCount}
+              </p>
+
+              <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A89C8D]">
+                Tags
+              </p>
+            </div>
+          </div>
         </div>
+      </header>
 
-        <GroupsTagsManager
-          organizationId={membership.organization_id}
-          initialGroups={groups ?? []}
-          initialTags={tags ?? []}
-        />
-      </div>
+      {/* Groups & Tags Management Workspace */}
+      <GroupsTagsManager
+        organizationId={membership.organization_id}
+        initialGroups={groups ?? []}
+        initialTags={tags ?? []}
+      />
     </div>
   );
 }

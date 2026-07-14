@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import Link from "next/link";
@@ -72,6 +73,30 @@ export default function ContactsTable({
   tagAssignments,
   organizationId,
 }: Props) {
+
+  function ContactStatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    new: "border-sky-200 bg-sky-50 text-sky-700",
+    active: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    nurture: "border-amber-200 bg-amber-50 text-amber-700",
+    past_client: "border-[#D8B66A]/40 bg-[#B7832F]/5 text-[#916520]",
+    inactive: "border-[#E3DCD0] bg-[#12110F]/5 text-[#7C7265]",
+    do_not_contact: "border-red-200 bg-red-50 text-red-700",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide ${
+        styles[status.toLowerCase()] ??
+        "border-[#E3DCD0] bg-white text-[#7C7265]"
+      }`}
+    >
+      {status
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase())}
+    </span>
+  );
+}
   const router = useRouter();
 
   const [search, setSearch] = useState("");
@@ -607,17 +632,27 @@ export default function ContactsTable({
     return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  const inputClasses =
-    "rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
+    const inputClasses =
+    "rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-xs text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#B7AEA2] hover:border-[#D5CABB] focus:border-[#B7832F]/60 focus:bg-white focus:ring-2 focus:ring-[#B7832F]/10";
+
+  const secondaryButtonClasses =
+    "cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-4 py-3 text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#151515]">
+    <div className="overflow-hidden rounded-xl border border-[#EDE7DC] bg-white/40 backdrop-blur-sm">
       {/* Search and Filters */}
-      <div className="border-b border-[#2a2a2a] p-5">
-        <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="border-b border-[#EDE7DC]/80 p-6">
+        <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">All Contacts</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Contact Registry
+            </p>
+
+            <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
+              All Contacts
+            </h2>
+
+            <p className="mt-1.5 text-xs text-[#7C7265]">
               Showing {filteredContacts.length} of {contacts.length} contacts
             </p>
           </div>
@@ -631,6 +666,7 @@ export default function ContactsTable({
           />
         </div>
 
+        {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <select
             value={typeFilter}
@@ -696,18 +732,19 @@ export default function ContactsTable({
             <button
               type="button"
               onClick={clearFilters}
-              className="rounded-lg border border-[#333333] px-4 py-3 text-sm text-gray-400 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+              className={secondaryButtonClasses}
             >
               Clear Filters
             </button>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-3 border-t border-[#d4af37]/20 pt-4">
+        {/* Main Actions */}
+        <div className="mt-5 flex flex-wrap gap-3 border-t border-[#EDE7DC]/80 pt-5">
           <button
             type="button"
             onClick={exportSelectedContacts}
-            className="rounded-lg border border-[#333333] px-4 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+            className={secondaryButtonClasses}
           >
             Export Contacts CSV
           </button>
@@ -715,7 +752,7 @@ export default function ContactsTable({
           <button
             type="button"
             onClick={generateMailingLabels}
-            className="rounded-lg border border-[#333333] px-4 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+            className={secondaryButtonClasses}
           >
             Print Mailing Labels
           </button>
@@ -723,7 +760,7 @@ export default function ContactsTable({
           <button
             type="button"
             onClick={exportPropertyAddresses}
-            className="rounded-lg border border-[#333333] px-4 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+            className={secondaryButtonClasses}
           >
             Export Property Addresses
           </button>
@@ -731,7 +768,7 @@ export default function ContactsTable({
           <button
             type="button"
             onClick={openBulkEmailComposer}
-            className="rounded-lg bg-[#d4af37] px-4 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+            className="cursor-pointer rounded-md bg-[#0D0C0A] px-4 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
           >
             Bulk Email Selected
           </button>
@@ -742,7 +779,7 @@ export default function ContactsTable({
               setDeleteConfirmation("");
               setShowDeleteModal(true);
             }}
-            className="rounded-lg border border-red-900/60 px-4 py-3 text-sm font-medium text-red-400 transition hover:border-red-500 hover:bg-red-950/30 hover:text-red-300"
+            className="cursor-pointer rounded-md border border-red-200 bg-red-50/30 px-4 py-3 text-xs font-medium tracking-wide text-red-600 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-50 hover:text-red-700 hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
           >
             Delete Selected Contacts
           </button>
@@ -751,15 +788,16 @@ export default function ContactsTable({
 
       {/* Bulk Action Bar */}
       {selectedContactIds.length > 0 && (
-        <div className="border-b border-[#d4af37]/30 bg-[#d4af37]/5 p-5">
+        <div className="border-b border-[#D8B66A]/30 bg-[#B7832F]/5 p-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="font-semibold text-[#d4af37]">
+                <p className="font-serif text-sm font-medium tracking-wide text-[#916520]">
                   {selectedContactIds.length} contact
                   {selectedContactIds.length === 1 ? "" : "s"} selected
                 </p>
-                <p className="mt-1 text-sm text-gray-500">
+
+                <p className="mt-1 text-xs text-[#7C7265]">
                   Apply actions to all selected contacts.
                 </p>
               </div>
@@ -767,9 +805,9 @@ export default function ContactsTable({
               <button
                 type="button"
                 onClick={clearSelection}
-                className="text-sm text-gray-500 transition hover:text-white"
+                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.16em] text-[#A89C8D] transition-colors duration-300 hover:text-[#B7832F]"
               >
-                Clear selection
+                Clear Selection
               </button>
             </div>
 
@@ -792,7 +830,7 @@ export default function ContactsTable({
                   type="button"
                   onClick={addSelectedToGroup}
                   disabled={isSaving || !bulkGroupId}
-                  className="rounded-lg border border-[#d4af37]/50 px-4 py-3 text-sm font-medium text-[#d4af37] transition hover:bg-[#d4af37]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="cursor-pointer rounded-md border border-[#D8B66A]/50 bg-white/50 px-4 py-3 text-xs font-medium tracking-wide text-[#916520] transition-all duration-300 hover:border-[#D8B66A] hover:bg-[#B7832F]/10 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Add to Group
                 </button>
@@ -816,7 +854,7 @@ export default function ContactsTable({
                   type="button"
                   onClick={addSelectedTag}
                   disabled={isSaving || !bulkTagId}
-                  className="rounded-lg border border-[#d4af37]/50 px-4 py-3 text-sm font-medium text-[#d4af37] transition hover:bg-[#d4af37]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="cursor-pointer rounded-md border border-[#D8B66A]/50 bg-white/50 px-4 py-3 text-xs font-medium tracking-wide text-[#916520] transition-all duration-300 hover:border-[#D8B66A] hover:bg-[#B7832F]/10 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Add Tag
                 </button>
@@ -824,7 +862,7 @@ export default function ContactsTable({
             </div>
 
             {bulkMessage && (
-              <div className="rounded-lg border border-[#333333] bg-[#111111] px-4 py-3 text-sm text-gray-300">
+              <div className="rounded-md border border-[#E3DCD0] bg-white/60 px-4 py-3 text-xs text-[#5F574D]">
                 {bulkMessage}
               </div>
             )}
@@ -832,13 +870,14 @@ export default function ContactsTable({
         </div>
       )}
 
+      {/* Standalone Status Message */}
       {bulkMessage && selectedContactIds.length === 0 && (
         <div
-          className={`border-b px-5 py-4 text-sm ${
+          className={`border-b px-5 py-4 text-xs ${
             bulkMessage.toLowerCase().includes("unable") ||
             bulkMessage.toLowerCase().includes("error")
-              ? "border-red-900/40 bg-red-950/20 text-red-300"
-              : "border-green-900/40 bg-green-950/20 text-green-300"
+              ? "border-red-200 bg-red-50/70 text-red-700"
+              : "border-emerald-200 bg-emerald-50/70 text-emerald-700"
           }`}
         >
           {bulkMessage}
@@ -849,14 +888,22 @@ export default function ContactsTable({
       {filteredContacts.length === 0 ? (
         <div className="flex min-h-72 items-center justify-center p-8">
           <div className="max-w-md text-center">
-            <h3 className="text-xl font-semibold">No matching contacts</h3>
-            <p className="mt-2 text-sm leading-6 text-gray-500">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Registry Search
+            </p>
+
+            <h3 className="font-serif text-xl font-normal text-[#29231D]">
+              No Matching Contacts
+            </h3>
+
+            <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
               Try changing your search term or removing one of the filters.
             </p>
+
             <button
               type="button"
               onClick={clearFilters}
-              className="mt-5 rounded-lg border border-[#d4af37]/50 px-5 py-2.5 text-sm font-medium text-[#d4af37] transition hover:bg-[#d4af37]/10"
+              className="mt-5 cursor-pointer rounded-md border border-[#D8B66A]/50 bg-white/60 px-5 py-2.5 text-xs font-medium tracking-wide text-[#916520] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A] hover:bg-[#B7832F]/10 hover:shadow-sm"
             >
               Clear All Filters
             </button>
@@ -865,28 +912,29 @@ export default function ContactsTable({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="border-b border-[#2a2a2a] bg-[#111111]">
-              <tr className="text-left text-xs uppercase tracking-wider text-gray-500">
+            <thead className="border-b border-[#EDE7DC] bg-[#F5EEDF]/50">
+              <tr className="text-left text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
                 <th className="w-12 px-5 py-4">
                   <input
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={toggleAllVisible}
                     aria-label="Select all visible contacts"
-                    className="h-4 w-4 accent-[#d4af37]"
+                    className="h-4 w-4 accent-[#B7832F]"
                   />
                 </th>
-                <th className="px-5 py-4 font-medium">Name</th>
-                <th className="px-5 py-4 font-medium">Type</th>
-                <th className="px-5 py-4 font-medium">Email</th>
-                <th className="px-5 py-4 font-medium">Primary Phone</th>
-                <th className="px-5 py-4 font-medium">Secondary Phone</th>
-                <th className="px-5 py-4 font-medium">Groups & Tags</th>
-                <th className="px-5 py-4 font-medium">Status</th>
+
+                <th className="px-5 py-4 font-semibold">Name</th>
+                <th className="px-5 py-4 font-semibold">Type</th>
+                <th className="px-5 py-4 font-semibold">Email</th>
+                <th className="px-5 py-4 font-semibold">Primary Phone</th>
+                <th className="px-5 py-4 font-semibold">Secondary Phone</th>
+                <th className="px-5 py-4 font-semibold">Groups & Tags</th>
+                <th className="px-5 py-4 font-semibold">Status</th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-[#2a2a2a]">
+            <tbody className="divide-y divide-[#EDE7DC]/80">
               {filteredContacts.map((contact) => {
                 const contactGroups = getContactGroups(contact.id);
                 const contactTags = getContactTags(contact.id);
@@ -895,8 +943,10 @@ export default function ContactsTable({
                 return (
                   <tr
                     key={contact.id}
-                    className={`transition ${
-                      isSelected ? "bg-[#d4af37]/5" : "hover:bg-[#1a1a1a]"
+                    className={`transition-all duration-300 ${
+                      isSelected
+                        ? "bg-[#B7832F]/[0.07]"
+                        : "hover:bg-white/70"
                     }`}
                   >
                     <td className="px-5 py-4">
@@ -907,63 +957,91 @@ export default function ContactsTable({
                         aria-label={`Select ${contact.first_name} ${
                           contact.last_name ?? ""
                         }`}
-                        className="h-4 w-4 accent-[#d4af37]"
+                        className="h-4 w-4 accent-[#B7832F]"
                       />
                     </td>
 
                     <td className="px-5 py-4">
                       <Link
                         href={`/contacts/${contact.id}`}
-                        className="font-medium text-white transition hover:text-[#d4af37]"
+                        className="font-serif text-sm font-medium text-[#29231D] transition-colors duration-300 hover:text-[#B7832F]"
                       >
                         {contact.first_name} {contact.last_name ?? ""}
                       </Link>
+
                       {contact.lead_source && (
-                        <p className="mt-1 text-xs text-gray-600">
-                          {contact.lead_source}
+                        <p className="mt-1 text-[10px] text-[#A89C8D]">
+                          {formatLabel(contact.lead_source)}
                         </p>
                       )}
                     </td>
 
-                    <td className="px-5 py-4 text-sm text-gray-300">
+                    <td className="px-5 py-4 text-xs text-[#5F574D]">
                       {formatLabel(contact.contact_type)}
                     </td>
 
-                    <td className="px-5 py-4 text-sm text-gray-400">
+                    <td className="px-5 py-4 text-xs text-[#7C7265]">
                       {contact.email || "—"}
                     </td>
 
-                    {/* Primary Phone Column */}
-                    <td className="px-5 py-4 text-sm text-gray-300">
+                    {/* Primary Phone */}
+                    <td className="px-5 py-4 text-xs text-[#5F574D]">
                       <div className="flex items-center gap-2">
                         <span>{contact.cell_phone || "—"}</span>
 
                         {contact.cell_phone && contact.cell_phone_type && (
-                          <span className="rounded bg-[#222] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                          <span className="rounded bg-[#171512]/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7C7265]">
                             {formatLabel(contact.cell_phone_type)}
                           </span>
                         )}
                       </div>
                     </td>
 
-                    {/* Secondary Phone Column */}
-                    <td className="px-5 py-4 text-sm text-gray-300">
+                    {/* Secondary Phone */}
+                    <td className="px-5 py-4 text-xs text-[#5F574D]">
                       <div className="flex items-center gap-2">
                         <span>{contact.business_phone || "—"}</span>
 
                         {contact.business_phone &&
                           contact.business_phone_type && (
-                            <span className="rounded bg-[#222] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                            <span className="rounded bg-[#171512]/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7C7265]">
                               {formatLabel(contact.business_phone_type)}
                             </span>
                           )}
                       </div>
                     </td>
 
+                    {/* Groups & Tags */}
                     <td className="px-5 py-4">
-                      <span className="rounded-full bg-[#d4af37]/10 px-3 py-1 text-xs text-[#d4af37]">
-                        {formatLabel(contact.status)}
-                      </span>
+                      {contactGroups.length === 0 &&
+                      contactTags.length === 0 ? (
+                        <span className="text-xs text-[#B7AEA2]">—</span>
+                      ) : (
+                        <div className="flex max-w-[220px] flex-wrap gap-1.5">
+                          {contactGroups.map((group) => (
+                            <span
+                              key={`group-${group.id}`}
+                              className="rounded-full border border-[#D8B66A]/40 bg-[#B7832F]/5 px-2 py-1 text-[9px] font-medium tracking-wide text-[#916520]"
+                            >
+                              {group.name}
+                            </span>
+                          ))}
+
+                          {contactTags.map((tag) => (
+                            <span
+                              key={`tag-${tag.id}`}
+                              className="rounded-full border border-[#E3DCD0] bg-white/60 px-2 py-1 text-[9px] font-medium tracking-wide text-[#7C7265]"
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-5 py-4">
+                      <ContactStatusBadge status={contact.status} />
                     </td>
                   </tr>
                 );
@@ -976,24 +1054,26 @@ export default function ContactsTable({
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D0C0A]/70 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-contacts-title"
         >
-          <div className="w-full max-w-lg rounded-2xl border border-red-900/50 bg-[#151515] p-6 shadow-2xl">
+          <div className="w-full max-w-lg rounded-xl border border-red-200 bg-[#FBF7EF] p-7 shadow-2xl">
             <div className="mb-6">
-              <p className="text-xs font-semibold uppercase tracking-widest text-red-400">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-red-600">
                 Permanent Action
               </p>
+
               <h2
                 id="delete-contacts-title"
-                className="mt-2 text-2xl font-semibold text-white"
+                className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]"
               >
                 Delete {selectedContactIds.length} selected contact
                 {selectedContactIds.length === 1 ? "" : "s"}?
               </h2>
-              <p className="mt-3 text-sm leading-6 text-gray-400">
+
+              <p className="mt-3 text-xs leading-relaxed text-[#7C7265]">
                 This permanently removes the selected contact
                 {selectedContactIds.length === 1 ? "" : "s"} from RoseVault.
                 Their group memberships and tag assignments will also be
@@ -1004,18 +1084,20 @@ export default function ContactsTable({
             <div className="mb-6">
               <label
                 htmlFor="confirm-delete-input"
-                className="mb-2 block text-sm font-medium text-gray-400"
+                className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
               >
-                Type <span className="font-bold text-white">DELETE</span> to
+                Type{" "}
+                <span className="font-bold text-[#29231D]">DELETE</span> to
                 confirm permanent removal
               </label>
+
               <input
                 id="confirm-delete-input"
                 type="text"
                 value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                onChange={(event) => setDeleteConfirmation(event.target.value)}
                 placeholder="DELETE"
-                className="w-full rounded-lg border border-red-900/50 bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-700 focus:border-red-500"
+                className="w-full rounded-md border border-red-200 bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#B7AEA2] focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
               />
             </div>
 
@@ -1026,15 +1108,16 @@ export default function ContactsTable({
                   setShowDeleteModal(false);
                   setDeleteConfirmation("");
                 }}
-                className="rounded-lg border border-[#333333] px-5 py-2.5 text-sm font-medium text-gray-400 transition hover:border-[#555] hover:text-white"
+                className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-2.5 text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:border-[#C4BCB1] hover:bg-white hover:text-[#29231D]"
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 disabled={isDeleting || deleteConfirmation !== "DELETE"}
                 onClick={deleteSelectedContacts}
-                className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer rounded-md bg-red-600 px-5 py-2.5 text-xs font-semibold tracking-wide text-white transition-all duration-300 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isDeleting ? "Deleting..." : "Permanently Delete"}
               </button>

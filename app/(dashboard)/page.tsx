@@ -61,88 +61,104 @@ export default async function Home() {
   ];
 
   return (
-    <div className="p-8">
-      <header className="mb-8 flex items-center justify-between">
+    <div className="mx-auto w-full max-w-7xl px-8 py-12 lg:px-12 lg:py-16">
+      
+      {/* Editorial Header Section */}
+      <header className="mb-12 flex items-center justify-between gap-6 border-b border-[#EDE7DC]/60 pb-8">
         <div>
-          <h2 className="text-3xl font-semibold">
+          <h2 className="font-serif text-3xl font-normal tracking-wide text-[#29231D] sm:text-4xl">
             {greeting}, {firstName}
           </h2>
-
-          <p className="mt-1 text-gray-400">
-            Here&apos;s what&apos;s happening with {organizationName} today.
+          <p className="mt-2 text-xs tracking-wide text-[#7C7265]">
+            Here&apos;s the current status of your workspace inside{" "}
+            <span className="font-medium text-[#29231D]">{organizationName}</span> today.
           </p>
         </div>
 
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#d4af37] font-bold text-black">
+        {/* Profile Avatar Badge with Hover Scale and Pointer Cursor */}
+        <div className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#171512] text-xs font-semibold tracking-wider text-[#D8B66A] transition-transform duration-300 hover:scale-105">
           {userInitial}
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+      {/* Metrics Section with Interactive Clickable Card Micro-Elevation */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map(([label, value]) => (
           <div
             key={label}
-            className="rounded-xl border border-[#2a2a2a] bg-[#151515] p-6"
+            className="group cursor-pointer rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/60 hover:shadow-sm"
           >
-            <p className="text-sm text-gray-400">{label}</p>
-
-            <p className="mt-3 text-3xl font-semibold text-[#d4af37]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#A89C8D] transition-colors duration-300 group-hover:text-[#8F8578]">
+              {label}
+            </p>
+            <p className="mt-4 font-serif text-3xl font-light text-[#B7832F] transition-transform duration-300 group-hover:scale-[1.01]">
               {value}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="rounded-xl border border-[#2a2a2a] bg-[#151515] p-6 xl:col-span-2">
-          <div className="mb-6 flex items-center justify-between">
+      {/* Primary Workspace Layout Split */}
+      <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-3">
+        
+        {/* Left Side: Pipeline Portfolio Area */}
+        <div className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 xl:col-span-2">
+          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h3 className="text-xl font-semibold">Deal Pipeline</h3>
-
-              <p className="mt-1 text-sm text-gray-400">
-                Your active real estate opportunities
+              <h3 className="font-serif text-xl font-normal tracking-wide text-[#29231D]">
+                Deal Pipeline
+              </h3>
+              <p className="mt-1 text-xs text-[#7C7265]">
+                Active commercial and private real estate opportunities
               </p>
             </div>
 
-            <button className="rounded-lg bg-[#d4af37] px-4 py-2 text-sm font-semibold text-black transition hover:bg-[#e2c35b]">
+            <button className="cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-2.5 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 ease-out hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.98]">
               + Add Deal
             </button>
           </div>
 
-          <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-[#333333] bg-[#111111]">
+          {/* Empty Slate Dashboard Wrapper with Interactive Micro-Shift */}
+          <div className="flex min-h-72 cursor-pointer items-center justify-center rounded-xl border border-dashed border-[#E3DCD0] bg-[#12110F]/[0.01] transition-colors duration-300 hover:border-[#D8B66A]/25 hover:bg-[#12110F]/[0.02]">
             <div className="max-w-sm px-6 text-center">
-              <p className="text-lg font-medium text-white">
+              <p className="font-serif text-lg text-[#29231D]">
                 Your pipeline is ready
               </p>
-
-              <p className="mt-2 text-sm leading-6 text-gray-500">
-                Add your first deal to begin tracking opportunities, properties,
-                transactions, and closings.
+              <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
+                Add your first deal transaction to begin securely mapping asset portfolios, 
+                buyer profiles, pipelines, and upcoming closing logs.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#d4af37]/30 bg-[#151515] p-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#d4af37]">
-            Rosie AI
-          </p>
+        {/* Right Side: Contextual Assistant Card (Rosie AI) */}
+        <div className="flex flex-col justify-between rounded-xl border border-[#D8B66A]/25 bg-[#12110F]/[0.02] p-8 transition-all duration-300 hover:border-[#D8B66A]/40 hover:bg-[#12110F]/[0.04]">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Rosie AI
+            </p>
+            <h3 className="mt-3 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+              How can I support your pipeline today?
+            </h3>
+            <p className="mt-3 text-xs leading-relaxed text-[#7C7265]">
+              Request immediate insights across lead registries, outstanding tasks, portfolio valuations, or 
+              marketing templates.
+            </p>
 
-          <h3 className="mt-4 text-xl font-semibold">How can I help today?</h3>
-
-          <p className="mt-2 text-sm leading-6 text-gray-400">
-            Ask about your leads, deals, follow-ups, marketing, properties, or
-            daily priorities.
-          </p>
-
-          <div className="mt-6 rounded-lg border border-[#333333] bg-[#0f0f0f] p-4">
-            <p className="text-sm text-gray-500">Ask Rosie anything...</p>
+            {/* Interactive Simulated Input Area */}
+            <div className="group mt-8 cursor-pointer rounded-md border border-[#EDE7DC] bg-white/70 p-4 transition-all duration-300 focus-within:border-[#B7832F]/50 hover:border-[#C4BCB1] hover:bg-white/90">
+              <p className="text-xs text-[#A89C8D] tracking-wide transition-colors duration-300 group-hover:text-[#7C7265]">
+                Ask Rosie a question...
+              </p>
+            </div>
           </div>
 
-          <button className="mt-4 w-full rounded-lg bg-[#d4af37] px-4 py-3 font-semibold text-black transition hover:bg-[#e2c35b]">
-            Ask Rosie
+          <button className="mt-8 w-full cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 ease-out hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.98]">
+            Consult Assistant
           </button>
         </div>
+
       </div>
     </div>
   );

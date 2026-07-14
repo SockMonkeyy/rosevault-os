@@ -40,13 +40,13 @@ export default async function ContactsPage() {
           last_name,
           email,
           cell_phone,
-cell_phone_type,
-business_phone,
-business_phone_type,
-spouse_cell_phone,
-spouse_cell_phone_type,
-spouse_business_phone,
-spouse_business_phone_type,
+          cell_phone_type,
+          business_phone,
+          business_phone_type,
+          spouse_cell_phone,
+          spouse_cell_phone_type,
+          spouse_business_phone,
+          spouse_business_phone_type,
           contact_type,
           status,
           lead_source,
@@ -66,7 +66,6 @@ spouse_business_phone_type,
       .eq("organization_id", membership.organization_id)
       .order("created_at", { ascending: false }),
 
-    // ... rest of the promise blocks remain the same
     supabase
       .from("contact_groups")
       .select("id, name")
@@ -94,113 +93,111 @@ spouse_business_phone_type,
     console.error("Error loading contacts:", contactsError);
   }
 
+  const contactMetrics = [
+    ["Total Contacts", contacts?.length ?? 0],
+    ["Buyers", contacts?.filter((c) => c.contact_type === "buyer").length ?? 0],
+    ["Sellers", contacts?.filter((c) => c.contact_type === "seller").length ?? 0],
+    ["Leads", contacts?.filter((c) => c.contact_type === "lead").length ?? 0],
+  ];
+
   return (
-    <div className="p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <Link
-              href="/"
-              className="mb-3 inline-block text-sm text-[#d4af37] hover:underline"
-            >
-              ← Back to Dashboard
-            </Link>
+    <div className="mx-auto w-full max-w-7xl px-8 py-12 lg:px-12 lg:py-16">
+      
+      {/* Editorial Header Section */}
+      <header className="mb-12 flex flex-col justify-between gap-6 border-b border-[#EDE7DC]/60 pb-8 xl:flex-row xl:items-end">
+        <div className="space-y-2">
+          <Link
+            href="/"
+            className="group inline-flex cursor-pointer items-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F] transition-colors duration-300 hover:text-[#916520]"
+          >
+            <span className="mr-1 transform transition-transform duration-300 group-hover:-translate-x-1">←</span>{" "}
+            Dashboard
+          </Link>
 
-            <h1 className="text-3xl font-semibold">Contacts</h1>
+          <h1 className="font-serif text-3xl font-normal tracking-wide text-[#29231D] sm:text-4xl">
+            Relationship Registry
+          </h1>
 
-            <p className="mt-2 text-gray-400">
-              Manage your clients, leads, investors, agents, vendors, and
-              business relationships.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/contacts/groups-tags"
-              className="rounded-lg border border-[#333333] px-4 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
-            >
-              Groups & Tags
-            </Link>
-
-            <Link
-              href="/contacts/import"
-              className="rounded-lg border border-[#333333] px-4 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
-            >
-              Import Contacts
-            </Link>
-
-            <Link
-              href="/contacts/new"
-              className="rounded-lg bg-[#d4af37] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
-            >
-              + Add Contact
-            </Link>
-          </div>
+          <p className="max-w-2xl text-xs leading-relaxed text-[#7C7265]">
+            Manage clients, secondary buyers, private lenders, asset curators, and real estate brokers safely pinned inside your CRM vault.
+          </p>
         </div>
 
-        {/* Stats */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-[#2a2a2a] bg-[#151515] p-5">
-            <p className="text-sm text-gray-400">Total Contacts</p>
-            <p className="mt-2 text-3xl font-semibold text-[#d4af37]">
-              {contacts?.length ?? 0}
-            </p>
-          </div>
+        {/* Action Anchor Row */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/contacts/groups-tags"
+            className="cursor-pointer rounded-md border border-[#EDE7DC] bg-white/50 px-4 py-2.5 text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:border-[#C4BCB1] hover:bg-white/90 hover:text-[#29231D]"
+          >
+            Groups & Tags
+          </Link>
 
-          <div className="rounded-xl border border-[#2a2a2a] bg-[#151515] p-5">
-            <p className="text-sm text-gray-400">Buyers</p>
-            <p className="mt-2 text-3xl font-semibold text-[#d4af37]">
-              {contacts?.filter((contact) => contact.contact_type === "buyer")
-                .length ?? 0}
-            </p>
-          </div>
+          <Link
+            href="/contacts/import"
+            className="cursor-pointer rounded-md border border-[#EDE7DC] bg-white/50 px-4 py-2.5 text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:border-[#C4BCB1] hover:bg-white/90 hover:text-[#29231D]"
+          >
+            Bulk Import
+          </Link>
 
-          <div className="rounded-xl border border-[#2a2a2a] bg-[#151515] p-5">
-            <p className="text-sm text-gray-400">Sellers</p>
-            <p className="mt-2 text-3xl font-semibold text-[#d4af37]">
-              {contacts?.filter((contact) => contact.contact_type === "seller")
-                .length ?? 0}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[#2a2a2a] bg-[#151515] p-5">
-            <p className="text-sm text-gray-400">Leads</p>
-            <p className="mt-2 text-3xl font-semibold text-[#d4af37]">
-              {contacts?.filter((contact) => contact.contact_type === "lead")
-                .length ?? 0}
-            </p>
-          </div>
+          <Link
+            href="/contacts/new"
+            className="cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-2.5 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.98]"
+          >
+            + Add Contact
+          </Link>
         </div>
+      </header>
 
-        {/* Contacts Table */}
+      {/* Roster Overview Metrics */}
+      <div className="mb-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {contactMetrics.map(([label, value]) => (
+          <div
+            key={label}
+            className="group cursor-pointer rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/60 hover:shadow-sm"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#A89C8D] transition-colors duration-300 group-hover:text-[#8F8578]">
+              {label}
+            </p>
+            <p className="mt-4 font-serif text-3xl font-light text-[#B7832F] transition-transform duration-300 group-hover:scale-[1.01]">
+              {value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Main Workspace Frame */}
+      <div className="w-full">
         {!contacts || contacts.length === 0 ? (
-          <div className="flex min-h-80 items-center justify-center rounded-xl border border-[#2a2a2a] bg-[#151515] p-8">
+          <div className="flex min-h-80 cursor-pointer items-center justify-center rounded-xl border border-dashed border-[#E3DCD0] bg-[#12110F]/[0.01] p-8 transition-colors duration-300 hover:border-[#D8B66A]/25 hover:bg-[#12110F]/[0.02]">
             <div className="max-w-md text-center">
-              <h3 className="text-xl font-semibold">No contacts yet</h3>
+              <h3 className="font-serif text-lg text-[#29231D]">
+                No entries inside the registry
+              </h3>
 
-              <p className="mt-2 text-sm leading-6 text-gray-500">
-                Add your first contact or import an existing contact list to
-                begin building your RoseVault CRM.
+              <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
+                Create a single dossier entry or inject raw tabular CSV archives to begin cataloging your custom workspace data pipelines.
               </p>
 
               <Link
                 href="/contacts/new"
-                className="mt-6 inline-block rounded-lg bg-[#d4af37] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+                className="mt-6 inline-block cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-2.5 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.98]"
               >
-                + Add Your First Contact
+                + Initialize First Dossier
               </Link>
             </div>
           </div>
         ) : (
-          <ContactsTable
-            contacts={contacts ?? []}
-            groups={groups ?? []}
-            tags={tags ?? []}
-            groupMemberships={groupMemberships ?? []}
-            tagAssignments={tagAssignments ?? []}
-            organizationId={membership.organization_id}
-          />
+          /* Custom Table Block Shell wrapper */
+          <div className="overflow-hidden rounded-xl border border-[#EDE7DC] bg-white/40 p-2 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
+            <ContactsTable
+              contacts={contacts ?? []}
+              groups={groups ?? []}
+              tags={tags ?? []}
+              groupMemberships={groupMemberships ?? []}
+              tagAssignments={tagAssignments ?? []}
+              organizationId={membership.organization_id}
+            />
+          </div>
         )}
       </div>
     </div>

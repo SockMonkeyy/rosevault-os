@@ -29,10 +29,12 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-[#0b0b0b] text-white">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#FBF7EF] text-[#29231D] antialiased selection:bg-[#B7832F]/15 selection:text-[#B7832F]">
+      {/* Locked Desktop Sidebar */}
       <AppSidebar />
 
-      <main className="min-w-0 flex-1">
+      {/* Main Content Workspace Canvas */}
+      <main className="relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#FBF7EF]">
         {children}
       </main>
     </div>
