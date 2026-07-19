@@ -1,11 +1,8 @@
 import { Search } from "lucide-react";
 
-interface Props
-  extends React.InputHTMLAttributes<HTMLInputElement> {}
-
 export default function SearchInput({
   ...props
-}: Props) {
+}: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div className="relative w-full max-w-md">
       <Search

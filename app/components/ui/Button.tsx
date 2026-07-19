@@ -1,44 +1,50 @@
-import { ButtonHTMLAttributes, forwardRef } from "react";
+import { ButtonHTMLAttributes } from "react";
 import clsx from "clsx";
 
-type Variant = "primary" | "secondary" | "outline" | "danger";
+type Variant =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "danger"
+  | "ghost";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
-  loading?: boolean;
 }
 
-const variants: Record<Variant, string> = {
-  primary:
-    "bg-[#0D0C0A] text-[#D8B66A] hover:bg-[#171512] border border-[#29231D]",
+export default function Button({
+  variant = "primary",
+  className,
+  children,
+  ...props
+}: ButtonProps) {
+  const variants = {
+    primary:
+      "bg-[#0D0C0A] text-[#D8B66A] hover:bg-[#171512]",
 
-  secondary:
-    "bg-white text-[#29231D] border border-[#E3DCD0] hover:bg-[#FBF7EF]",
+    secondary:
+      "bg-[#D8B66A] text-[#0D0C0A] hover:bg-[#C8A654]",
 
-  outline:
-    "border border-[#B7832F] text-[#B7832F] hover:bg-[#FBF7EF]",
+    outline:
+      "border border-[#D8D2C8] bg-white text-[#29231D] hover:bg-[#F5EEDF]",
 
-  danger:
-    "bg-red-600 text-white hover:bg-red-700",
-};
+    danger:
+      "bg-red-600 text-white hover:bg-red-700",
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", loading, children, ...props }, ref) => (
+    ghost:
+      "bg-transparent text-[#29231D] hover:bg-[#F5EEDF]",
+  };
+
+  return (
     <button
-      ref={ref}
-      disabled={loading || props.disabled}
+      {...props}
       className={clsx(
-        "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition duration-300 disabled:opacity-50",
+        "inline-flex items-center justify-center rounded-md px-5 py-2.5 text-sm font-medium transition duration-300 disabled:cursor-not-allowed disabled:opacity-50",
         variants[variant],
         className
       )}
-      {...props}
     >
-      {loading ? "Loading..." : children}
+      {children}
     </button>
-  )
-);
-
-Button.displayName = "Button";
-
-export default Button;
+  );
+}

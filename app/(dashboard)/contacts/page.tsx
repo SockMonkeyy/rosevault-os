@@ -110,6 +110,9 @@ export default async function ContactsPage() {
     ["Leads", contacts?.filter((c) => c.contact_type === "lead").length ?? 0],
   ];
 
+  // Uniform responsive button styles with pointer feedback
+  const buttonStyle = "min-w-[120px] cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0";
+
   return (
     <WorkspaceLayout>
       <PageHeader
@@ -117,42 +120,64 @@ export default async function ContactsPage() {
         title="Relationship Registry"
         description="Manage clients, buyers, sellers, lenders, vendors, and business relationships inside your RoseVault workspace."
         actions={
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link href="/contacts/groups-tags">
-              <Button variant="secondary">Groups & Tags</Button>
+              <Button 
+                variant="secondary" 
+                className={`${buttonStyle} hover:border-[#D8B66A]/60`}
+              >
+                Groups & Tags
+              </Button>
             </Link>
 
             <Link href="/contacts/import">
-              <Button variant="secondary">Bulk Import</Button>
+              <Button 
+                variant="secondary" 
+                className={`${buttonStyle} hover:border-[#D8B66A]/60`}
+              >
+                Bulk Import
+              </Button>
             </Link>
 
             <Link href="/contacts/new">
-              <Button>+ Add Contact</Button>
+              <Button 
+                variant="primary" 
+                className={`${buttonStyle} hover:opacity-95`}
+              >
+                + Add Contact
+              </Button>
             </Link>
           </div>
         }
       />
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {contactMetrics.map(([label, value]) => (
+        {contactMetrics.map(([title, value]) => (
           <StatCard
-            key={label as string}
-            label={label as string}
+            key={title as string}
+            title={title as string}
             value={value as number}
           />
         ))}
       </div>
 
       {!contacts || contacts.length === 0 ? (
-        <EmptyState
-          title="No Contacts Yet"
-          description="Start building your CRM by adding your first contact or importing a CSV file."
-          action={
+        <>
+          <EmptyState
+            title="No Contacts Yet"
+            description="Start building your CRM by adding your first contact or importing a CSV file."
+          />
+          <div className="mt-6">
             <Link href="/contacts/new">
-              <Button>+ Add Contact</Button>
+              <Button 
+                variant="primary" 
+                className="min-w-[140px] cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:opacity-95 hover:shadow-sm active:translate-y-0"
+              >
+                + Add Contact
+              </Button>
             </Link>
-          }
-        />
+          </div>
+        </>
       ) : (
         <SectionCard>
           <DataTable>

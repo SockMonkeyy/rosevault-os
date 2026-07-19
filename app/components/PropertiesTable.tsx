@@ -117,25 +117,24 @@ export default function PropertiesTable({
   }, [properties, search, statusFilter, typeFilter]);
 
   return (
-    <div className="space-y-5">
-      {/* Search and filters */}
-      <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-5">
+    <div className="space-y-6">
+      {/* Search and filters controls */}
+      <section className="rounded-xl border border-[#EDE7DC] bg-white/45 p-5 backdrop-blur-sm shadow-sm transition-all duration-300">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px_220px]">
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by address, city, county, ZIP, or parcel number..."
-            className="rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]"
+            className="rounded-lg border border-[#EDE7DC] bg-[#FBF9F6]/80 px-4 py-3 text-sm text-[#5C544A] outline-none transition placeholder:text-[#8F8578]/60 focus:border-[#D8B66A]/60"
           />
 
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-sm text-white outline-none transition focus:border-[#d4af37]"
+            className="rounded-lg border border-[#EDE7DC] bg-[#FBF9F6]/80 px-4 py-3 text-sm text-[#5C544A] outline-none transition focus:border-[#D8B66A]/60"
           >
             <option value="all">All Statuses</option>
-
             {statusOptions.map((status) => (
               <option key={status} value={status}>
                 {formatLabel(status)}
@@ -146,10 +145,9 @@ export default function PropertiesTable({
           <select
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value)}
-            className="rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-sm text-white outline-none transition focus:border-[#d4af37]"
+            className="rounded-lg border border-[#EDE7DC] bg-[#FBF9F6]/80 px-4 py-3 text-sm text-[#5C544A] outline-none transition focus:border-[#D8B66A]/60"
           >
             <option value="all">All Property Types</option>
-
             {typeOptions.map((type) => (
               <option key={type} value={type}>
                 {formatLabel(type)}
@@ -158,59 +156,38 @@ export default function PropertiesTable({
           </select>
         </div>
 
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="mt-4 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
           Showing {filteredProperties.length} of {properties.length} properties
         </p>
       </section>
 
-      {/* Table */}
+      {/* Table & Fallbacks */}
       {filteredProperties.length === 0 ? (
-        <section className="rounded-2xl border border-dashed border-[#333333] bg-[#151515] px-6 py-16 text-center">
-          <h2 className="text-xl font-semibold text-white">
+        <section className="rounded-xl border border-dashed border-[#D8CDBE] bg-white/30 px-6 py-16 text-center backdrop-blur-sm">
+          <h2 className="font-serif text-2xl font-normal text-[#B7832F]">
             No properties match your filters
           </h2>
-
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-[#5C544A]">
             Try changing your search, status, or property-type filter.
           </p>
         </section>
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-[#2a2a2a] bg-[#151515]">
+        <section className="overflow-hidden rounded-xl border border-[#EDE7DC] bg-white/45 backdrop-blur-sm shadow-sm transition-all duration-300">
           <div className="overflow-x-auto">
-            <table className="w-full `min-w-275`">
-              <thead className="bg-[#111111]">
-                <tr className="text-left text-xs uppercase tracking-wider text-gray-500">
-                  <th className="px-5 py-4 font-medium">
-                    Property
-                  </th>
-
-                  <th className="px-5 py-4 font-medium">
-                    Type
-                  </th>
-
-                  <th className="px-5 py-4 font-medium">
-                    Status
-                  </th>
-
-                  <th className="px-5 py-4 font-medium">
-                    Details
-                  </th>
-
-                  <th className="px-5 py-4 font-medium">
-                    Estimated Value
-                  </th>
-
-                  <th className="px-5 py-4 font-medium">
-                    Asking Price
-                  </th>
-
-                  <th className="px-5 py-4 font-medium">
-                    Contacts
-                  </th>
+            <table className="w-full min-w-[1100px] border-collapse">
+              <thead>
+                <tr className="border-b border-[#EDE7DC] text-left text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+                  <th className="px-5 py-4 font-semibold">Property</th>
+                  <th className="px-5 py-4 font-semibold">Type</th>
+                  <th className="px-5 py-4 font-semibold">Status</th>
+                  <th className="px-5 py-4 font-semibold">Details</th>
+                  <th className="px-5 py-4 font-semibold">Estimated Value</th>
+                  <th className="px-5 py-4 font-semibold">Asking Price</th>
+                  <th className="px-5 py-4 font-semibold">Contacts</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-[#2a2a2a]">
+              <tbody className="divide-y divide-[#EDE7DC]/60">
                 {filteredProperties.map((property) => {
                   const linkedContactCount =
                     relationshipCounts.get(property.id) ?? 0;
@@ -218,54 +195,50 @@ export default function PropertiesTable({
                   return (
                     <tr
                       key={property.id}
-                      className="transition hover:bg-[#1a1a1a]"
+                      className="transition-colors duration-200 hover:bg-white/60"
                     >
                       <td className="px-5 py-4">
                         <Link
                           href={`/properties/${property.id}`}
-                          className="font-medium text-white transition hover:text-[#d4af37]"
+                          className="font-serif text-base font-normal text-[#B7832F] transition-colors hover:text-[#D8B66A]"
                         >
                           {property.property_address_line_1 ||
                             "Unnamed Property"}
                         </Link>
-
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-[#5C544A]">
                           {formatCityStateZip(property)}
                         </p>
-
                         {property.parcel_number && (
-                          <p className="mt-1 text-xs text-gray-600">
+                          <p className="mt-1 text-[11px] text-[#8F8578]">
                             Parcel: {property.parcel_number}
                           </p>
                         )}
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-gray-300">
+                      <td className="px-5 py-4 text-sm text-[#5C544A]">
                         {property.property_type
                           ? formatLabel(property.property_type)
                           : "—"}
                       </td>
 
                       <td className="px-5 py-4">
-                        <StatusBadge
-                          status={property.property_status}
-                        />
+                        <StatusBadge status={property.property_status} />
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-gray-400">
+                      <td className="px-5 py-4 text-sm text-[#7C7265]">
                         {formatPropertyDetails(property)}
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-gray-300">
+                      <td className="px-5 py-4 font-serif text-[#B7832F]">
                         {formatCurrency(property.estimated_value)}
                       </td>
 
-                      <td className="px-5 py-4 text-sm text-gray-300">
+                      <td className="px-5 py-4 font-serif text-[#B7832F]">
                         {formatCurrency(property.asking_price)}
                       </td>
 
                       <td className="px-5 py-4">
-                        <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-[#d4af37]/10 px-2.5 py-1 text-xs font-semibold text-[#d4af37]">
+                        <span className="inline-flex min-w-8 items-center justify-center rounded-full border border-[#D8B66A]/40 bg-white/80 px-2.5 py-1 text-xs font-semibold text-[#B7832F]">
                           {linkedContactCount}
                         </span>
                       </td>
@@ -281,33 +254,24 @@ export default function PropertiesTable({
   );
 }
 
-function StatusBadge({
-  status,
-}: {
-  status: string | null;
-}) {
+function StatusBadge({ status }: { status: string | null }) {
   if (!status) {
-    return <span className="text-sm text-gray-600">—</span>;
+    return <span className="text-sm text-[#8F8578]">—</span>;
   }
 
+  // Adjusted mappings to match RoseVault signature palette system
   const styles: Record<string, string> = {
-    prospect:
-      "border-amber-900/50 bg-amber-950/30 text-amber-300",
-    active:
-      "border-green-900/50 bg-green-950/30 text-green-300",
-    under_contract:
-      "border-blue-900/50 bg-blue-950/30 text-blue-300",
-    closed:
-      "border-purple-900/50 bg-purple-950/30 text-purple-300",
-    inactive:
-      "border-gray-700 bg-gray-900/50 text-gray-400",
+    prospect: "border-[#D8CDBE] bg-white/60 text-[#7C7265]",
+    active: "border-emerald-200 bg-emerald-50/70 text-emerald-700",
+    under_contract: "border-blue-200 bg-blue-50/70 text-blue-700",
+    closed: "border-purple-200 bg-purple-50/70 text-purple-700",
+    inactive: "border-[#E3DCD0] bg-[#F1ECE4]/70 text-[#7C7265]",
   };
 
   return (
     <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${
-        styles[status] ??
-        "border-gray-700 bg-gray-900/50 text-gray-300"
+      className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+        styles[status] ?? "border-[#D8CDBE] bg-white/60 text-[#7C7265]"
       }`}
     >
       {formatLabel(status)}
@@ -334,19 +298,11 @@ function formatCurrency(value: number | null) {
 }
 
 function formatCityStateZip(property: Property) {
-  const cityState = [
-    property.property_city,
-    property.property_state,
-  ]
+  const cityState = [property.property_city, property.property_state]
     .filter(Boolean)
     .join(", ");
 
-  return [
-    cityState,
-    property.property_postal_code,
-  ]
-    .filter(Boolean)
-    .join(" ") || "—";
+  return [cityState, property.property_postal_code].filter(Boolean).join(" ") || "—";
 }
 
 function formatPropertyDetails(property: Property) {

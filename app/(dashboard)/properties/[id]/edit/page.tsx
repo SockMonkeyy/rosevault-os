@@ -26,6 +26,17 @@ type PropertyRecord = {
   notes: string | null;
 };
 
+// Available statuses for the application
+const STATUS_OPTIONS = [
+  { value: "prospect", label: "Prospect" },
+  { value: "draft", label: "Draft" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "sending", label: "Sending" },
+  { value: "sent", label: "Sent" },
+  { value: "failed", label: "Failed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
 export default function EditPropertyPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -43,7 +54,7 @@ export default function EditPropertyPage() {
   const [county, setCounty] = useState("");
   const [parcelNumber, setParcelNumber] = useState("");
   const [propertyType, setPropertyType] = useState("");
-  const [propertyStatus, setPropertyStatus] = useState("");
+  const [propertyStatus, setPropertyStatus] = useState("prospect");
 
   // Property details
   const [bedrooms, setBedrooms] = useState("");
@@ -62,6 +73,8 @@ export default function EditPropertyPage() {
   // Page state
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -75,7 +88,6 @@ export default function EditPropertyPage() {
           setErrorMessage("Property ID is missing.");
           setIsLoading(false);
         }
-
         return;
       }
 
@@ -90,9 +102,7 @@ export default function EditPropertyPage() {
         error: userError,
       } = await supabase.auth.getUser();
 
-      if (!isMounted) {
-        return;
-      }
+      if (!isMounted) return;
 
       if (userError || !user) {
         router.replace("/login");
@@ -105,9 +115,7 @@ export default function EditPropertyPage() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!isMounted) {
-        return;
-      }
+      if (!isMounted) return;
 
       if (membershipError) {
         setLoadFailed(true);
@@ -125,7 +133,8 @@ export default function EditPropertyPage() {
 
       const { data, error } = await supabase
         .from("properties")
-        .select(`
+        .select(
+          `
           id,
           property_address_line_1,
           property_address_line_2,
@@ -144,14 +153,13 @@ export default function EditPropertyPage() {
           asking_price,
           mortgage_balance,
           notes
-        `)
+        `,
+        )
         .eq("id", propertyId)
         .eq("organization_id", membership.organization_id)
         .maybeSingle();
 
-      if (!isMounted) {
-        return;
-      }
+      if (!isMounted) return;
 
       if (error) {
         setLoadFailed(true);
@@ -180,7 +188,7 @@ export default function EditPropertyPage() {
       setCounty(property.county ?? "");
       setParcelNumber(property.parcel_number ?? "");
       setPropertyType(property.property_type ?? "");
-      setPropertyStatus(property.property_status ?? "");
+      setPropertyStatus(property.property_status ?? "prospect");
 
       setBedrooms(numberToInputValue(property.bedrooms));
       setBathrooms(numberToInputValue(property.bathrooms));
@@ -264,9 +272,6 @@ export default function EditPropertyPage() {
         county: county.trim() || null,
         parcel_number: parcelNumber.trim() || null,
         property_type: propertyType.trim() || null,
-
-        // Preserve the currently loaded database value.
-        // Do not invent a new status value.
         property_status: propertyStatus.trim() || "prospect",
 
         bedrooms: parseOptionalNumber(bedrooms),
@@ -311,17 +316,79 @@ export default function EditPropertyPage() {
           ? `Unable to update property: ${error.message}`
           : "An unexpected error occurred while updating the property.",
       );
-
       setIsSaving(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!propertyId) return;
+
+    setShowDeleteConfirm(false);
+    setIsDeleting(true);
+    setErrorMessage("");
+
+    try {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setErrorMessage("You must be signed in.");
+        setIsDeleting(false);
+        return;
+      }
+
+      const { data: membership, error: membershipError } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (membershipError) {
+        setErrorMessage(membershipError.message);
+        setIsDeleting(false);
+        return;
+      }
+
+      if (!membership) {
+        setErrorMessage("Organization not found.");
+        setIsDeleting(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("properties")
+        .delete()
+        .eq("id", propertyId)
+        .eq("organization_id", membership.organization_id);
+
+      if (error) {
+        setErrorMessage(error.message);
+        setIsDeleting(false);
+        return;
+      }
+
+      router.push("/properties?deleted=true");
+      router.refresh();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Unable to delete property.",
+      );
+      setIsDeleting(false);
     }
   }
 
   if (isLoading) {
     return (
-      <div className="p-8">
-        <div className="mx-auto max-w-5xl">
-          <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] px-6 py-16 text-center">
-            <p className="text-sm text-gray-400">Loading property...</p>
+      <div className="min-h-screen bg-[#FBF9F6] p-8 flex items-center justify-center">
+        <div className="w-full max-w-5xl">
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/45 px-6 py-16 text-center backdrop-blur-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+              Loading property...
+            </p>
           </div>
         </div>
       </div>
@@ -330,27 +397,27 @@ export default function EditPropertyPage() {
 
   if (loadFailed) {
     return (
-      <div className="p-8">
+      <div className="min-h-screen bg-[#FBF9F6] p-8">
         <div className="mx-auto max-w-5xl">
           <Link
             href="/properties"
-            className="mb-5 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+            className="mb-5 inline-block text-xs font-semibold uppercase tracking-[0.16em] text-[#B7832F] transition-all duration-300 hover:text-[#D8B66A] hover:translate-x-[-2px]"
           >
             ← Back to Properties
           </Link>
 
-          <div className="rounded-2xl border border-red-900/40 bg-red-950/20 p-6">
-            <h1 className="text-xl font-semibold text-white">
+          <div className="rounded-2xl border border-red-200 bg-red-50/70 p-6 backdrop-blur-sm">
+            <h1 className="font-serif text-xl font-normal text-red-800">
               Unable to Load Property
             </h1>
 
-            <p className="mt-3 text-sm leading-6 text-red-300">
+            <p className="mt-3 text-sm leading-6 text-red-700">
               {errorMessage}
             </p>
 
             <Link
               href="/properties"
-              className="mt-6 inline-block rounded-lg border border-[#333333] px-4 py-3 text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+              className="mt-6 inline-block rounded-lg border border-red-300 bg-white/80 px-4 py-2 text-sm font-medium text-red-700 transition-all duration-300 hover:bg-red-50 hover:border-red-400"
             >
               Return to Properties
             </Link>
@@ -361,20 +428,22 @@ export default function EditPropertyPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="min-h-screen bg-[#FBF9F6] p-8 relative">
       <div className="mx-auto max-w-5xl">
         {/* Header */}
         <div className="mb-8">
           <Link
             href={`/properties/${propertyId}`}
-            className="mb-4 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+            className="mb-4 inline-block text-xs font-semibold uppercase tracking-[0.16em] text-[#B7832F] transition-all duration-300 hover:text-[#D8B66A] hover:translate-x-[-2px]"
           >
             ← Back to Property
           </Link>
 
-          <h1 className="text-3xl font-semibold text-white">Edit Property</h1>
+          <h1 className="font-serif text-3xl font-normal text-[#B7832F]">
+            Edit Property
+          </h1>
 
-          <p className="mt-2 text-gray-400">
+          <p className="mt-2 text-sm text-[#5C544A]">
             Update property details, financial information, and notes.
           </p>
         </div>
@@ -386,13 +455,9 @@ export default function EditPropertyPage() {
             description="The physical location of the property."
           >
             <div className="md:col-span-2">
-              <label
-                htmlFor="propertyAddressLine1"
-                className={labelClasses}
-              >
+              <label htmlFor="propertyAddressLine1" className={labelClasses}>
                 Address line 1 *
               </label>
-
               <input
                 id="propertyAddressLine1"
                 type="text"
@@ -407,13 +472,9 @@ export default function EditPropertyPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label
-                htmlFor="propertyAddressLine2"
-                className={labelClasses}
-              >
+              <label htmlFor="propertyAddressLine2" className={labelClasses}>
                 Address line 2
               </label>
-
               <input
                 id="propertyAddressLine2"
                 type="text"
@@ -430,7 +491,6 @@ export default function EditPropertyPage() {
               <label htmlFor="propertyCity" className={labelClasses}>
                 City
               </label>
-
               <input
                 id="propertyCity"
                 type="text"
@@ -445,7 +505,6 @@ export default function EditPropertyPage() {
               <label htmlFor="propertyState" className={labelClasses}>
                 State
               </label>
-
               <input
                 id="propertyState"
                 type="text"
@@ -461,14 +520,11 @@ export default function EditPropertyPage() {
               <label htmlFor="propertyPostalCode" className={labelClasses}>
                 ZIP / Postal code
               </label>
-
               <input
                 id="propertyPostalCode"
                 type="text"
                 value={propertyPostalCode}
-                onChange={(event) =>
-                  setPropertyPostalCode(event.target.value)
-                }
+                onChange={(event) => setPropertyPostalCode(event.target.value)}
                 placeholder="35203"
                 className={inputClasses}
               />
@@ -484,7 +540,6 @@ export default function EditPropertyPage() {
               <label htmlFor="county" className={labelClasses}>
                 County
               </label>
-
               <input
                 id="county"
                 type="text"
@@ -499,7 +554,6 @@ export default function EditPropertyPage() {
               <label htmlFor="parcelNumber" className={labelClasses}>
                 Parcel number
               </label>
-
               <input
                 id="parcelNumber"
                 type="text"
@@ -514,7 +568,6 @@ export default function EditPropertyPage() {
               <label htmlFor="propertyType" className={labelClasses}>
                 Property type
               </label>
-
               <input
                 id="propertyType"
                 type="text"
@@ -529,19 +582,18 @@ export default function EditPropertyPage() {
               <label htmlFor="propertyStatus" className={labelClasses}>
                 Property status
               </label>
-
-              <input
+              <select
                 id="propertyStatus"
-                type="text"
                 value={propertyStatus}
-                readOnly
-                className={`${inputClasses} cursor-not-allowed text-gray-500`}
-              />
-
-              <p className="mt-2 text-xs leading-5 text-gray-600">
-                Status remains read-only until the live database constraint
-                values are verified.
-              </p>
+                onChange={(event) => setPropertyStatus(event.target.value)}
+                className={`${inputClasses} appearance-none cursor-pointer`}
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </FormSection>
 
@@ -554,7 +606,6 @@ export default function EditPropertyPage() {
               <label htmlFor="bedrooms" className={labelClasses}>
                 Bedrooms
               </label>
-
               <input
                 id="bedrooms"
                 type="number"
@@ -571,7 +622,6 @@ export default function EditPropertyPage() {
               <label htmlFor="bathrooms" className={labelClasses}>
                 Bathrooms
               </label>
-
               <input
                 id="bathrooms"
                 type="number"
@@ -588,7 +638,6 @@ export default function EditPropertyPage() {
               <label htmlFor="squareFeet" className={labelClasses}>
                 Square feet
               </label>
-
               <input
                 id="squareFeet"
                 type="number"
@@ -605,7 +654,6 @@ export default function EditPropertyPage() {
               <label htmlFor="yearBuilt" className={labelClasses}>
                 Year built
               </label>
-
               <input
                 id="yearBuilt"
                 type="number"
@@ -659,7 +707,6 @@ export default function EditPropertyPage() {
               <label htmlFor="notes" className={labelClasses}>
                 Property notes
               </label>
-
               <textarea
                 id="notes"
                 value={notes}
@@ -670,19 +717,43 @@ export default function EditPropertyPage() {
               />
             </div>
           </FormSection>
+          
+          {/* Danger Zone */}
+          <section className="rounded-2xl border border-red-200 bg-red-50/60 p-6 backdrop-blur-sm">
+            <div className="mb-4">
+              <h2 className="font-serif text-xl font-normal text-red-700">
+                Danger Zone
+              </h2>
+
+              <p className="mt-2 text-sm text-red-600">
+                Permanently delete this property from RoseVault. This action
+                cannot be undone. Any linked contact relationships will
+                automatically be removed.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting}
+              className="rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isDeleting ? "Deleting Property..." : "Delete Property"}
+            </button>
+          </section>
 
           {/* Save error */}
           {errorMessage && (
-            <div className="rounded-xl border border-red-900/40 bg-red-950/20 px-5 py-4 text-sm text-red-300">
+            <div className="rounded-xl border border-red-200 bg-red-50/70 px-5 py-4 text-sm text-red-700 backdrop-blur-sm">
               {errorMessage}
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex flex-col-reverse gap-3 border-t border-[#2a2a2a] pt-6 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-3 border-t border-[#EDE7DC] pt-6 sm:flex-row sm:justify-end">
             <Link
               href={`/properties/${propertyId}`}
-              className="rounded-lg border border-[#333333] px-5 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#555555] hover:text-white"
+              className="rounded-lg border border-[#EDE7DC] bg-white px-5 py-3 text-center text-sm font-medium text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-[#FBF9F6] hover:text-[#B7832F] hover:shadow-sm"
             >
               Cancel
             </Link>
@@ -690,13 +761,46 @@ export default function EditPropertyPage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="rounded-lg bg-[#d4af37] px-6 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-[#B7832F] px-6 py-3 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#A37225] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving ? "Saving Changes..." : "Save Changes"}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Elegant RoseVault Confirmation Overlay Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#5C544A]/30 backdrop-blur-md transition-opacity duration-300">
+          <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-xl transition-transform duration-300 max-h-[90vh] overflow-y-auto">
+            <div className="mb-4">
+              <h3 className="font-serif text-2xl font-normal text-red-800">
+                Confirm Destruction
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-[#5C544A]">
+                Are you absolutely sure you want to permanently delete this property from RoseVault? This action cannot be undone and will delete all related records.
+              </p>
+            </div>
+            
+            <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="rounded-lg border border-[#EDE7DC] bg-white px-4 py-2.5 text-center text-sm font-medium text-[#7C7265] transition-all duration-300 hover:bg-[#FBF9F6] hover:border-[#D8B66A]/40"
+              >
+                No, Keep Record
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 hover:bg-red-700 hover:shadow-md"
+              >
+                Yes, Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -711,16 +815,15 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+    <section className="rounded-2xl border border-[#EDE7DC] bg-white/45 p-6 backdrop-blur-sm transition-all duration-300 hover:border-[#D8B66A]/40 hover:bg-white/75 hover:shadow-sm">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-white">{title}</h2>
-
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
+        <h2 className="font-serif text-xl font-normal text-[#B7832F]">
+          {title}
+        </h2>
+        <p className="mt-1 text-sm text-[#5C544A]">{description}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        {children}
-      </div>
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{children}</div>
     </section>
   );
 }
@@ -745,7 +848,7 @@ function CurrencyField({
       </label>
 
       <div className="relative">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-600">
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8F8578] font-medium">
           $
         </span>
 
@@ -768,35 +871,25 @@ function numberToInputValue(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "";
   }
-
   return String(value);
 }
 
 function parseOptionalNumber(value: string) {
   const trimmed = value.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
+  if (!trimmed) return null;
   const parsed = Number(trimmed);
-
   return Number.isFinite(parsed) ? parsed : null;
 }
 
 function parseOptionalInteger(value: string) {
   const trimmed = value.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
+  if (!trimmed) return null;
   const parsed = Number.parseInt(trimmed, 10);
-
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-const labelClasses = "mb-2 block text-sm font-medium text-gray-300";
+const labelClasses =
+  "mb-2 block text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]";
 
 const inputClasses =
-  "w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]";
+  "w-full rounded-lg border border-[#EDE7DC] bg-white/70 px-4 py-3 text-[#5C544A] outline-none transition-all duration-300 placeholder:text-[#8F8578]/40 focus:border-[#B7832F] focus:bg-white focus:shadow-sm";

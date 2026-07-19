@@ -72,8 +72,8 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     ],
   },
   {
-    value: "cell_phone",
-    label: "Cell Phone",
+    value: "primary_phone",
+    label: "Primary Phone",
     category: "contact",
     aliases: [
       "cell phone",
@@ -87,15 +87,10 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     ],
   },
   {
-    value: "business_phone",
-    label: "Business Phone",
+    value: "secondary_phone",
+    label: "Secondary Phone",
     category: "contact",
-    aliases: [
-      "business phone",
-      "work phone",
-      "office phone",
-      "businessphone",
-    ],
+    aliases: ["business phone", "work phone", "office phone", "businessphone"],
   },
   {
     value: "contact_type",
@@ -129,12 +124,7 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     value: "company",
     label: "Company",
     category: "contact",
-    aliases: [
-      "company",
-      "company name",
-      "organization",
-      "business",
-    ],
+    aliases: ["company", "company name", "organization", "business"],
   },
   {
     value: "job_title",
@@ -146,21 +136,13 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     value: "spouse_first_name",
     label: "Spouse First Name",
     category: "contact",
-    aliases: [
-      "spouse first name",
-      "spouse firstname",
-      "spouse first",
-    ],
+    aliases: ["spouse first name", "spouse firstname", "spouse first"],
   },
   {
     value: "spouse_last_name",
     label: "Spouse Last Name",
     category: "contact",
-    aliases: [
-      "spouse last name",
-      "spouse lastname",
-      "spouse last",
-    ],
+    aliases: ["spouse last name", "spouse lastname", "spouse last"],
   },
   {
     value: "spouse_email",
@@ -169,18 +151,14 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     aliases: ["spouse email", "spouse email address"],
   },
   {
-    value: "spouse_cell_phone",
-    label: "Spouse Cell Phone",
+    value: "spouse_primary_phone",
+    label: "Spouse Primary Phone",
     category: "contact",
-    aliases: [
-      "spouse cell phone",
-      "spouse mobile",
-      "spouse phone",
-    ],
+    aliases: ["spouse cell phone", "spouse mobile", "spouse phone"],
   },
   {
-    value: "spouse_business_phone",
-    label: "Spouse Business Phone",
+    value: "spouse_secondary_phone",
+    label: "Spouse Secondary Phone",
     category: "contact",
     aliases: [
       "spouse business phone",
@@ -300,12 +278,7 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     value: "county",
     label: "Property County",
     category: "property",
-    aliases: [
-      "county",
-      "property county",
-      "site county",
-      "situs county",
-    ],
+    aliases: ["county", "property county", "site county", "situs county"],
   },
   {
     value: "parcel_number",
@@ -323,11 +296,7 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     value: "property_type",
     label: "Property Type",
     category: "property",
-    aliases: [
-      "property type",
-      "asset type",
-      "building type",
-    ],
+    aliases: ["property type", "asset type", "building type"],
   },
   {
     value: "bedrooms",
@@ -345,13 +314,7 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     value: "square_feet",
     label: "Square Feet",
     category: "property",
-    aliases: [
-      "square feet",
-      "sq ft",
-      "sqft",
-      "living area",
-      "building area",
-    ],
+    aliases: ["square feet", "sq ft", "sqft", "living area", "building area"],
   },
   {
     value: "year_built",
@@ -380,52 +343,37 @@ const CONTACT_FIELDS: FieldDefinition[] = [
     value: "mortgage_balance",
     label: "Mortgage Balance",
     category: "property",
-    aliases: [
-      "mortgage balance",
-      "loan balance",
-      "estimated mortgage balance",
-    ],
+    aliases: ["mortgage balance", "loan balance", "estimated mortgage balance"],
   },
   {
     value: "property_notes",
     label: "Property Notes",
     category: "property",
-    aliases: [
-      "property notes",
-      "property comments",
-      "asset notes",
-    ],
+    aliases: ["property notes", "property comments", "asset notes"],
   },
 ];
 
 const CONTACT_FIELD_NAMES = new Set(
   CONTACT_FIELDS.filter(
-    (field) =>
-      field.category === "contact" || field.category === "mailing"
-  ).map((field) => field.value)
+    (field) => field.category === "contact" || field.category === "mailing",
+  ).map((field) => field.value),
 );
 
 const PROPERTY_FIELD_NAMES = new Set(
   CONTACT_FIELDS.filter((field) => field.category === "property").map(
-    (field) => field.value
-  )
+    (field) => field.value,
+  ),
 );
 
 function normalizeHeader(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ");
+  return value.toLowerCase().trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
 }
 
 function detectField(header: string) {
   const normalizedHeader = normalizeHeader(header);
 
   const match = CONTACT_FIELDS.find((field) =>
-    field.aliases.some(
-      (alias) => normalizeHeader(alias) === normalizedHeader
-    )
+    field.aliases.some((alias) => normalizeHeader(alias) === normalizedHeader),
   );
 
   return match?.value ?? "";
@@ -477,14 +425,9 @@ function normalizeContactType(value: string | null | undefined) {
     "other",
   ];
 
-  const normalized = value
-    ?.trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_");
+  const normalized = value?.trim().toLowerCase().replace(/\s+/g, "_");
 
-  return normalized && allowedTypes.includes(normalized)
-    ? normalized
-    : "lead";
+  return normalized && allowedTypes.includes(normalized) ? normalized : "lead";
 }
 
 function normalizeStatus(value: string | null | undefined) {
@@ -497,20 +440,14 @@ function normalizeStatus(value: string | null | undefined) {
     "do_not_contact",
   ];
 
-  const normalized = value
-    ?.trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_");
+  const normalized = value?.trim().toLowerCase().replace(/\s+/g, "_");
 
   return normalized && allowedStatuses.includes(normalized)
     ? normalized
     : "active";
 }
 
-export default function ContactImporter({
-  organizationId,
-  userId,
-}: Props) {
+export default function ContactImporter({ organizationId, userId }: Props) {
   const router = useRouter();
 
   const [fileName, setFileName] = useState("");
@@ -518,28 +455,23 @@ export default function ContactImporter({
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
 
-  const [duplicateMode, setDuplicateMode] =
-    useState<DuplicateMode>("skip");
+  const [duplicateMode, setDuplicateMode] = useState<DuplicateMode>("skip");
 
   const [isImporting, setIsImporting] = useState(false);
   const [message, setMessage] = useState("");
   const [results, setResults] = useState<ImportResults | null>(null);
 
   const mappedFields = useMemo(
-    () =>
-      Object.entries(mapping).filter(
-        ([, destination]) => destination
-      ),
-    [mapping]
+    () => Object.entries(mapping).filter(([, destination]) => destination),
+    [mapping],
   );
 
   const hasFirstNameMapping = mappedFields.some(
-    ([, destination]) => destination === "first_name"
+    ([, destination]) => destination === "first_name",
   );
 
   const hasPropertyAddressMapping = mappedFields.some(
-    ([, destination]) =>
-      destination === "property_address_line_1"
+    ([, destination]) => destination === "property_address_line_1",
   );
 
   function resetImporter() {
@@ -551,9 +483,7 @@ export default function ContactImporter({
     setResults(null);
   }
 
-  function handleFileChange(
-    event: ChangeEvent<HTMLInputElement>
-  ) {
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) return;
@@ -574,19 +504,13 @@ export default function ContactImporter({
 
       complete: (result) => {
         const parsedRows = result.data.filter((row) =>
-          Object.values(row).some((value) => value?.trim())
+          Object.values(row).some((value) => value?.trim()),
         );
 
-        const parsedHeaders =
-          result.meta.fields?.filter(Boolean) ?? [];
+        const parsedHeaders = result.meta.fields?.filter(Boolean) ?? [];
 
-        if (
-          parsedHeaders.length === 0 ||
-          parsedRows.length === 0
-        ) {
-          setMessage(
-            "This CSV does not contain any usable rows."
-          );
+        if (parsedHeaders.length === 0 || parsedRows.length === 0) {
+          setMessage("This CSV does not contain any usable rows.");
           return;
         }
 
@@ -608,10 +532,7 @@ export default function ContactImporter({
     });
   }
 
-  function updateMapping(
-    sourceHeader: string,
-    destinationField: string
-  ) {
+  function updateMapping(sourceHeader: string, destinationField: string) {
     setMapping((current) => ({
       ...current,
       [sourceHeader]: destinationField,
@@ -624,8 +545,7 @@ export default function ContactImporter({
     for (const [sourceHeader, destinationField] of mappedFields) {
       if (!destinationField) continue;
 
-      mapped[destinationField] =
-        row[sourceHeader]?.trim() || null;
+      mapped[destinationField] = row[sourceHeader]?.trim() || null;
     }
 
     return mapped;
@@ -640,45 +560,44 @@ export default function ContactImporter({
       last_name: mapped.last_name?.trim() || null,
 
       email: normalizeEmail(mapped.email),
-      cell_phone: mapped.cell_phone?.trim() || null,
-      business_phone: mapped.business_phone?.trim() || null,
+      primary_phone: mapped.primary_phone?.trim() || null,
+      primary_phone_type: "mobile",
+
+      secondary_phone: mapped.secondary_phone?.trim() || null,
+      secondary_phone_type: "work",
 
       contact_type: normalizeContactType(mapped.contact_type),
       status: normalizeStatus(mapped.status),
 
       lead_source: mapped.lead_source?.trim() || null,
 
-      preferred_contact_method:
-        mapped.preferred_contact_method?.trim() || null,
+      preferred_contact_method: mapped.preferred_contact_method?.trim() || null,
 
       company: mapped.company?.trim() || null,
       job_title: mapped.job_title?.trim() || null,
 
-      spouse_first_name:
-        mapped.spouse_first_name?.trim() || null,
+      spouse_first_name: mapped.spouse_first_name?.trim() || null,
 
-      spouse_last_name:
-        mapped.spouse_last_name?.trim() || null,
+      spouse_last_name: mapped.spouse_last_name?.trim() || null,
 
       spouse_email: normalizeEmail(mapped.spouse_email),
 
-      spouse_cell_phone:
-        mapped.spouse_cell_phone?.trim() || null,
+      spouse_primary_phone: mapped.spouse_primary_phone?.trim() || null,
 
-      spouse_business_phone:
-        mapped.spouse_business_phone?.trim() || null,
+      spouse_primary_phone_type: "mobile",
 
-      mailing_address_line_1:
-        mapped.mailing_address_line_1?.trim() || null,
+      spouse_secondary_phone: mapped.spouse_secondary_phone?.trim() || null,
 
-      mailing_address_line_2:
-        mapped.mailing_address_line_2?.trim() || null,
+      spouse_secondary_phone_type: "work",
+
+      mailing_address_line_1: mapped.mailing_address_line_1?.trim() || null,
+
+      mailing_address_line_2: mapped.mailing_address_line_2?.trim() || null,
 
       mailing_city: mapped.mailing_city?.trim() || null,
       mailing_state: mapped.mailing_state?.trim() || null,
 
-      mailing_postal_code:
-        mapped.mailing_postal_code?.trim() || null,
+      mailing_postal_code: mapped.mailing_postal_code?.trim() || null,
 
       notes: mapped.notes?.trim() || null,
     };
@@ -689,28 +608,21 @@ export default function ContactImporter({
       organization_id: organizationId,
       created_by: userId,
 
-      property_address_line_1:
-        mapped.property_address_line_1?.trim() || "",
+      property_address_line_1: mapped.property_address_line_1?.trim() || "",
 
-      property_address_line_2:
-        mapped.property_address_line_2?.trim() || null,
+      property_address_line_2: mapped.property_address_line_2?.trim() || null,
 
-      property_city:
-        mapped.property_city?.trim() || null,
+      property_city: mapped.property_city?.trim() || null,
 
-      property_state:
-        mapped.property_state?.trim() || null,
+      property_state: mapped.property_state?.trim() || null,
 
-      property_postal_code:
-        mapped.property_postal_code?.trim() || null,
+      property_postal_code: mapped.property_postal_code?.trim() || null,
 
       county: mapped.county?.trim() || null,
 
-      parcel_number:
-        mapped.parcel_number?.trim() || null,
+      parcel_number: mapped.parcel_number?.trim() || null,
 
-      property_type:
-        mapped.property_type?.trim() || null,
+      property_type: mapped.property_type?.trim() || null,
 
       bedrooms: parseNumber(mapped.bedrooms),
       bathrooms: parseNumber(mapped.bathrooms),
@@ -720,8 +632,7 @@ export default function ContactImporter({
       estimated_value: parseNumber(mapped.estimated_value),
       asking_price: parseNumber(mapped.asking_price),
 
-      mortgage_balance:
-        parseNumber(mapped.mortgage_balance),
+      mortgage_balance: parseNumber(mapped.mortgage_balance),
 
       notes: mapped.property_notes?.trim() || null,
 
@@ -734,9 +645,7 @@ export default function ContactImporter({
     setResults(null);
 
     if (!hasFirstNameMapping) {
-      setMessage(
-        "Please map one CSV column to First Name before importing."
-      );
+      setMessage("Please map one CSV column to First Name before importing.");
       return;
     }
 
@@ -750,19 +659,21 @@ export default function ContactImporter({
     ] = await Promise.all([
       supabase
         .from("contacts")
-        .select("id, email, cell_phone")
+        .select("id, email, primary_phone")
         .eq("organization_id", organizationId),
 
       supabase
         .from("properties")
-        .select(`
+        .select(
+          `
           id,
           property_address_line_1,
           property_city,
           property_state,
           property_postal_code,
           parcel_number
-        `)
+        `,
+        )
         .eq("organization_id", organizationId),
     ]);
 
@@ -770,7 +681,7 @@ export default function ContactImporter({
       setMessage(
         contactsError?.message ||
           propertiesError?.message ||
-          "Unable to load existing records."
+          "Unable to load existing records.",
       );
       setIsImporting(false);
       return;
@@ -788,9 +699,7 @@ export default function ContactImporter({
       const mapped = mapRow(row);
 
       const contactFieldsExist = Object.keys(mapped).some(
-        (key) =>
-          CONTACT_FIELD_NAMES.has(key) &&
-          Boolean(mapped[key]?.trim())
+        (key) => CONTACT_FIELD_NAMES.has(key) && Boolean(mapped[key]?.trim()),
       );
 
       if (!contactFieldsExist || !mapped.first_name?.trim()) {
@@ -801,31 +710,26 @@ export default function ContactImporter({
       const contact = buildContact(mapped);
 
       const contactEmail = normalizeEmail(contact.email);
-      const contactPhone = normalizePhone(contact.cell_phone);
+      const contactPhone = normalizePhone(contact.primary_phone);
 
-      const duplicateContact = existingContacts?.find(
-        (existing) => {
-          const emailMatches =
-            Boolean(contactEmail) &&
-            normalizeEmail(existing.email) === contactEmail;
+      const duplicateContact = existingContacts?.find((existing) => {
+        const emailMatches =
+          Boolean(contactEmail) &&
+          normalizeEmail(existing.email) === contactEmail;
 
-          const phoneMatches =
-            Boolean(contactPhone) &&
-            normalizePhone(existing.cell_phone) === contactPhone;
+        const phoneMatches =
+          Boolean(contactPhone) &&
+          normalizePhone(existing.primary_phone) === contactPhone;
 
-          return emailMatches || phoneMatches;
-        }
-      );
+        return emailMatches || phoneMatches;
+      });
 
       let contactId: string | null = null;
 
       if (duplicateContact && duplicateMode === "skip") {
         contactId = duplicateContact.id;
         contactsSkipped++;
-      } else if (
-        duplicateContact &&
-        duplicateMode === "update"
-      ) {
+      } else if (duplicateContact && duplicateMode === "update") {
         const { error } = await supabase
           .from("contacts")
           .update(contact)
@@ -840,6 +744,7 @@ export default function ContactImporter({
         contactId = duplicateContact.id;
         contactsUpdated++;
       } else {
+        console.log(contact);
         const { data, error } = await supabase
           .from("contacts")
           .insert(contact)
@@ -857,67 +762,49 @@ export default function ContactImporter({
         existingContacts?.push({
           id: data.id,
           email: contact.email,
-          cell_phone: contact.cell_phone,
+          primary_phone: contact.primary_phone,
         });
       }
 
       const hasPropertyData = Object.keys(mapped).some(
-        (key) =>
-          PROPERTY_FIELD_NAMES.has(key) &&
-          Boolean(mapped[key]?.trim())
+        (key) => PROPERTY_FIELD_NAMES.has(key) && Boolean(mapped[key]?.trim()),
       );
 
-      if (
-        !hasPropertyData ||
-        !mapped.property_address_line_1?.trim()
-      ) {
+      if (!hasPropertyData || !mapped.property_address_line_1?.trim()) {
         continue;
       }
 
       const property = buildProperty(mapped);
 
       const normalizedPropertyAddress = normalizeAddress(
-        property.property_address_line_1
+        property.property_address_line_1,
       );
 
-      const normalizedCity = normalizeAddress(
-        property.property_city
-      );
+      const normalizedCity = normalizeAddress(property.property_city);
 
-      const normalizedState = normalizeAddress(
-        property.property_state
-      );
+      const normalizedState = normalizeAddress(property.property_state);
 
       const normalizedPostalCode = normalizeAddress(
-        property.property_postal_code
+        property.property_postal_code,
       );
 
-      const parcelNumber =
-        property.parcel_number?.trim().toLowerCase() || "";
+      const parcelNumber = property.parcel_number?.trim().toLowerCase() || "";
 
-      const duplicateProperty = existingProperties?.find(
-        (existing) => {
-          const parcelMatches =
-            Boolean(parcelNumber) &&
-            existing.parcel_number
-              ?.trim()
-              .toLowerCase() === parcelNumber;
+      const duplicateProperty = existingProperties?.find((existing) => {
+        const parcelMatches =
+          Boolean(parcelNumber) &&
+          existing.parcel_number?.trim().toLowerCase() === parcelNumber;
 
-          const addressMatches =
-            normalizeAddress(
-              existing.property_address_line_1
-            ) === normalizedPropertyAddress &&
-            normalizeAddress(existing.property_city) ===
-              normalizedCity &&
-            normalizeAddress(existing.property_state) ===
-              normalizedState &&
-            normalizeAddress(
-              existing.property_postal_code
-            ) === normalizedPostalCode;
+        const addressMatches =
+          normalizeAddress(existing.property_address_line_1) ===
+            normalizedPropertyAddress &&
+          normalizeAddress(existing.property_city) === normalizedCity &&
+          normalizeAddress(existing.property_state) === normalizedState &&
+          normalizeAddress(existing.property_postal_code) ===
+            normalizedPostalCode;
 
-          return parcelMatches || addressMatches;
-        }
-      );
+        return parcelMatches || addressMatches;
+      });
 
       let propertyId: string | null = null;
 
@@ -941,12 +828,10 @@ export default function ContactImporter({
 
         existingProperties?.push({
           id: data.id,
-          property_address_line_1:
-            property.property_address_line_1,
+          property_address_line_1: property.property_address_line_1,
           property_city: property.property_city,
           property_state: property.property_state,
-          property_postal_code:
-            property.property_postal_code,
+          property_postal_code: property.property_postal_code,
           parcel_number: property.parcel_number,
         });
       }
@@ -963,10 +848,9 @@ export default function ContactImporter({
               is_primary: true,
             },
             {
-              onConflict:
-                "contact_id,property_id,relationship_type",
+              onConflict: "contact_id,property_id,relationship_type",
               ignoreDuplicates: true,
-            }
+            },
           );
 
         if (relationshipError) {
@@ -991,7 +875,7 @@ export default function ContactImporter({
     router.refresh();
   }
 
-    const inputClasses =
+  const inputClasses =
     "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#A89C8D] hover:border-[#CFC5B6] focus:border-[#D8B66A] focus:bg-white focus:ring-2 focus:ring-[#D8B66A]/10";
 
   const secondaryButtonClasses =
@@ -1047,9 +931,7 @@ export default function ContactImporter({
                 {rows.length} row{rows.length === 1 ? "" : "s"} detected
               </p>
 
-              <p className="mt-1 text-[10px] text-[#A89C8D]">
-                {fileName}
-              </p>
+              <p className="mt-1 text-[10px] text-[#A89C8D]">{fileName}</p>
             </div>
 
             <button
@@ -1408,13 +1290,7 @@ function DuplicateOption({
   );
 }
 
-function ResultCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
+function ResultCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="group rounded-xl border border-[#EDE7DC] bg-white/55 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/80 hover:shadow-sm">
       <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#8F8578]">

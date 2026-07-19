@@ -57,9 +57,9 @@ export default function PropertyContactManager({
   const [errorMessage, setErrorMessage] = useState("");
 
   const linkedIds = useMemo(
-  () => new Set(relationships.map((relationship) => relationship.contact_id)),
-  [relationships],
-);
+    () => new Set(relationships.map((relationship) => relationship.contact_id)),
+    [relationships],
+  );
 
   const availableContacts = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -159,29 +159,29 @@ export default function PropertyContactManager({
       <button
         type="button"
         onClick={openModal}
-        className="rounded-lg bg-[#d4af37] px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+        className="rounded-lg bg-[#B7832F] px-4 py-2.5 text-sm font-semibold text-white transition duration-200 hover:bg-[#D8B66A]"
       >
         + Link Contact
       </button>
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#5C544A]/40 p-4 backdrop-blur-md"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               closeModal();
             }
           }}
         >
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#333333] bg-[#151515] shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#EDE7DC] bg-[#FBF9F6] shadow-xl transition-all duration-300">
             {/* Modal header */}
-            <div className="flex items-start justify-between gap-4 border-b border-[#2a2a2a] p-6">
+            <div className="flex items-start justify-between gap-4 border-b border-[#EDE7DC] p-6">
               <div>
-                <h2 className="text-2xl font-semibold text-white">
+                <h2 className="font-serif text-2xl font-normal text-[#B7832F]">
                   Link Existing Contact
                 </h2>
 
-                <p className="mt-2 text-sm leading-6 text-gray-500">
+                <p className="mt-2 text-sm leading-6 text-[#5C544A]">
                   Search your RoseVault contacts and connect an existing
                   person or business to this property.
                 </p>
@@ -192,7 +192,7 @@ export default function PropertyContactManager({
                 onClick={closeModal}
                 disabled={isSaving}
                 aria-label="Close"
-                className="shrink-0 rounded-lg border border-[#333333] px-3 py-2 text-gray-400 transition hover:border-[#555555] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="shrink-0 rounded-lg border border-[#EDE7DC] bg-white/50 px-3 py-2 text-[#7C7265] transition hover:border-[#D8B66A]/40 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 ✕
               </button>
@@ -203,7 +203,7 @@ export default function PropertyContactManager({
               <div>
                 <label
                   htmlFor="contact-search"
-                  className="mb-2 block text-sm font-medium text-gray-300"
+                  className="mb-2 block text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
                 >
                   Search contacts
                 </label>
@@ -214,25 +214,25 @@ export default function PropertyContactManager({
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search by name, email, phone, or contact type..."
-                  className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]"
+                  className="w-full rounded-lg border border-[#EDE7DC] bg-white px-4 py-3 text-[#5C544A] outline-none transition placeholder:text-[#8F8578]/50 focus:border-[#D8B66A]/60"
                 />
               </div>
 
               {/* Contact results */}
               <div>
                 <div className="mb-3 flex items-center justify-between gap-4">
-                  <p className="text-sm font-medium text-gray-300">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
                     Available contacts
                   </p>
 
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-[#7C7265]">
                     {availableContacts.length} available
                   </p>
                 </div>
 
                 {availableContacts.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#333333] bg-[#111111] px-5 py-8 text-center">
-                    <p className="text-sm text-gray-500">
+                  <div className="rounded-xl border border-dashed border-[#D8CDBE] bg-white/45 px-5 py-8 text-center backdrop-blur-sm">
+                    <p className="text-sm text-[#7C7265]">
                       {contacts.length === 0
                         ? "No contacts exist in RoseVault yet."
                         : "No available contacts match your search."}
@@ -246,43 +246,38 @@ export default function PropertyContactManager({
                           .filter(Boolean)
                           .join(" ") || "Unnamed Contact";
 
-                      const isSelected =
-                        selectedContactId === contact.id;
+                      const isSelected = selectedContactId === contact.id;
 
                       return (
                         <button
                           key={contact.id}
                           type="button"
-                          onClick={() =>
-                            setSelectedContactId(contact.id)
-                          }
-                          className={`w-full rounded-xl border p-4 text-left transition ${
+                          onClick={() => setSelectedContactId(contact.id)}
+                          className={`w-full rounded-xl border p-4 text-left transition duration-200 ${
                             isSelected
-                              ? "border-[#d4af37] bg-[#d4af37]/10"
-                              : "border-[#2a2a2a] bg-[#111111] hover:border-[#444444]"
+                              ? "border-[#D8B66A] bg-white shadow-sm"
+                              : "border-[#EDE7DC] bg-white/45 backdrop-blur-sm hover:border-[#D8B66A]/40 hover:bg-white/75"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <p
-                                className={`font-medium ${
-                                  isSelected
-                                    ? "text-[#d4af37]"
-                                    : "text-white"
+                                className={`font-serif text-base font-normal ${
+                                  isSelected ? "text-[#B7832F]" : "text-[#5C544A]"
                                 }`}
                               >
                                 {fullName}
                               </p>
 
                               {contact.email && (
-                                <p className="mt-1 truncate text-sm text-gray-500">
+                                <p className="mt-1 truncate text-sm text-[#7C7265]">
                                   {contact.email}
                                 </p>
                               )}
 
                               {(contact.primary_phone ||
                                 contact.secondary_phone) && (
-                                <p className="mt-1 text-sm text-gray-600">
+                                <p className="mt-1 text-xs text-[#8F8578]">
                                   {contact.primary_phone ||
                                     contact.secondary_phone}
                                 </p>
@@ -290,7 +285,7 @@ export default function PropertyContactManager({
                             </div>
 
                             {contact.contact_type && (
-                              <span className="shrink-0 rounded-full border border-[#333333] bg-[#1a1a1a] px-2.5 py-1 text-xs capitalize text-gray-400">
+                              <span className="shrink-0 rounded-full border border-[#D8CDBE] bg-white/60 px-2.5 py-0.5 text-xs capitalize text-[#7C7265]">
                                 {contact.contact_type.replace(/_/g, " ")}
                               </span>
                             )}
@@ -304,13 +299,13 @@ export default function PropertyContactManager({
 
               {/* Relationship settings */}
               {selectedContact && (
-                <div className="space-y-5 rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/5 p-5">
+                <div className="space-y-5 rounded-xl border border-[#D8B66A]/30 bg-white/60 p-5 shadow-sm">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#d4af37]">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
                       Selected Contact
                     </p>
 
-                    <p className="mt-2 font-medium text-white">
+                    <p className="mt-2 font-serif text-lg font-normal text-[#B7832F]">
                       {[selectedContact.first_name, selectedContact.last_name]
                         .filter(Boolean)
                         .join(" ") || "Unnamed Contact"}
@@ -320,7 +315,7 @@ export default function PropertyContactManager({
                   <div>
                     <label
                       htmlFor="relationship-type"
-                      className="mb-2 block text-sm font-medium text-gray-300"
+                      className="mb-2 block text-sm font-medium text-[#5C544A]"
                     >
                       Relationship to property
                     </label>
@@ -328,38 +323,31 @@ export default function PropertyContactManager({
                     <select
                       id="relationship-type"
                       value={relationshipType}
-                      onChange={(event) =>
-                        setRelationshipType(event.target.value)
-                      }
-                      className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition focus:border-[#d4af37]"
+                      onChange={(event) => setRelationshipType(event.target.value)}
+                      className="w-full rounded-lg border border-[#EDE7DC] bg-white px-4 py-3 text-[#5C544A] outline-none transition focus:border-[#D8B66A]/60"
                     >
                       {RELATIONSHIP_OPTIONS.map((option) => (
-                        <option
-                          key={option.value}
-                          value={option.value}
-                        >
+                        <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#333333] bg-[#111111] p-4">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#EDE7DC] bg-white/45 p-4 transition hover:bg-white/80">
                     <input
                       type="checkbox"
                       checked={isPrimary}
-                      onChange={(event) =>
-                        setIsPrimary(event.target.checked)
-                      }
-                      className="mt-1 h-4 w-4 accent-[#d4af37]"
+                      onChange={(event) => setIsPrimary(event.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-[#EDE7DC] text-[#B7832F] focus:ring-[#D8B66A]/40 accent-[#B7832F]"
                     />
 
                     <span>
-                      <span className="block text-sm font-medium text-white">
+                      <span className="block text-sm font-medium text-[#5C544A]">
                         Primary relationship
                       </span>
 
-                      <span className="mt-1 block text-xs leading-5 text-gray-500">
+                      <span className="mt-1 block text-xs leading-5 text-[#8F8578]">
                         Mark this contact as a primary person associated with
                         this property.
                       </span>
@@ -370,19 +358,19 @@ export default function PropertyContactManager({
 
               {/* Error */}
               {errorMessage && (
-                <div className="rounded-xl border border-red-900/40 bg-red-950/20 px-5 py-4 text-sm text-red-300">
+                <div className="rounded-xl border border-red-200 bg-red-50/70 px-5 py-4 text-sm text-red-700">
                   {errorMessage}
                 </div>
               )}
             </div>
 
             {/* Modal actions */}
-            <div className="flex flex-col-reverse gap-3 border-t border-[#2a2a2a] p-6 sm:flex-row sm:justify-end">
+            <div className="flex flex-col-reverse gap-3 border-t border-[#EDE7DC] p-6 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={closeModal}
                 disabled={isSaving}
-                className="rounded-lg border border-[#333333] px-5 py-3 text-sm font-medium text-gray-300 transition hover:border-[#555555] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg border border-[#EDE7DC] bg-white/50 px-5 py-3 text-sm font-medium text-[#7C7265] transition hover:border-[#D8B66A]/40 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -391,7 +379,7 @@ export default function PropertyContactManager({
                 type="button"
                 onClick={handleLinkContact}
                 disabled={isSaving || !selectedContactId}
-                className="rounded-lg bg-[#d4af37] px-6 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg bg-[#B7832F] px-6 py-3 text-sm font-semibold text-white transition duration-200 hover:bg-[#D8B66A] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSaving ? "Linking Contact..." : "Link Contact"}
               </button>

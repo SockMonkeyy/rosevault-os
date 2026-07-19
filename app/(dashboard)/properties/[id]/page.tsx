@@ -141,11 +141,11 @@ export default async function PropertyProfilePage({
   }
 
   if (contactsError) {
-    console.error(
-      "Error loading contacts for property linking:",
-      contactsError,
-    );
-  }
+  console.error(
+    "Error loading contacts for property linking:",
+    contactsError,
+  );
+}
 
   const relationships = (relationshipsData ?? []) as ContactRelationship[];
   const allContacts = (allContactsData ?? []) as ContactRecord[];
@@ -212,31 +212,31 @@ export default async function PropertyProfilePage({
   );
 
   return (
-    <div className="p-8">
+    <div className="min-h-screen bg-[#FBF9F6] p-8">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <Link
               href="/properties"
-              className="mb-4 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+              className="mb-4 inline-block text-sm font-medium text-[#7C7265] transition hover:text-[#B7832F]"
             >
               ← Back to Properties
             </Link>
 
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-semibold text-white">
+              <h1 className="font-serif text-3xl font-normal text-[#B7832F]">
                 {property.property_address_line_1 || "Unnamed Property"}
               </h1>
 
               {property.property_status && (
-                <span className="rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-1 text-xs font-medium capitalize text-[#d4af37]">
+                <span className="rounded-full border border-[#D8B66A]/40 bg-white px-3 py-1 text-xs font-medium capitalize text-[#B7832F] shadow-sm">
                   {formatLabel(property.property_status)}
                 </span>
               )}
             </div>
 
-            <p className="mt-2 text-gray-400">
+            <p className="mt-2 text-sm text-[#5C544A]">
               {formatPropertyLocation(
                 property.property_city,
                 property.property_state,
@@ -247,7 +247,7 @@ export default async function PropertyProfilePage({
 
           <Link
             href={`/properties/${property.id}/edit`}
-            className="rounded-lg bg-[#d4af37] px-5 py-3 text-center text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+            className="rounded-lg bg-[#B7832F] px-5 py-3 text-center text-sm font-semibold text-white transition duration-200 hover:bg-[#D8B66A]"
           >
             Edit Property
           </Link>
@@ -284,8 +284,8 @@ export default async function PropertyProfilePage({
               title="Property Address"
               description="The physical location associated with this property record."
             >
-              <div className="text-sm leading-7 text-white">
-                <p>{property.property_address_line_1 || "—"}</p>
+              <div className="text-sm leading-7 text-[#3A3530]">
+                <p className="font-medium text-[#24211E]">{property.property_address_line_1 || "—"}</p>
 
                 {property.property_address_line_2 && (
                   <p>{property.property_address_line_2}</p>
@@ -380,14 +380,14 @@ export default async function PropertyProfilePage({
             </SectionCard>
 
             {/* Linked Contacts */}
-            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+            <section className="rounded-xl border border-[#EDE7DC] bg-white/45 p-6 backdrop-blur-sm">
               <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="text-xl font-semibold text-white">
+                  <h2 className="font-serif text-xl font-normal text-[#B7832F]">
                     Linked Contacts
                   </h2>
 
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="mt-1 text-sm text-[#7C7265]">
                     People and business relationships associated with this
                     property.
                   </p>
@@ -402,12 +402,12 @@ export default async function PropertyProfilePage({
               </div>
 
               {linkedContactRows.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#333333] bg-[#111111] px-5 py-10 text-center">
-                  <p className="text-sm text-gray-500">
+                <div className="rounded-xl border border-dashed border-[#D8CDBE] bg-[#FBF9F6]/50 px-5 py-10 text-center">
+                  <p className="text-sm text-[#7C7265]">
                     No contacts are currently linked to this property.
                   </p>
 
-                  <p className="mt-2 text-xs leading-5 text-gray-600">
+                  <p className="mt-2 text-xs leading-5 text-[#8F8578]">
                     Use the Link Contact button above to connect an existing
                     RoseVault contact to this property.
                   </p>
@@ -426,25 +426,25 @@ export default async function PropertyProfilePage({
                     return (
                       <div
                         key={contact.id}
-                        className="flex flex-col gap-4 rounded-xl border border-[#2a2a2a] bg-[#111111] p-4 sm:flex-row sm:items-center sm:justify-between"
+                        className="flex flex-col gap-4 rounded-xl border border-[#EDE7DC] bg-white/60 p-4 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <Link
                               href={`/contacts/${contact.id}`}
-                              className="font-medium text-white transition hover:text-[#d4af37]"
+                              className="font-medium text-[#24211E] transition hover:text-[#B7832F]"
                             >
                               {fullName}
                             </Link>
 
                             {contact.is_primary && (
-                              <span className="rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-2.5 py-1 text-xs font-medium text-[#d4af37]">
+                              <span className="rounded-full border border-[#D8B66A]/40 bg-[#FBF9F6] px-2.5 py-0.5 text-xs font-medium text-[#B7832F] shadow-sm">
                                 Primary
                               </span>
                             )}
                           </div>
 
-                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+                          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#7C7265]">
                             {contact.email && <span>{contact.email}</span>}
 
                             {displayPhone && <span>{displayPhone}</span>}
@@ -454,13 +454,13 @@ export default async function PropertyProfilePage({
                         <div className="flex flex-col items-start gap-3 sm:items-end">
                           <div className="flex flex-wrap items-center gap-2">
                             {contact.relationship_type && (
-                              <span className="rounded-full border border-[#333333] bg-[#1a1a1a] px-3 py-1.5 text-xs font-medium capitalize text-gray-300">
+                              <span className="rounded-full border border-[#EDE7DC] bg-[#F1ECE4]/70 px-3 py-1 text-xs font-medium capitalize text-[#5C544A]">
                                 {formatLabel(contact.relationship_type)}
                               </span>
                             )}
 
                             {contact.contact_type && (
-                              <span className="rounded-full border border-[#333333] px-3 py-1.5 text-xs capitalize text-gray-500">
+                              <span className="rounded-full border border-[#EDE7DC] px-3 py-1 text-xs capitalize text-[#7C7265]">
                                 {formatLabel(contact.contact_type)}
                               </span>
                             )}
@@ -488,11 +488,11 @@ export default async function PropertyProfilePage({
               description="Property condition, seller situation, repair needs, and other important context."
             >
               {property.notes ? (
-                <p className="whitespace-pre-wrap text-sm leading-7 text-gray-300">
+                <p className="whitespace-pre-wrap text-sm leading-7 text-[#3A3530]">
                   {property.notes}
                 </p>
               ) : (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[#8F8578]">
                   No notes have been added to this property.
                 </p>
               )}
@@ -501,13 +501,13 @@ export default async function PropertyProfilePage({
 
           {/* Sidebar */}
           <aside className="space-y-6">
-            {/* Property Record */}
-            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-              <h2 className="text-xl font-semibold text-white">
+            {/* Property Record Status summary */}
+            <section className="rounded-xl border border-[#EDE7DC] bg-white/45 p-6 backdrop-blur-sm">
+              <h2 className="font-serif text-xl font-normal text-[#B7832F]">
                 Property Record
               </h2>
 
-              <div className="mt-6 space-y-6">
+              <div className="mt-6 space-y-5">
                 <DetailItem
                   label="Status"
                   value={formatLabel(property.property_status)}
@@ -540,29 +540,29 @@ export default async function PropertyProfilePage({
             </section>
 
             {/* Quick Actions */}
-            <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
-              <h2 className="text-xl font-semibold text-white">
+            <section className="rounded-xl border border-[#EDE7DC] bg-white/45 p-6 backdrop-blur-sm">
+              <h2 className="font-serif text-xl font-normal text-[#B7832F]">
                 Quick Actions
               </h2>
 
               <div className="mt-5 space-y-3">
                 <Link
                   href={`/properties/${property.id}/edit`}
-                  className="block w-full rounded-lg border border-[#333333] px-4 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                  className="block w-full rounded-lg border border-[#EDE7DC] bg-white/50 px-4 py-3 text-center text-sm font-medium text-[#5C544A] transition hover:border-[#D8B66A]/40 hover:bg-white hover:text-[#B7832F]"
                 >
                   Edit Property
                 </Link>
 
                 <Link
                   href="/contacts/new"
-                  className="block w-full rounded-lg border border-[#333333] px-4 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                  className="block w-full rounded-lg border border-[#EDE7DC] bg-white/50 px-4 py-3 text-center text-sm font-medium text-[#5C544A] transition hover:border-[#D8B66A]/40 hover:bg-white hover:text-[#B7832F]"
                 >
                   Add New Contact
                 </Link>
 
                 <Link
                   href="/properties"
-                  className="block w-full rounded-lg border border-[#333333] px-4 py-3 text-center text-sm font-medium text-gray-300 transition hover:border-[#d4af37] hover:text-[#d4af37]"
+                  className="block w-full rounded-lg border border-[#EDE7DC] bg-white/50 px-4 py-3 text-center text-sm font-medium text-[#5C544A] transition hover:border-[#D8B66A]/40 hover:bg-white hover:text-[#B7832F]"
                 >
                   View All Properties
                 </Link>
@@ -577,10 +577,14 @@ export default async function PropertyProfilePage({
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-5">
-      <p className="text-sm text-gray-400">{label}</p>
+    <div className="rounded-xl border border-[#EDE7DC] bg-white/45 p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/75 hover:shadow-sm">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+        {label}
+      </p>
 
-      <p className="mt-3 text-2xl font-semibold text-[#d4af37]">{value}</p>
+      <p className="mt-3 font-serif text-2xl font-normal text-[#B7832F]">
+        {value}
+      </p>
     </div>
   );
 }
@@ -595,11 +599,15 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-6">
+    <section className="rounded-xl border border-[#EDE7DC] bg-white/45 p-6 backdrop-blur-sm">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-white">{title}</h2>
+        <h2 className="font-serif text-xl font-normal text-[#B7832F]">
+          {title}
+        </h2>
 
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
+        <p className="mt-1 text-sm text-[#7C7265]">
+          {description}
+        </p>
       </div>
 
       {children}
@@ -619,9 +627,13 @@ function DetailItem({
 
   return (
     <div>
-      <p className="text-xs uppercase tracking-wider text-gray-600">{label}</p>
+      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+        {label}
+      </p>
 
-      <p className="mt-2 text-sm text-white">{hasValue ? value : "—"}</p>
+      <p className="mt-2 text-sm font-medium text-[#3A3530]">
+        {hasValue ? value : "—"}
+      </p>
     </div>
   );
 }
