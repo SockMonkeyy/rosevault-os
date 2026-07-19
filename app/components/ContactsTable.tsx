@@ -12,10 +12,17 @@ type Contact = {
   last_name: string | null;
   email: string | null;
 
-  cell_phone: string | null;
-  cell_phone_type: string | null;
-  business_phone: string | null;
-  business_phone_type: string | null;
+  primary_phone: string | null;
+  primary_phone_type: string | null;
+
+  secondary_phone: string | null;
+  secondary_phone_type: string | null;
+
+  spouse_primary_phone: string | null;
+  spouse_primary_phone_type: string | null;
+
+  spouse_secondary_phone: string | null;
+  spouse_secondary_phone_type: string | null;
 
   contact_type: string;
   status: string;
@@ -73,30 +80,29 @@ export default function ContactsTable({
   tagAssignments,
   organizationId,
 }: Props) {
-
   function ContactStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    new: "border-sky-200 bg-sky-50 text-sky-700",
-    active: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    nurture: "border-amber-200 bg-amber-50 text-amber-700",
-    past_client: "border-[#D8B66A]/40 bg-[#B7832F]/5 text-[#916520]",
-    inactive: "border-[#E3DCD0] bg-[#12110F]/5 text-[#7C7265]",
-    do_not_contact: "border-red-200 bg-red-50 text-red-700",
-  };
+    const styles: Record<string, string> = {
+      new: "border-sky-200 bg-sky-50 text-sky-700",
+      active: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      nurture: "border-amber-200 bg-amber-50 text-amber-700",
+      past_client: "border-[#D8B66A]/40 bg-[#B7832F]/5 text-[#916520]",
+      inactive: "border-[#E3DCD0] bg-[#12110F]/5 text-[#7C7265]",
+      do_not_contact: "border-red-200 bg-red-50 text-red-700",
+    };
 
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide ${
-        styles[status.toLowerCase()] ??
-        "border-[#E3DCD0] bg-white text-[#7C7265]"
-      }`}
-    >
-      {status
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (char) => char.toUpperCase())}
-    </span>
-  );
-}
+    return (
+      <span
+        className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide ${
+          styles[status.toLowerCase()] ??
+          "border-[#E3DCD0] bg-white text-[#7C7265]"
+        }`}
+      >
+        {status
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (char) => char.toUpperCase())}
+      </span>
+    );
+  }
   const router = useRouter();
 
   const [search, setSearch] = useState("");
@@ -124,8 +130,10 @@ export default function ContactsTable({
         contact.first_name,
         contact.last_name,
         contact.email,
-        contact.cell_phone,
-        contact.business_phone,
+        contact.primary_phone,
+        contact.secondary_phone,
+        contact.spouse_primary_phone,
+        contact.spouse_secondary_phone,
         contact.lead_source,
       ]
         .filter(Boolean)
@@ -245,11 +253,17 @@ export default function ContactsTable({
     const contactCount = selectedContactIds.length;
     const supabase = createClient();
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("contacts")
       .delete()
       .eq("organization_id", organizationId)
-      .in("id", selectedContactIds);
+      .in("id", selectedContactIds)
+      .select();
+
+    console.log("Organization:", organizationId);
+    console.log("Selected IDs:", selectedContactIds);
+    console.log("Deleted:", data);
+    console.log("Error:", error);
 
     if (error) {
       setBulkMessage(`Unable to delete contacts: ${error.message}`);
@@ -350,10 +364,10 @@ export default function ContactsTable({
       contact.first_name,
       contact.last_name,
       contact.email,
-      contact.cell_phone,
-      contact.cell_phone_type,
-      contact.business_phone,
-      contact.business_phone_type,
+      contact.primary_phone,
+      contact.primary_phone_type,
+      contact.secondary_phone,
+      contact.secondary_phone_type,
       contact.contact_type,
       contact.status,
       contact.lead_source,
@@ -414,7 +428,7 @@ export default function ContactsTable({
       contact.first_name,
       contact.last_name,
       contact.email,
-      contact.cell_phone,
+      contact.primary_phone,
       contact.property_address_line_1,
       contact.property_address_line_2,
       contact.property_city,
@@ -632,7 +646,7 @@ export default function ContactsTable({
     return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-    const inputClasses =
+  const inputClasses =
     "rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-xs text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#B7AEA2] hover:border-[#D5CABB] focus:border-[#B7832F]/60 focus:bg-white focus:ring-2 focus:ring-[#B7832F]/10";
 
   const secondaryButtonClasses =
@@ -944,9 +958,7 @@ export default function ContactsTable({
                   <tr
                     key={contact.id}
                     className={`transition-all duration-300 ${
-                      isSelected
-                        ? "bg-[#B7832F]/[0.07]"
-                        : "hover:bg-white/70"
+                      isSelected ? "bg-[#B7832F]/[0.07]" : "hover:bg-white/70"
                     }`}
                   >
                     <td className="px-5 py-4">
@@ -987,59 +999,58 @@ export default function ContactsTable({
                     {/* Primary Phone */}
                     <td className="px-5 py-4 text-xs text-[#5F574D]">
                       <div className="flex items-center gap-2">
-                        <span>{contact.cell_phone || "—"}</span>
+                        <span>{contact.primary_phone || "—"}</span>
 
-                        {contact.cell_phone && contact.cell_phone_type && (
-                          <span className="rounded bg-[#171512]/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7C7265]">
-                            {formatLabel(contact.cell_phone_type)}
-                          </span>
-                        )}
+                        {contact.primary_phone &&
+                          contact.primary_phone_type && (
+                            <span className="rounded bg-[#171512]/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7C7265]">
+                              {formatLabel(contact.primary_phone_type)}
+                            </span>
+                          )}
                       </div>
                     </td>
 
                     {/* Secondary Phone */}
                     <td className="px-5 py-4 text-xs text-[#5F574D]">
                       <div className="flex items-center gap-2">
-                        <span>{contact.business_phone || "—"}</span>
+                        <span>{contact.secondary_phone || "—"}</span>
 
-                        {contact.business_phone &&
-                          contact.business_phone_type && (
+                        {contact.secondary_phone &&
+                          contact.secondary_phone_type && (
                             <span className="rounded bg-[#171512]/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7C7265]">
-                              {formatLabel(contact.business_phone_type)}
+                              {formatLabel(contact.secondary_phone_type)}
                             </span>
                           )}
                       </div>
                     </td>
 
-                    {/* Groups & Tags */}
-                    <td className="px-5 py-4">
-                      {contactGroups.length === 0 &&
-                      contactTags.length === 0 ? (
-                        <span className="text-xs text-[#B7AEA2]">—</span>
-                      ) : (
-                        <div className="flex max-w-[220px] flex-wrap gap-1.5">
-                          {contactGroups.map((group) => (
-                            <span
-                              key={`group-${group.id}`}
-                              className="rounded-full border border-[#D8B66A]/40 bg-[#B7832F]/5 px-2 py-1 text-[9px] font-medium tracking-wide text-[#916520]"
-                            >
-                              {group.name}
-                            </span>
-                          ))}
-
-                          {contactTags.map((tag) => (
-                            <span
-                              key={`tag-${tag.id}`}
-                              className="rounded-full border border-[#E3DCD0] bg-white/60 px-2 py-1 text-[9px] font-medium tracking-wide text-[#7C7265]"
-                            >
-                              {tag.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                    {/* Groups & Tags Column */}
+                    <td className="px-5 py-4 text-xs">
+                      <div className="flex flex-wrap gap-1.5 max-w-xs">
+                        {contactGroups.map((group) => (
+                          <span
+                            key={group.id}
+                            className="inline-flex items-center rounded border border-[#EDE7DC] bg-[#FDFBF7] px-2 py-0.5 text-[10px] font-medium text-[#7C7265]"
+                          >
+                            {group.name}
+                          </span>
+                        ))}
+                        {contactTags.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="inline-flex items-center rounded bg-[#B7832F]/10 px-2 py-0.5 text-[10px] font-medium text-[#916520]"
+                          >
+                            #{tag.name}
+                          </span>
+                        ))}
+                        {contactGroups.length === 0 &&
+                          contactTags.length === 0 && (
+                            <span className="text-[#A89C8D]">—”</span>
+                          )}
+                      </div>
                     </td>
 
-                    {/* Status */}
+                    {/* Status Badge Column */}
                     <td className="px-5 py-4">
                       <ContactStatusBadge status={contact.status} />
                     </td>
@@ -1051,78 +1062,70 @@ export default function ContactsTable({
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal Overlay */}
       {showDeleteModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0D0C0A]/70 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-contacts-title"
-        >
-          <div className="w-full max-w-lg rounded-xl border border-red-200 bg-[#FBF7EF] p-7 shadow-2xl">
-            <div className="mb-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-red-600">
-                Permanent Action
-              </p>
+        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-[#12110F]/60 backdrop-blur-sm">
+  <div className="flex min-h-screen items-start justify-center px-4 pt-24 pb-8">
+          <div className="w-full max-w-md rounded-xl border border-[#EDE7DC] bg-white p-6 shadow-xl">
+            <h3 className="font-serif text-lg font-normal text-[#29231D]">
+              Permanently Delete Contacts?
+            </h3>
 
-              <h2
-                id="delete-contacts-title"
-                className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]"
-              >
-                Delete {selectedContactIds.length} selected contact
-                {selectedContactIds.length === 1 ? "" : "s"}?
-              </h2>
+            <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
+              You are about to delete{" "}
+              <strong className="text-red-600">
+                {selectedContactIds.length}
+              </strong>{" "}
+              selected contact{selectedContactIds.length === 1 ? "" : "s"}. This
+              action cannot be undone.
+            </p>
 
-              <p className="mt-3 text-xs leading-relaxed text-[#7C7265]">
-                This permanently removes the selected contact
-                {selectedContactIds.length === 1 ? "" : "s"} from RoseVault.
-                Their group memberships and tag assignments will also be
-                removed. This action cannot be undone.
-              </p>
-            </div>
-
-            <div className="mb-6">
+            <div className="mt-4">
               <label
-                htmlFor="confirm-delete-input"
-                className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+                htmlFor="confirm-delete"
+                className="block text-[10px] font-semibold uppercase tracking-wide text-[#8F8578] mb-1.5"
               >
-                Type{" "}
-                <span className="font-bold text-[#29231D]">DELETE</span> to
-                confirm permanent removal
+                Type <span className="text-[#29231D] font-bold">DELETE</span> to
+                confirm
               </label>
-
               <input
-                id="confirm-delete-input"
+                id="confirm-delete"
                 type="text"
-                value={deleteConfirmation}
-                onChange={(event) => setDeleteConfirmation(event.target.value)}
                 placeholder="DELETE"
-                className="w-full rounded-md border border-red-200 bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#B7AEA2] focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                value={deleteConfirmation}
+                onChange={(e) =>
+                  setDeleteConfirmation(e.target.value.trim().toUpperCase())
+                }
+                className={`${inputClasses} w-full border-red-200 focus:border-red-500 focus:ring-red-100 uppercase`}
               />
             </div>
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setDeleteConfirmation("");
                 }}
-                className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-2.5 text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:border-[#C4BCB1] hover:bg-white hover:text-[#29231D]"
+                disabled={isDeleting}
+                className={secondaryButtonClasses}
               >
                 Cancel
               </button>
-
               <button
                 type="button"
-                disabled={isDeleting || deleteConfirmation !== "DELETE"}
                 onClick={deleteSelectedContacts}
-                className="cursor-pointer rounded-md bg-red-600 px-5 py-2.5 text-xs font-semibold tracking-wide text-white transition-all duration-300 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={
+                  isDeleting ||
+                  deleteConfirmation.trim().toUpperCase() !== "DELETE"
+                }
+                className="cursor-pointer rounded-md bg-red-600 px-4 py-3 text-xs font-medium tracking-wide text-white transition-all duration-300 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isDeleting ? "Deleting..." : "Permanently Delete"}
               </button>
             </div>
           </div>
+        </div>
         </div>
       )}
     </div>

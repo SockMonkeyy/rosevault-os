@@ -191,8 +191,8 @@ export default async function ContactProfilePage({
     contact.spouse_first_name ||
     contact.spouse_last_name ||
     contact.spouse_email ||
-    contact.spouse_cell_phone ||
-    contact.spouse_business_phone,
+    contact.spouse_primary_phone ||
+    contact.spouse_secondary_phone,
   );
 
   const mailingAddress = formatAddress(
@@ -298,14 +298,14 @@ export default async function ContactProfilePage({
               />
               <PhoneItem
                 label="Primary Line"
-                value={contact.cell_phone}
-                type={contact.cell_phone_type}
+                value={contact.primary_phone}
+                type={contact.primary_phone_type}
               />
 
               <PhoneItem
                 label="Secondary Line"
-                value={contact.business_phone}
-                type={contact.business_phone_type}
+                value={contact.secondary_phone}
+                type={contact.secondary_phone_type}
               />
             </div>
           </section>
@@ -465,14 +465,14 @@ export default async function ContactProfilePage({
                 />
                 <PhoneItem
                   label="Primary Contact Line"
-                  value={contact.spouse_cell_phone}
-                  type={contact.spouse_cell_phone_type}
+                  value={contact.spouse_primary_phone}
+                  type={contact.spouse_primary_phone_type}
                 />
 
                 <PhoneItem
                   label="Secondary Contact Line"
-                  value={contact.spouse_business_phone}
-                  type={contact.spouse_business_phone_type}
+                  value={contact.spouse_secondary_phone}
+                  type={contact.spouse_secondary_phone_type}
                 />
               </div>
             </section>

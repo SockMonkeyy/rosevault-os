@@ -18,7 +18,6 @@ export default function EditContactPage() {
   const [cellPhone, setCellPhone] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
   const [cellPhoneType, setCellPhoneType] = useState("mobile");
-
   const [businessPhoneType, setBusinessPhoneType] = useState("work");
 
   const [contactType, setContactType] = useState("lead");
@@ -35,8 +34,7 @@ export default function EditContactPage() {
   const [spouseCellPhone, setSpouseCellPhone] = useState("");
   const [spouseBusinessPhone, setSpouseBusinessPhone] = useState("");
   const [spouseCellPhoneType, setSpouseCellPhoneType] = useState("mobile");
-  const [spouseBusinessPhoneType, setSpouseBusinessPhoneType] =
-    useState("work");
+  const [spouseBusinessPhoneType, setSpouseBusinessPhoneType] = useState("work");
 
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
@@ -97,10 +95,10 @@ export default function EditContactPage() {
       setFirstName(contact.first_name ?? "");
       setLastName(contact.last_name ?? "");
       setEmail(contact.email ?? "");
-      setCellPhone(contact.cell_phone ?? contact.phone ?? "");
-      setBusinessPhone(contact.business_phone ?? "");
-      setCellPhoneType(contact.cell_phone_type ?? "mobile");
-      setBusinessPhoneType(contact.business_phone_type ?? "work");
+      setCellPhone(contact.primary_phone ?? "");
+      setBusinessPhone(contact.secondary_phone ?? "");
+      setCellPhoneType(contact.primary_phone_type ?? "mobile");
+      setBusinessPhoneType(contact.secondary_phone_type ?? "work");
 
       setContactType(contact.contact_type ?? "lead");
       setStatus(contact.status ?? "active");
@@ -113,11 +111,11 @@ export default function EditContactPage() {
       setSpouseFirstName(contact.spouse_first_name ?? "");
       setSpouseLastName(contact.spouse_last_name ?? "");
       setSpouseEmail(contact.spouse_email ?? "");
-      setSpouseCellPhone(contact.spouse_cell_phone ?? "");
-      setSpouseCellPhoneType(contact.spouse_cell_phone_type ?? "mobile");
+      setSpouseCellPhone(contact.spouse_primary_phone ?? "");
+      setSpouseCellPhoneType(contact.spouse_primary_phone_type ?? "mobile");
 
-      setSpouseBusinessPhone(contact.spouse_business_phone ?? "");
-      setSpouseBusinessPhoneType(contact.spouse_business_phone_type ?? "work");
+      setSpouseBusinessPhone(contact.spouse_secondary_phone ?? "");
+      setSpouseBusinessPhoneType(contact.spouse_secondary_phone_type ?? "work");
 
       // Mailing address
       setAddressLine1(contact.mailing_address_line_1 ?? "");
@@ -164,7 +162,7 @@ export default function EditContactPage() {
       .maybeSingle();
 
     if (membershipError || !membership) {
-      setMessage("We could not find your RoseVault organization workspace.");
+      setMessage("We could not find your Workspace organization profile.");
       setIsSubmitting(false);
       return;
     }
@@ -175,11 +173,10 @@ export default function EditContactPage() {
         first_name: firstName.trim(),
         last_name: lastName.trim() || null,
         email: email.trim() || null,
-        cell_phone: cellPhone.trim() || null,
-        cell_phone_type: cellPhoneType,
-
-        business_phone: businessPhone.trim() || null,
-        business_phone_type: businessPhoneType,
+        primary_phone: cellPhone.trim() || null,
+        primary_phone_type: cellPhoneType,
+        secondary_phone: businessPhone.trim() || null,
+        secondary_phone_type: businessPhoneType,
 
         contact_type: contactType,
         status,
@@ -192,16 +189,15 @@ export default function EditContactPage() {
         spouse_first_name: spouseFirstName.trim() || null,
         spouse_last_name: spouseLastName.trim() || null,
         spouse_email: spouseEmail.trim() || null,
-        spouse_cell_phone: spouseCellPhone.trim() || null,
-        spouse_cell_phone_type: spouseCellPhoneType,
-
-        spouse_business_phone: spouseBusinessPhone.trim() || null,
-        spouse_business_phone_type: spouseBusinessPhoneType,
+        spouse_primary_phone: spouseCellPhone.trim() || null,
+        spouse_primary_phone_type: spouseCellPhoneType,
+        spouse_secondary_phone: spouseBusinessPhone.trim() || null,
+        spouse_secondary_phone_type: spouseBusinessPhoneType,
 
         mailing_address_line_1: addressLine1.trim() || null,
         mailing_address_line_2: addressLine2.trim() || null,
         mailing_city: city.trim() || null,
-        mailing_state: state.trim() || null,
+        mailing_state: state.trim().toUpperCase() || null,
         mailing_postal_code: postalCode.trim() || null,
 
         property_address_line_1: propertyAddressLine1.trim() || null,
@@ -225,11 +221,8 @@ export default function EditContactPage() {
     router.refresh();
   }
 
-   const inputClasses =
+  const inputClasses =
     "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#A89C8D] hover:border-[#CFC5B6] focus:border-[#D8B66A] focus:bg-white focus:ring-2 focus:ring-[#D8B66A]/10";
-
-  const labelClasses =
-    "mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]";
 
   const secondaryButtonClasses =
     "cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-6 py-3 text-center text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]";
@@ -242,7 +235,6 @@ export default function EditContactPage() {
       <div className="flex min-h-[60vh] items-center justify-center px-8 py-10">
         <div className="text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#E3DCD0] border-t-[#B7832F]" />
-
           <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8F8578]">
             Loading Contact
           </p>
@@ -264,7 +256,7 @@ export default function EditContactPage() {
               aria-hidden="true"
               className="transition-transform duration-300 group-hover:-translate-x-0.5"
             >
-              ←
+              &larr;
             </span>
             Back to Contact
           </Link>
@@ -273,11 +265,9 @@ export default function EditContactPage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
               Relationship Record
             </p>
-
             <h1 className="mt-2 font-serif text-3xl font-normal tracking-wide text-[#29231D]">
               Edit Contact
             </h1>
-
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7C7265]">
               Update contact details, CRM information, spouse information,
               mailing and property addresses, and relationship notes.
@@ -331,7 +321,7 @@ export default function EditContactPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={cellPhoneType}
-                  onChange={(event) => setCellPhoneType(event.target.value)}
+                  onChange={(e) => setCellPhoneType(e.target.value)}
                   className={inputClasses}
                 >
                   <option value="mobile">Mobile</option>
@@ -343,14 +333,14 @@ export default function EditContactPage() {
                 <input
                   type="tel"
                   value={cellPhone}
-                  onChange={(event) => setCellPhone(event.target.value)}
+                  onChange={(e) => setCellPhone(e.target.value)}
                   placeholder="Enter phone number"
                   className={inputClasses}
                 />
               </div>
             </Field>
 
-            <Field label="Secondary Phone">
+            <Field label="Secondary Phone" className="md:col-span-2">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={businessPhoneType}
@@ -411,9 +401,7 @@ export default function EditContactPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={spouseCellPhoneType}
-                  onChange={(event) =>
-                    setSpouseCellPhoneType(event.target.value)
-                  }
+                  onChange={(event) => setSpouseCellPhoneType(event.target.value)}
                   className={inputClasses}
                 >
                   <option value="mobile">Mobile</option>
@@ -432,13 +420,11 @@ export default function EditContactPage() {
               </div>
             </Field>
 
-            <Field label="Spouse Secondary Phone">
+            <Field label="Spouse Secondary Phone" className="md:col-span-2">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={spouseBusinessPhoneType}
-                  onChange={(event) =>
-                    setSpouseBusinessPhoneType(event.target.value)
-                  }
+                  onChange={(event) => setSpouseBusinessPhoneType(event.target.value)}
                   className={inputClasses}
                 >
                   <option value="mobile">Mobile</option>
@@ -450,9 +436,7 @@ export default function EditContactPage() {
                 <input
                   type="tel"
                   value={spouseBusinessPhone}
-                  onChange={(event) =>
-                    setSpouseBusinessPhone(event.target.value)
-                  }
+                  onChange={(event) => setSpouseBusinessPhone(event.target.value)}
                   placeholder="Enter phone number"
                   className={inputClasses}
                 />
@@ -515,9 +499,7 @@ export default function EditContactPage() {
             <Field label="Preferred Contact Method">
               <select
                 value={preferredContactMethod}
-                onChange={(event) =>
-                  setPreferredContactMethod(event.target.value)
-                }
+                onChange={(event) => setPreferredContactMethod(event.target.value)}
                 className={inputClasses}
               >
                 <option value="">Not specified</option>
@@ -559,25 +541,23 @@ export default function EditContactPage() {
             title="Mailing Address"
             description="Used for client records, correspondence, and mailing-label generation."
           >
-            <div className="md:col-span-2">
-              <label className={labelClasses}>Address Line 1</label>
+            <Field label="Address Line 1" className="md:col-span-2">
               <input
                 type="text"
                 value={addressLine1}
                 onChange={(event) => setAddressLine1(event.target.value)}
                 className={inputClasses}
               />
-            </div>
+            </Field>
 
-            <div className="md:col-span-2">
-              <label className={labelClasses}>Address Line 2</label>
+            <Field label="Address Line 2" className="md:col-span-2">
               <input
                 type="text"
                 value={addressLine2}
                 onChange={(event) => setAddressLine2(event.target.value)}
                 className={inputClasses}
               />
-            </div>
+            </Field>
 
             <Field label="City">
               <input
@@ -593,7 +573,8 @@ export default function EditContactPage() {
                 type="text"
                 value={state}
                 onChange={(event) => setState(event.target.value)}
-                className={inputClasses}
+                maxLength={2}
+                className={`${inputClasses} uppercase`}
               />
             </Field>
 
@@ -613,31 +594,25 @@ export default function EditContactPage() {
             title="Property Address"
             description="The property associated with this contact or real estate lead. This may be different from the contact's mailing address."
           >
-            <div className="md:col-span-2">
-              <label className={labelClasses}>Property Address Line 1</label>
+            <Field label="Property Address Line 1" className="md:col-span-2">
               <input
                 type="text"
                 value={propertyAddressLine1}
-                onChange={(event) =>
-                  setPropertyAddressLine1(event.target.value)
-                }
+                onChange={(event) => setPropertyAddressLine1(event.target.value)}
                 placeholder="123 Main Street"
                 className={inputClasses}
               />
-            </div>
+            </Field>
 
-            <div className="md:col-span-2">
-              <label className={labelClasses}>Property Address Line 2</label>
+            <Field label="Property Address Line 2" className="md:col-span-2">
               <input
                 type="text"
                 value={propertyAddressLine2}
-                onChange={(event) =>
-                  setPropertyAddressLine2(event.target.value)
-                }
+                onChange={(event) => setPropertyAddressLine2(event.target.value)}
                 placeholder="Unit, suite, apartment, etc."
                 className={inputClasses}
               />
-            </div>
+            </Field>
 
             <Field label="City">
               <input
@@ -672,21 +647,12 @@ export default function EditContactPage() {
           </FormSection>
 
           {/* Notes */}
-          <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
-            <div className="mb-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-                Relationship Context
-              </p>
-
-              <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
-                Notes
-              </h2>
-
-              <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
-                Add or update anything important about this relationship.
-              </p>
-            </div>
-
+          <FormSection
+            eyebrow="Relationship Context"
+            title="Notes"
+            description="Add or update anything important about this relationship."
+            isFullWidth={true}
+          >
             <textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
@@ -694,7 +660,7 @@ export default function EditContactPage() {
               placeholder="Add notes about this contact..."
               className={inputClasses}
             />
-          </section>
+          </FormSection>
 
           {/* Bottom Error Message */}
           {message && (
@@ -730,11 +696,13 @@ function FormSection({
   eyebrow,
   title,
   description,
+  isFullWidth = false,
   children,
 }: {
   eyebrow: string;
   title: string;
   description: string;
+  isFullWidth?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -743,34 +711,35 @@ function FormSection({
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
           {eyebrow}
         </p>
-
         <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
           {title}
         </h2>
-
         <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[#7C7265]">
           {description}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">{children}</div>
+      <div className={isFullWidth ? "block w-full" : "grid grid-cols-1 gap-5 md:grid-cols-2"}>
+        {children}
+      </div>
     </section>
   );
 }
 
 function Field({
   label,
+  className = "",
   children,
 }: {
   label: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className={className}>
       <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
         {label}
       </label>
-
       {children}
     </div>
   );

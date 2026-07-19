@@ -16,20 +16,18 @@ export default function NewContactPage() {
 
   // Primary Contact Phone Setup
   const [primaryPhone, setPrimaryPhone] = useState("");
-  const [primaryPhoneType, setPrimaryPhoneType] = useState("mobile"); // Changed from "cell"
+  const [primaryPhoneType, setPrimaryPhoneType] = useState("mobile");
   const [secondaryPhone, setSecondaryPhone] = useState("");
-  const [secondaryPhoneType, setSecondaryPhoneType] = useState("work"); // Changed from "business"
+  const [secondaryPhoneType, setSecondaryPhoneType] = useState("work");
 
   // Spouse Contact State
   const [spouseFirstName, setSpouseFirstName] = useState("");
   const [spouseLastName, setSpouseLastName] = useState("");
   const [spouseEmail, setSpouseEmail] = useState("");
   const [spousePrimaryPhone, setSpousePrimaryPhone] = useState("");
-  const [spousePrimaryPhoneType, setSpousePrimaryPhoneType] =
-    useState("mobile"); // Changed from "cell"
+  const [spousePrimaryPhoneType, setSpousePrimaryPhoneType] = useState("mobile");
   const [spouseSecondaryPhone, setSpouseSecondaryPhone] = useState("");
-  const [spouseSecondaryPhoneType, setSpouseSecondaryPhoneType] =
-    useState("work"); // Changed from "business"
+  const [spouseSecondaryPhoneType, setSpouseSecondaryPhoneType] = useState("work");
 
   // Classification & CRM Info
   const [contactType, setContactType] = useState("lead");
@@ -56,6 +54,14 @@ export default function NewContactPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Helper function to safely sanitize string inputs and cleanly return null if empty
+  const sanitizeInput = (val: string, toUpper: boolean = false) => {
+    if (!val) return null;
+    const trimmed = val.trim();
+    if (!trimmed) return null;
+    return toUpper ? trimmed.toUpperCase() : trimmed;
+  };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -90,52 +96,52 @@ export default function NewContactPage() {
 
       // Primary contact information
       first_name: firstName.trim(),
-      last_name: lastName.trim() || null,
-      email: email.trim() || null,
+      last_name: sanitizeInput(lastName),
+      email: sanitizeInput(email),
 
-      // Primary contact phone information (CORRECTED MAPPING)
-      cell_phone: primaryPhone.trim() || null,
+      // Primary contact phone information (Database schema mapping target)
+      cell_phone: sanitizeInput(primaryPhone),
       cell_phone_type: primaryPhoneType || null,
 
-      business_phone: secondaryPhone.trim() || null,
+      business_phone: sanitizeInput(secondaryPhone),
       business_phone_type: secondaryPhoneType || null,
 
       // Spouse contact information
-      spouse_first_name: spouseFirstName.trim() || null,
-      spouse_last_name: spouseLastName.trim() || null,
-      spouse_email: spouseEmail.trim() || null,
+      spouse_first_name: sanitizeInput(spouseFirstName),
+      spouse_last_name: sanitizeInput(spouseLastName),
+      spouse_email: sanitizeInput(spouseEmail),
 
-      // Spouse contact phone information (CORRECTED MAPPING)
-      spouse_cell_phone: spousePrimaryPhone.trim() || null,
+      // Spouse contact phone information (Database schema mapping target)
+      spouse_cell_phone: sanitizeInput(spousePrimaryPhone),
       spouse_cell_phone_type: spousePrimaryPhoneType || null,
 
-      spouse_business_phone: spouseSecondaryPhone.trim() || null,
+      spouse_business_phone: sanitizeInput(spouseSecondaryPhone),
       spouse_business_phone_type: spouseSecondaryPhoneType || null,
 
       // Contact classification
       contact_type: contactType,
       status,
-      company: company.trim() || null,
-      job_title: jobTitle.trim() || null,
+      company: sanitizeInput(company),
+      job_title: sanitizeInput(jobTitle),
 
       // Mailing address
-      mailing_address_line_1: addressLine1.trim() || null,
-      mailing_address_line_2: addressLine2.trim() || null,
-      mailing_city: city.trim() || null,
-      mailing_state: state.trim().toUpperCase() || null,
-      mailing_postal_code: postalCode.trim() || null,
+      mailing_address_line_1: sanitizeInput(addressLine1),
+      mailing_address_line_2: sanitizeInput(addressLine2),
+      mailing_city: sanitizeInput(city),
+      mailing_state: sanitizeInput(state, true),
+      mailing_postal_code: sanitizeInput(postalCode),
 
       // Property address
-      property_address_line_1: propertyAddressLine1.trim() || null,
-      property_address_line_2: propertyAddressLine2.trim() || null,
-      property_city: propertyCity.trim() || null,
-      property_state: propertyState.trim().toUpperCase() || null,
-      property_postal_code: propertyPostalCode.trim() || null,
+      property_address_line_1: sanitizeInput(propertyAddressLine1),
+      property_address_line_2: sanitizeInput(propertyAddressLine2),
+      property_city: sanitizeInput(propertyCity),
+      property_state: sanitizeInput(propertyState, true),
+      property_postal_code: sanitizeInput(propertyPostalCode),
 
       // Additional contact details
-      lead_source: leadSource.trim() || null,
+      lead_source: sanitizeInput(leadSource),
       preferred_contact_method: preferredContactMethod || null,
-      notes: notes.trim() || null,
+      notes: sanitizeInput(notes),
 
       created_by: user.id,
     });
@@ -150,7 +156,7 @@ export default function NewContactPage() {
     router.refresh();
   }
 
-    const inputClasses =
+  const inputClasses =
     "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#B7AEA2] hover:border-[#D5CABB] focus:border-[#B7832F]/60 focus:bg-white focus:ring-2 focus:ring-[#B7832F]/10";
 
   const selectClasses =
@@ -170,7 +176,6 @@ export default function NewContactPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-8 py-12 lg:px-12 lg:py-16">
-      {/* Editorial Page Header */}
       <header className="mb-12 border-b border-[#EDE7DC]/60 pb-8">
         <Link
           href="/contacts"
@@ -420,10 +425,7 @@ export default function NewContactPage() {
             </div>
 
             <div>
-              <label
-                htmlFor="preferredContactMethod"
-                className={labelClasses}
-              >
+              <label htmlFor="preferredContactMethod" className={labelClasses}>
                 Preferred Contact Method
               </label>
               <select
@@ -565,10 +567,7 @@ export default function NewContactPage() {
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div className="md:col-span-2">
-              <label
-                htmlFor="propertyAddressLine1"
-                className={labelClasses}
-              >
+              <label htmlFor="propertyAddressLine1" className={labelClasses}>
                 Address Line 1
               </label>
               <input
@@ -582,10 +581,7 @@ export default function NewContactPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label
-                htmlFor="propertyAddressLine2"
-                className={labelClasses}
-              >
+              <label htmlFor="propertyAddressLine2" className={labelClasses}>
                 Address Line 2
               </label>
               <input
