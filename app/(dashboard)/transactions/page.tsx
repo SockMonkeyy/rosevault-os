@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import TransactionsTable from "@/app/components/TransactionsTable";
+import TransactionsTable, { TransactionRow } from "@/app/components/TransactionsTable";
 import { createClient } from "@/lib/supabase/server";
+
+type Property = {
+  id: string;
+  property_address_line_1: string;
+  property_city: string;
+  property_state: string;
+  property_postal_code: string;
+};
 
 export default async function TransactionsPage() {
   const supabase = await createClient();
@@ -21,10 +29,7 @@ export default async function TransactionsPage() {
     .maybeSingle();
 
   if (membershipError) {
-    console.error(
-      "Error loading organization membership:",
-      membershipError,
-    );
+    console.error("Error loading organization membership:", membershipError);
   }
 
   if (!membership) {
@@ -33,7 +38,8 @@ export default async function TransactionsPage() {
 
   const { data: transactions, error: transactionsError } = await supabase
     .from("transactions")
-    .select(`
+    .select(
+      `
       id,
       organization_id,
       property_id,
@@ -54,7 +60,8 @@ export default async function TransactionsPage() {
       notes,
       created_at,
       updated_at
-    `)
+    `,
+    )
     .eq("organization_id", membership.organization_id)
     .order("created_at", { ascending: false });
 
@@ -70,46 +77,41 @@ export default async function TransactionsPage() {
     ),
   ];
 
-  let properties: {
-    id: string;
-    property_address_line_1: string | null;
-    property_city: string | null;
-    property_state: string | null;
-    property_postal_code: string | null;
-  }[] = [];
+  let properties: Property[] = [];
 
   if (propertyIds.length > 0) {
     const { data: propertiesData, error: propertiesError } = await supabase
       .from("properties")
-      .select(`
+      .select(
+        `
         id,
         property_address_line_1,
         property_city,
         property_state,
         property_postal_code
-      `)
+      `,
+      )
       .eq("organization_id", membership.organization_id)
       .in("id", propertyIds);
 
     if (propertiesError) {
-      console.error(
-        "Error loading transaction properties:",
-        propertiesError,
-      );
+      console.error("Error loading transaction properties:", propertiesError);
     } else {
       properties = propertiesData ?? [];
     }
   }
 
-  const transactionRows = (transactions ?? []).map((transaction) => {
-    const property =
-      properties.find((item) => item.id === transaction.property_id) ?? null;
+  const transactionRows: TransactionRow[] = (transactions ?? []).map(
+    (transaction) => {
+      const property =
+        properties.find((item) => item.id === transaction.property_id) ?? null;
 
-    return {
-      ...transaction,
-      property,
-    };
-  });
+      return {
+        ...transaction,
+        property,
+      };
+    },
+  );
 
   const totalTransactions = transactionRows.length;
 
@@ -132,23 +134,23 @@ export default async function TransactionsPage() {
   ).length;
 
   return (
-    <div className="p-8">
+    <div className="min-h-screen bg-[#FBF7EF] p-8 text-[#29231D]">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
             <Link
               href="/"
-              className="mb-3 inline-block text-sm text-[#d4af37] transition hover:text-[#e2c35b] hover:underline"
+              className="mb-3 inline-block text-sm font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
             >
               ← Back to Dashboard
             </Link>
 
-            <h1 className="text-3xl font-semibold text-white">
+            <h1 className="font-serif text-3xl font-normal text-[#29231D]">
               Transactions
             </h1>
 
-            <p className="mt-2 max-w-2xl text-gray-400">
+            <p className="mt-2 max-w-2xl text-[#7C7265]">
               Manage purchases, sales, wholesale assignments, closings, key
               deadlines, and every active deal in RoseVault.
             </p>
@@ -156,56 +158,46 @@ export default async function TransactionsPage() {
 
           <Link
             href="/transactions/new"
-            className="rounded-lg bg-[#d4af37] px-5 py-3 text-center text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+            className="rounded-xl bg-[#B7832F] px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50"
           >
             + New Transaction
           </Link>
         </div>
 
-        {/* Summary cards */}
+        {/* Summary Cards */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard
-            label="Total Transactions"
-            value={totalTransactions}
-          />
-
-          <SummaryCard
-            label="Active Deals"
-            value={activeTransactions}
-          />
-
+          <SummaryCard label="Total Transactions" value={totalTransactions} />
+          <SummaryCard label="Active Deals" value={activeTransactions} />
           <SummaryCard
             label="Under Contract"
             value={underContractTransactions}
           />
-
-          <SummaryCard
-            label="Closed"
-            value={closedTransactions}
-          />
+          <SummaryCard label="Closed" value={closedTransactions} />
         </div>
 
-        {/* Transactions table */}
+        {/* Transactions Table or Global Empty State */}
         {transactionRows.length === 0 ? (
-          <section className="flex min-h-96 items-center justify-center rounded-2xl border border-[#2a2a2a] bg-[#151515] p-8">
+          <section className="flex min-h-96 items-center justify-center rounded-2xl border border-[#EDE7DC] bg-white/60 p-8 shadow-sm backdrop-blur-sm">
             <div className="max-w-lg text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#d4af37]/20 bg-[#d4af37]/10">
-                <span className="font-serif text-xl text-[#d4af37]">RV</span>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B66A]/30 bg-[#FBF7EF]">
+                <span className="font-serif text-xl font-bold text-[#B7832F]">
+                  RV
+                </span>
               </div>
 
-              <h2 className="mt-5 text-xl font-semibold text-white">
+              <h2 className="mt-5 font-serif text-xl font-medium text-[#29231D]">
                 No transactions yet
               </h2>
 
-              <p className="mt-3 text-sm leading-6 text-gray-500">
+              <p className="mt-3 text-sm leading-6 text-[#7C7265]">
                 Create your first transaction to begin tracking properties,
-                financials, contract dates, closing deadlines, and deal
-                progress inside RoseVault.
+                financials, contract dates, closing deadlines, and deal progress
+                inside RoseVault.
               </p>
 
               <Link
                 href="/transactions/new"
-                className="mt-6 inline-block rounded-lg bg-[#d4af37] px-5 py-3 text-sm font-semibold text-black transition hover:bg-[#e2c35b]"
+                className="mt-6 inline-block rounded-xl bg-[#B7832F] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#966822]"
               >
                 + Create First Transaction
               </Link>
@@ -219,18 +211,14 @@ export default async function TransactionsPage() {
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
+function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-5">
-      <p className="text-sm text-gray-400">{label}</p>
+    <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-5 shadow-sm backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+        {label}
+      </p>
 
-      <p className="mt-3 text-3xl font-semibold text-[#d4af37]">
+      <p className="mt-2 font-serif text-3xl font-normal text-[#B7832F]">
         {value}
       </p>
     </div>

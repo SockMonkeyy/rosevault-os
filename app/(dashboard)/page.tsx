@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import StatCard from "@/app/components/ui/StatCard";
+import { getDashboardMetrics } from "@/lib/dashboard/getDashboardmetrics";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -34,6 +36,16 @@ export default async function Home() {
     .eq("id", membership.organization_id)
     .single();
 
+  const { pipelineValue, activeLeads, underContract, closingsThisMonth } =
+    await getDashboardMetrics(membership.organization_id);
+
+
+  const formattedPipelineValue = pipelineValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+
   const firstName =
     profile?.first_name || user.user_metadata?.first_name || "there";
 
@@ -54,15 +66,14 @@ export default async function Home() {
         : "Good evening";
 
   const metrics = [
-    ["Pipeline Value", "$0"],
-    ["Active Leads", "0"],
-    ["Under Contract", "0"],
-    ["Closings This Month", "0"],
-  ];
+    ["Pipeline Value", formattedPipelineValue],
+    ["Active Leads", activeLeads],
+    ["Under Contract", underContract],
+    ["Closings This Month", closingsThisMonth],
+  ] as const;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-8 py-12 lg:px-12 lg:py-16">
-      
       {/* Editorial Header Section */}
       <header className="mb-12 flex items-center justify-between gap-6 border-b border-[#EDE7DC]/60 pb-8">
         <div>
@@ -71,7 +82,10 @@ export default async function Home() {
           </h2>
           <p className="mt-2 text-xs tracking-wide text-[#7C7265]">
             Here&apos;s the current status of your workspace inside{" "}
-            <span className="font-medium text-[#29231D]">{organizationName}</span> today.
+            <span className="font-medium text-[#29231D]">
+              {organizationName}
+            </span>{" "}
+            today.
           </p>
         </div>
 
@@ -84,23 +98,17 @@ export default async function Home() {
       {/* Metrics Section with Interactive Clickable Card Micro-Elevation */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map(([label, value]) => (
-          <div
+          <StatCard
             key={label}
-            className="group cursor-pointer rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/60 hover:shadow-sm"
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#A89C8D] transition-colors duration-300 group-hover:text-[#8F8578]">
-              {label}
-            </p>
-            <p className="mt-4 font-serif text-3xl font-light text-[#B7832F] transition-transform duration-300 group-hover:scale-[1.01]">
-              {value}
-            </p>
-          </div>
+            title={label}
+            value={value}
+            subtitle="Live business metric"
+          />
         ))}
       </div>
 
       {/* Primary Workspace Layout Split */}
       <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-3">
-        
         {/* Left Side: Pipeline Portfolio Area */}
         <div className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 xl:col-span-2">
           <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -125,8 +133,9 @@ export default async function Home() {
                 Your pipeline is ready
               </p>
               <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
-                Add your first deal transaction to begin securely mapping asset portfolios, 
-                buyer profiles, pipelines, and upcoming closing logs.
+                Add your first deal transaction to begin securely mapping asset
+                portfolios, buyer profiles, pipelines, and upcoming closing
+                logs.
               </p>
             </div>
           </div>
@@ -142,8 +151,8 @@ export default async function Home() {
               How can I support your pipeline today?
             </h3>
             <p className="mt-3 text-xs leading-relaxed text-[#7C7265]">
-              Request immediate insights across lead registries, outstanding tasks, portfolio valuations, or 
-              marketing templates.
+              Request immediate insights across lead registries, outstanding
+              tasks, portfolio valuations, or marketing templates.
             </p>
 
             {/* Interactive Simulated Input Area */}
@@ -158,7 +167,6 @@ export default async function Home() {
             Consult Assistant
           </button>
         </div>
-
       </div>
     </div>
   );

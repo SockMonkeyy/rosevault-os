@@ -717,7 +717,7 @@ export default function EditPropertyPage() {
               />
             </div>
           </FormSection>
-          
+
           {/* Danger Zone */}
           <section className="rounded-2xl border border-red-200 bg-red-50/60 p-6 backdrop-blur-sm">
             <div className="mb-4">
@@ -775,13 +775,32 @@ export default function EditPropertyPage() {
           <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-xl transition-transform duration-300 max-h-[90vh] overflow-y-auto">
             <div className="mb-4">
               <h3 className="font-serif text-2xl font-normal text-red-800">
-                Confirm Destruction
+                Delete Property
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-[#5C544A]">
-                Are you absolutely sure you want to permanently delete this property from RoseVault? This action cannot be undone and will delete all related records.
+                You&apos;re about to permanently delete the following property:
+              </p>
+
+              <div className="mt-4 rounded-xl border border-[#EDE7DC] bg-[#FBF9F6] px-4 py-3">
+                <p className="font-medium text-[#29231D]">
+                  {propertyAddressLine1 || "Unnamed Property"}
+                </p>
+
+                {(propertyCity || propertyState || propertyPostalCode) && (
+                  <p className="mt-1 text-sm text-[#7C7265]">
+                    {[propertyCity, propertyState, propertyPostalCode]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+                )}
+              </div>
+
+              <p className="mt-4 text-sm leading-relaxed text-[#5C544A]">
+                This action cannot be undone. Any linked contact relationships
+                will also be removed.
               </p>
             </div>
-            
+
             <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-end">
               <button
                 type="button"

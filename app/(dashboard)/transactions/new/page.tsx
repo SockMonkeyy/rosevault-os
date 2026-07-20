@@ -103,6 +103,8 @@ export default function NewTransactionPage() {
           error: userError,
         } = await supabase.auth.getUser();
 
+        console.log("Authenticated User:", user?.id);
+
         if (userError) {
           setLoadError(`Unable to verify user: ${userError.message}`);
           setIsLoading(false);
@@ -252,11 +254,32 @@ export default function NewTransactionPage() {
         created_by: userId,
       };
 
-      const { data: newTransaction, error } = await supabase
-        .from("transactions")
-        .insert(payload)
-        .select("id")
-        .single();
+      console.log("Organization ID:", organizationId);
+      console.log("User ID:", userId);
+      console.log("Payload:", payload);
+
+      const { data: membershipCheck, error: membershipCheckError } =
+        await supabase
+          .from("organization_members")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("organization_id", organizationId);
+
+      console.log("Membership Check:", membershipCheck);
+      console.log("Membership Error:", membershipCheckError);
+
+      const result = await supabase.from("transactions").insert(payload);
+
+      console.log("Insert Result:", result);
+
+      const { data, error, status, statusText } = result;
+
+      console.log({
+        data,
+        error,
+        status,
+        statusText,
+      });
 
       if (error) {
         setSaveError(`Unable to create transaction: ${error.message}`);
@@ -264,7 +287,7 @@ export default function NewTransactionPage() {
         return;
       }
 
-      router.push(`/transactions/${newTransaction.id}`);
+      router.replace("/transactions");
       router.refresh();
     } catch (error) {
       setSaveError(

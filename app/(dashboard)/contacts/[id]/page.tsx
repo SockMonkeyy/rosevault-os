@@ -249,7 +249,7 @@ export default async function ContactProfilePage({
           </div>
 
           <p className="text-xs tracking-wide text-[#7C7265]">
-            {contact.company || "Individual Profile Entry"}{" "}
+            {contact.company || "Contact Profile"}{" "}
             {contact.job_title ? ` · ${contact.job_title}` : ""}
           </p>
         </div>
@@ -282,7 +282,7 @@ export default async function ContactProfilePage({
           <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
             <div className="mb-6">
               <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
-                Communication Particulars
+                Contact Details
               </h2>
               <p className="mt-1 text-xs text-[#7C7265]">
                 Primary secure contact channels and active outreach alignment
@@ -292,7 +292,7 @@ export default async function ContactProfilePage({
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <ContactLinkItem
-                label="Electronic Mail"
+                label="E-mail Address"
                 value={contact.email}
                 href={contact.email ? `mailto:${contact.email}` : undefined}
               />
@@ -315,7 +315,7 @@ export default async function ContactProfilePage({
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
-                  Linked Asset Profiles
+                  Linked Properties
                 </h2>
                 <p className="mt-1 text-xs text-[#7C7265]">
                   Properties securely mapped to this direct relationship inside
@@ -409,7 +409,7 @@ export default async function ContactProfilePage({
           <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
             <div className="mb-6">
               <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
-                Integrated Records Logs
+                Activity{" "}
               </h2>
               <p className="mt-1 text-xs text-[#7C7265]">
                 Cross-referenced operational records tied to this custom system
@@ -482,7 +482,7 @@ export default async function ContactProfilePage({
           <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
             <div className="mb-4">
               <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
-                Mailing Location Address
+                Mailing Address
               </h2>
               <p className="mt-1 text-xs text-[#7C7265]">
                 Preferred geographic routing location for formal corporate
@@ -512,10 +512,10 @@ export default async function ContactProfilePage({
           <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
             <div className="mb-5">
               <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
-                Relationship Memorandums
+                Notes
               </h2>
               <p className="mt-1 text-xs text-[#7C7265]">
-                Context metadata notes and unique details added over time.
+                Unique details added over time
               </p>
             </div>
             <p className="whitespace-pre-wrap text-xs leading-relaxed text-[#7C7265]">
@@ -534,13 +534,13 @@ export default async function ContactProfilePage({
             </h2>
 
             <div className="mt-6 space-y-4">
-              <InfoItem label="Contact Persona" value={contact.contact_type} />
-              <InfoItem label="System Status" value={contact.status} />
+              <InfoItem label="Contact Type" value={contact.contact_type} />
+              <InfoItem label="Status" value={contact.status} />
               <InfoItem label="Lead Source" value={contact.lead_source} />
-              <InfoItem label="Associated Enterprise" value={contact.company} />
+              <InfoItem label="Company" value={contact.company} />
               <InfoItem label="Professional Title" value={contact.job_title} />
               <InfoItem
-                label="Outreach Routine"
+                label="Preferred Contact Method"
                 value={contact.preferred_contact_method}
               />
             </div>

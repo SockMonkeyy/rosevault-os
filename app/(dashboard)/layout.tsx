@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AppSidebar from "@/app/components/AppSidebar";
+import { Toaster } from "sonner";
 
 export default async function DashboardLayout({
   children,
@@ -35,7 +36,14 @@ export default async function DashboardLayout({
 
       {/* Main Content Workspace Canvas */}
       <main className="relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#FBF7EF]">
-        {children}
+          {children}
+
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            duration={3000}
+          />
       </main>
     </div>
   );
