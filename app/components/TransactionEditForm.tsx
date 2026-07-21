@@ -6,10 +6,14 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 interface Props {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transaction: any;
 }
 
 export default function TransactionEditForm({ transaction }: Props) {
+  const [transactionType, setTransactionType] = useState(
+    transaction.transaction_type ?? "purchase",
+  );
   const router = useRouter();
   const supabase = createClient();
 
@@ -45,6 +49,7 @@ export default function TransactionEditForm({ transaction }: Props) {
     const { error } = await supabase
       .from("transactions")
       .update({
+        transaction_type: transactionType,
         transaction_name: transactionName,
         status,
         purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
@@ -85,6 +90,24 @@ export default function TransactionEditForm({ transaction }: Props) {
           placeholder="e.g., Main Street Purchase"
           className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
         />
+      </div>
+
+      <div>
+        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          Transaction Type
+        </label>
+
+        <select
+          value={transactionType}
+          onChange={(e) => setTransactionType(e.target.value)}
+          className="w-full rounded-xl border border-[#EDE7DC] px-4 py-3"
+        >
+          <option value="purchase">Purchase</option>
+          <option value="sale">Sale</option>
+          <option value="wholesale_assignment">Wholesale Assignment</option>
+          <option value="rehab">Rehab</option>
+          <option value="rental">Rental</option>
+        </select>
       </div>
 
       {/* Status */}
@@ -165,11 +188,11 @@ export default function TransactionEditForm({ transaction }: Props) {
       </div>
 
       {/* Form Action Controls */}
-      <div className="flex items-center justify-end gap-3 border-t border-[#EDE7DC] pt-6">
+      <div className="flex justify-end gap-3">
         <button
           type="button"
-          onClick={() => router.push(`/transactions/${transaction.id}`)}
-          className="rounded-xl border border-[#EDE7DC] bg-white px-5 py-3 text-sm font-semibold text-[#7C7265] transition hover:bg-[#FBF7EF] hover:text-[#29231D]"
+          onClick={() => router.back()}
+          className="rounded-xl border border-[#EDE7DC] px-6 py-3 text-[#7C7265] hover:bg-[#FBF7EF]"
         >
           Cancel
         </button>
@@ -177,7 +200,7 @@ export default function TransactionEditForm({ transaction }: Props) {
         <button
           type="submit"
           disabled={isSaving}
-          className="rounded-xl bg-[#B7832F] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:opacity-60"
+          className="rounded-xl bg-black px-6 py-3 text-[#D8B66A]"
         >
           {isSaving ? "Saving..." : "Save Changes"}
         </button>
