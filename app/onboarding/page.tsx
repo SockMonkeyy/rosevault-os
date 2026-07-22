@@ -83,33 +83,40 @@ export default function OnboardingPage() {
 
   if (isLoadingUser) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0b0b0b] text-white">
-        <p className="text-gray-400">Loading your workspace...</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#0D0C0A] text-[#FBF7EF]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#D8B66A] border-t-transparent" />
+          <p className="text-sm tracking-wide text-[#8F8578]">
+            Loading your workspace...
+          </p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0b0b0b] px-6 py-12 text-white">
+    <main className="flex min-h-screen items-center justify-center bg-[#0D0C0A] px-6 py-12 text-[#FBF7EF]">
       <div className="w-full max-w-lg">
+        {/* Header */}
         <div className="mb-8 text-center">
-          <div className="mb-3 text-4xl">🌹🔑</div>
+          <div className="mb-3 text-3xl">🌹🔑</div>
 
-          <h1 className="text-3xl font-bold tracking-tight text-[#d4af37]">
+          <h1 className="font-serif text-3xl tracking-wide text-[#D8B66A]">
             ROSE KEY OS
           </h1>
 
-          <p className="mt-2 text-sm text-gray-400">
+          <p className="mt-2 text-sm text-[#8F8578]">
             Let&apos;s set up your workspace.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-8 shadow-2xl">
-          <h2 className="text-2xl font-semibold">
+        {/* Form Container */}
+        <div className="rounded-2xl border border-[#29231D] bg-[#161412] p-8 shadow-2xl backdrop-blur-sm">
+          <h2 className="font-serif text-2xl text-[#FBF7EF]">
             Create your command center
           </h2>
 
-          <p className="mt-2 text-sm leading-6 text-gray-400">
+          <p className="mt-2 text-sm leading-6 text-[#8F8578]">
             Confirm your information below. Your organization will have its own
             secure workspace inside Rose Key OS.
           </p>
@@ -119,7 +126,7 @@ export default function OnboardingPage() {
               <div>
                 <label
                   htmlFor="firstName"
-                  className="mb-2 block text-sm font-medium text-gray-300"
+                  className="mb-2 block text-xs font-medium uppercase tracking-wider text-[#8F8578]"
                 >
                   First name
                 </label>
@@ -130,14 +137,14 @@ export default function OnboardingPage() {
                   required
                   value={firstName}
                   onChange={(event) => setFirstName(event.target.value)}
-                  className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition focus:border-[#d4af37]"
+                  className="w-full rounded-xl border border-[#29231D] bg-[#0D0C0A] px-4 py-3 text-[#FBF7EF] placeholder-[#8F8578] outline-none transition focus:border-[#D8B66A] focus:ring-1 focus:ring-[#D8B66A]"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="lastName"
-                  className="mb-2 block text-sm font-medium text-gray-300"
+                  className="mb-2 block text-xs font-medium uppercase tracking-wider text-[#8F8578]"
                 >
                   Last name
                 </label>
@@ -148,7 +155,7 @@ export default function OnboardingPage() {
                   required
                   value={lastName}
                   onChange={(event) => setLastName(event.target.value)}
-                  className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition focus:border-[#d4af37]"
+                  className="w-full rounded-xl border border-[#29231D] bg-[#0D0C0A] px-4 py-3 text-[#FBF7EF] placeholder-[#8F8578] outline-none transition focus:border-[#D8B66A] focus:ring-1 focus:ring-[#D8B66A]"
                 />
               </div>
             </div>
@@ -156,7 +163,7 @@ export default function OnboardingPage() {
             <div>
               <label
                 htmlFor="organizationName"
-                className="mb-2 block text-sm font-medium text-gray-300"
+                className="mb-2 block text-xs font-medium uppercase tracking-wider text-[#8F8578]"
               >
                 Company or organization name
               </label>
@@ -168,12 +175,12 @@ export default function OnboardingPage() {
                 value={organizationName}
                 onChange={(event) => setOrganizationName(event.target.value)}
                 placeholder="Rose Key Realty Co."
-                className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]"
+                className="w-full rounded-xl border border-[#29231D] bg-[#0D0C0A] px-4 py-3 text-[#FBF7EF] placeholder-[#5C554B] outline-none transition focus:border-[#D8B66A] focus:ring-1 focus:ring-[#D8B66A]"
               />
             </div>
 
             {message && (
-              <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+              <div className="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
                 {message}
               </div>
             )}
@@ -181,7 +188,7 @@ export default function OnboardingPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-lg bg-[#d4af37] px-4 py-3 font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-2 w-full rounded-xl bg-[#D8B66A] px-4 py-3.5 font-medium text-[#0D0C0A] transition hover:bg-[#B7832F] hover:text-[#FBF7EF] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting
                 ? "Creating your workspace..."

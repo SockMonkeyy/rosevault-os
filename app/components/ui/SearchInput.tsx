@@ -1,19 +1,26 @@
-import { Search } from "lucide-react";
+// app/components/ui/SearchInput.tsx
+import React, { InputHTMLAttributes } from "react";
 
-export default function SearchInput({
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+interface SearchInputProps extends InputHTMLAttributes<HTMLInputElement> {}
+
+export default function SearchInput({ className = "", ...props }: SearchInputProps) {
   return (
-    <div className="relative w-full max-w-md">
-      <Search
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8F8578]"
-        size={18}
-      />
-
+    <div className="relative w-full">
       <input
+        type="text"
+        className={`w-full rounded-xl border border-[#EDE7DC] bg-white py-3 pl-11 pr-4 text-sm text-[#29231D] placeholder-[#8F8578] outline-none transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20 ${className}`}
         {...props}
-        className="w-full rounded-lg border border-[#E3DCD0] bg-white py-2 pl-10 pr-4 outline-none transition focus:border-[#B7832F]"
       />
+      <svg
+        className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </svg>
     </div>
   );
 }
