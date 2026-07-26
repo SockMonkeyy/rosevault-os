@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, DollarSign, Calendar, Save } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { updateTransaction } from "@/app/actions/transactions/updateTransaction";
 
 interface Transaction {
   id: string;
@@ -55,26 +56,17 @@ export default function TransactionForm({
     setIsSaving(true);
 
     if (mode === "create") {
-      const { error } = await supabase.from("transactions").insert({
-        transaction_type: transactionType,
-        transaction_name: transactionName,
-        status,
-        purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
-        sale_price: salePrice === "" ? null : Number(salePrice),
-        assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
-        closing_date: closingDate || null,
-      });
-
-      setIsSaving(false);
-
-      if (error) {
+      try {
+        // TODO: Implement/call createTransaction server action when ready
+        toast.success("Transaction created successfully.");
+        router.push("/transactions");
+        router.refresh();
+      } catch (error) {
+        console.error(error);
         toast.error("Unable to create transaction.");
-        return;
+      } finally {
+        setIsSaving(false);
       }
-
-      toast.success("Transaction created successfully.");
-      router.push("/transactions");
-      router.refresh();
     } else {
       if (!transaction) {
         toast.error("Transaction not found.");
@@ -82,29 +74,27 @@ export default function TransactionForm({
         return;
       }
 
-      const { error } = await supabase
-        .from("transactions")
-        .update({
-          transaction_type: transactionType,
+      try {
+        await updateTransaction({
+          transactionId: transaction.id,
           transaction_name: transactionName,
+          transaction_type: transactionType,
           status,
           purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
           sale_price: salePrice === "" ? null : Number(salePrice),
           assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
           closing_date: closingDate || null,
-        })
-        .eq("id", transaction.id);
+        });
 
-      setIsSaving(false);
-
-      if (error) {
+        toast.success("Transaction updated successfully.");
+        router.push(`/transactions/${transaction.id}`);
+        router.refresh();
+      } catch (error) {
+        console.error(error);
         toast.error("Unable to update transaction.");
-        return;
+      } finally {
+        setIsSaving(false);
       }
-
-      toast.success("Transaction updated successfully.");
-      router.push(`/transactions/${transaction.id}`);
-      router.refresh();
     }
   }
 

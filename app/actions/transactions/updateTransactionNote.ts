@@ -37,17 +37,13 @@ export async function updateTransactionNote({
 
   console.log("Updating note:", { noteId, note });
 
-  const { data, error } = await supabase
+const { data, error } = await supabase
   .from("transaction_notes")
   .update({
     note,
   })
   .eq("id", noteId)
-  .eq("organization_id", membership.organization_id)
   .select();
-
-  console.log("Update result:", data);
-  console.log("Update error:", error);
 
   if (error) {
     console.error(error);

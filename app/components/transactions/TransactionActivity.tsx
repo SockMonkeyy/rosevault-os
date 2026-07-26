@@ -5,6 +5,11 @@ interface ActivityItem {
   activity_type: string;
   description: string;
   created_at: string;
+  metadata?: {
+    field?: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+  } | null;
   user?: {
     first_name: string | null;
     last_name: string | null;
@@ -77,6 +82,41 @@ function formatActivityDate(date: string) {
   });
 }
 
+function formatMetadataValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  if (typeof value === "number") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+
+  if (typeof value === "string") {
+    // ISO date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(value).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+
+    // under_contract -> Under Contract
+    return value
+      .split("_")
+      .map(
+        word => word.charAt(0).toUpperCase() + word.slice(1)
+      )
+      .join(" ");
+  }
+
+  return String(value);
+}
+
 export default function TransactionActivity({
   activity,
 }: TransactionActivityProps) {
@@ -118,6 +158,19 @@ export default function TransactionActivity({
               <h4 className="text-sm font-medium text-[#29231D]">
                 {item.description}
               </h4>
+              {item.activity_type === "field_updated" && item.metadata && (
+                <p className="text-sm text-[#7C7265]">
+                  <span className="font-medium">
+                    {formatMetadataValue(item.metadata.oldValue)}
+                  </span>
+
+                  <span className="mx-2 text-[#B7832F]">→</span>
+
+                  <span className="font-medium text-[#29231D]">
+                    {formatMetadataValue(item.metadata.newValue)}
+                  </span>
+                </p>
+              )}
 
               {userName && (
                 <p className="text-xs text-[#8F8578]">
