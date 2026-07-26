@@ -22,34 +22,86 @@ export default async function TransactionDetailPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
-  // Fetch the transaction along with its related property data
+  // 1. Fetch active membership/organization details for tenant safety
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    if (membershipError) console.error("Membership error:", membershipError);
+    notFound();
+  }
+
+  // 2. Fetch the transaction scoped to the organization along with its related property data
   const { data: transaction, error } = await supabase
     .from("transactions")
     .select("*, property:properties(*)")
     .eq("id", id)
+    .eq("organization_id", membership.organization_id)
     .single();
 
   if (error || !transaction) {
     notFound();
   }
 
-  const primaryAmount =
-    transaction.transaction_type === "wholesale_assignment"
-      ? transaction.assignment_fee
-      : transaction.transaction_type === "sale"
-        ? transaction.sale_price
-        : transaction.purchase_price;
-
   const timelineSteps = [
-    "Created",
-    "Under Contract",
-    "Inspection",
-    "Financing",
-    "Closing",
+    {
+      label: "Created",
+      statuses: [
+        "lead",
+        "offer_made",
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Offer Made",
+      statuses: [
+        "offer_made",
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Under Contract",
+      statuses: [
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Due Diligence",
+      statuses: [
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Clear To Close",
+      statuses: [
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Closed",
+      statuses: [
+        "closed",
+      ],
+    },
   ];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
       {/* Navigation & Header */}
       <div className="space-y-4">
         <Link
@@ -101,139 +153,179 @@ export default async function TransactionDetailPage({ params }: PageProps) {
 
       <hr className="border-[#EDE7DC]" />
 
-      {/* Phase 2 — Financial Summary */}
-      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-        <div className="flex items-center gap-2">
-          <DollarSign className="h-5 w-5 text-[#B7832F]" />
-          <h2 className="font-serif text-xl font-normal text-[#29231D]">
-            Financial Summary
-          </h2>
-        </div>
-        <div>
-          <SummaryRow
-            label="Purchase Price"
-            value={formatCurrency(transaction.purchase_price)}
-          />
-          <SummaryRow
-            label="Sale Price"
-            value={formatCurrency(transaction.sale_price)}
-          />
-          <SummaryRow
-            label="Assignment Fee"
-            value={formatCurrency(transaction.assignment_fee)}
-          />
-          <SummaryRow
-            label="Earnest Money"
-            value={formatCurrency(transaction.earnest_money)}
-          />
-        </div>
-      </div>
-
-      {/* Property Information Section */}
-      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-        <div className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-[#B7832F]" />
-          <h2 className="font-serif text-xl font-normal text-[#29231D]">
-            Property Details
-          </h2>
-        </div>
-
-        {transaction.property ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                  Address
-                </p>
-                <p className="mt-1 text-[#29231D] font-medium">
-                  {transaction.property.property_address_line_1}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                  Location
-                </p>
-                <p className="mt-1 text-[#29231D] font-medium">
-                  {transaction.property.property_city},{" "}
-                  {transaction.property.property_state}{" "}
-                  {transaction.property.property_postal_code}
-                </p>
-              </div>
+      {/* Two-Column Layout Grid */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {/* Left Column */}
+        <div className="space-y-8">
+          {/* Financial Summary */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Financial Summary
+              </h2>
             </div>
             <div>
-              <Link
-                href={`/properties/${transaction.property.id}`}
-                className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
-              >
-                View Property →
-              </Link>
+              <SummaryRow
+                label="Purchase Price"
+                value={formatCurrency(transaction.purchase_price)}
+              />
+              <SummaryRow
+                label="Sale Price"
+                value={formatCurrency(transaction.sale_price)}
+              />
+              <SummaryRow
+                label="Assignment Fee"
+                value={formatCurrency(transaction.assignment_fee)}
+              />
+              <SummaryRow
+                label="Earnest Money"
+                value={formatCurrency(transaction.earnest_money)}
+              />
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-[#7C7265]">
-            No property linked to this transaction yet.
-          </p>
-        )}
-      </div>
 
-      {/* Phase 4 — Deal Timeline */}
-      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-[#B7832F]" />
-          <h2 className="font-serif text-xl font-normal text-[#29231D]">
-            Deal Timeline
-          </h2>
-        </div>
-        <div className="space-y-3 pt-2">
-          {timelineSteps.map((step, index) => {
-            // Placeholder logic: mark first two as completed, rest upcoming
-            const isCompleted = index < 2;
-            return (
-              <div key={step} className="flex items-center gap-3">
-                {isCompleted ? (
-                  <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
-                ) : (
-                  <Circle className="h-5 w-5 text-[#D1C7B7]" />
-                )}
-                <span
-                  className={`text-sm font-medium ${
-                    isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
-                  }`}
-                >
-                  {step}
-                </span>
+          {/* Property Information Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Property Details
+              </h2>
+            </div>
+
+            {transaction.property ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Address
+                    </p>
+                    <p className="mt-1 text-[#29231D] font-medium">
+                      {transaction.property.property_address_line_1}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Location
+                    </p>
+                    <p className="mt-1 text-[#29231D] font-medium">
+                      {transaction.property.property_city},{" "}
+                      {transaction.property.property_state}{" "}
+                      {transaction.property.property_postal_code}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Link
+                    href={`/properties/${transaction.property.id}`}
+                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
+                  >
+                    View Property →
+                  </Link>
+                </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
+            ) : (
+              <p className="text-sm text-[#7C7265]">
+                No property linked to this transaction yet.
+              </p>
+            )}
+          </div>
 
-      {/* Phase 5 — Notes Section */}
-      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-serif text-xl font-normal text-[#29231D]">
-            Notes
-          </h2>
-          <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
-            <Plus className="h-3.5 w-3.5" />
-            Add Note
-          </button>
+          {/* Notes Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Notes
+              </h2>
+              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
+                <Plus className="h-3.5 w-3.5" />
+                Add Note
+              </button>
+            </div>
+            <p className="text-sm text-[#7C7265]">No notes yet.</p>
+          </div>
         </div>
-        <p className="text-sm text-[#7C7265]">No notes yet.</p>
-      </div>
 
-      {/* Phase 6 — Documents Section */}
-      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-serif text-xl font-normal text-[#29231D]">
-            Documents
-          </h2>
-          <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
-            <Upload className="h-3.5 w-3.5" />
-            Upload Document
-          </button>
+        {/* Right Column */}
+        <div className="space-y-8">
+          {/* Deal Timeline */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Deal Timeline
+              </h2>
+            </div>
+            <div className="space-y-3 pt-2">
+              {timelineSteps.map((step) => {
+                const isCompleted = step.statuses.includes(transaction.status);
+                return (
+                  <div key={step.label} className="flex items-center gap-3">
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-[#D1C7B7]" />
+                    )}
+                    <span
+                      className={`text-sm font-medium ${
+                        isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Deal Metadata */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Deal Information
+              </h2>
+            </div>
+            <div>
+              <SummaryRow
+                label="Transaction Type"
+                value={transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
+              />
+              <SummaryRow
+                label="Created"
+                value={formatDate(transaction.created_at?.split("T")[0])}
+              />
+              <SummaryRow
+                label="Updated"
+                value={formatDate(transaction.updated_at?.split("T")[0])}
+              />
+              <SummaryRow
+                label="Closing Attorney"
+                value={transaction.closing_attorney ?? "—"}
+              />
+              <SummaryRow
+                label="Title Company"
+                value={transaction.title_company ?? "—"}
+              />
+            </div>
+          </div>
+
+          {/* Documents Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Documents
+              </h2>
+              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
+                <Upload className="h-3.5 w-3.5" />
+                Upload Document
+              </button>
+            </div>
+            <p className="text-sm text-[#7C7265]">No documents uploaded yet.</p>
+          </div>
         </div>
-        <p className="text-sm text-[#7C7265]">No documents uploaded yet.</p>
       </div>
     </div>
   );
