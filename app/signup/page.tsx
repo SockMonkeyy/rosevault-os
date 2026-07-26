@@ -45,10 +45,6 @@ export default function SignupPage() {
 
     window.location.href = "/onboarding";
   }
-  async function handleSignUp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
-    setIsLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -89,7 +85,7 @@ export default function SignupPage() {
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
             <Image
-              src="/RoseVaultlogo.png"
+              src="/RoseVaultLogo.png"
               alt="Rose Key Realty Co. logo"
               width={450}
               height={450}
