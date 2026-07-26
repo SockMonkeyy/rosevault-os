@@ -21,31 +21,6 @@ export default function SignupPage() {
     setMessage("");
     setIsLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setMessage(error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!data.session) {
-      setMessage(
-        "Account created. Check your email to confirm your account, then sign in.",
-      );
-      setIsLoading(false);
-      return;
-    }
-
-    window.location.href = "/onboarding";
-  }
-
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -55,17 +30,14 @@ export default function SignupPage() {
         },
       });
 
-      console.log("SIGNUP DATA:", data);
-      console.log("SIGNUP ERROR:", error);
-
       if (error) {
         setMessage(error.message);
         return;
       }
 
-      if (!data.session) {
+      if (!data?.session) {
         setMessage(
-          "Account created. Check your email to confirm your account.",
+          "Account created. Check your email to confirm your account, then sign in.",
         );
         return;
       }
@@ -78,6 +50,7 @@ export default function SignupPage() {
       setIsLoading(false);
     }
   }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
       <div className="w-full max-w-md">
