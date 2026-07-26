@@ -1,5 +1,9 @@
+import EditTransactionNoteButton from "@/app/components/transactions/EditTransactionNoteButton";
+import DeleteTransactionNoteButton from "@/app/components/transactions/DeleteTransactionNoteButton";
+
 interface TransactionNote {
   id: string;
+  transaction_id: string;
   note: string;
   created_at: string;
   user?: {
@@ -12,15 +16,9 @@ interface TransactionNotesProps {
   notes: TransactionNote[];
 }
 
-export default function TransactionNotes({
-  notes,
-}: TransactionNotesProps) {
+export default function TransactionNotes({ notes }: TransactionNotesProps) {
   if (notes.length === 0) {
-    return (
-      <p className="text-sm text-[#7C7265]">
-        No notes yet.
-      </p>
-    );
+    return <p className="text-sm text-[#7C7265]">No notes yet.</p>;
   }
 
   return (
@@ -35,9 +33,24 @@ export default function TransactionNotes({
             key={item.id}
             className="rounded-xl border border-[#EDE7DC] bg-[#FBF7EF] p-4"
           >
-            <p className="whitespace-pre-wrap text-sm text-[#29231D]">
-              {item.note}
-            </p>
+            <div className="flex items-start justify-between gap-4">
+              <p className="flex-1 whitespace-pre-wrap text-sm text-[#29231D]">
+                {item.note}
+              </p>
+
+              <div className="flex items-center gap-1">
+                <EditTransactionNoteButton
+                  noteId={item.id}
+                  transactionId={item.transaction_id}
+                  note={item.note}
+                />
+
+                <DeleteTransactionNoteButton
+                  noteId={item.id}
+                  transactionId={item.transaction_id}
+                />
+              </div>
+            </div>
 
             <div className="mt-3 flex items-center gap-2 text-xs text-[#8F8578]">
               {userName && (

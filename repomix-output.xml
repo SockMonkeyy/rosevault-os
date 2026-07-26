@@ -84,9 +84,20 @@ app/
       page.tsx
     layout.tsx
     page.tsx
+  actions/
+    transactions/
+      createTransactionNote.ts
+      deleteTransactionNote.ts
+      updateTransactionNote.ts
   components/
     layout/
       WorkspaceLayout.tsx
+    transactions/
+      AddTransactionNoteButton.tsx
+      DeleteTransactionNoteButton.tsx
+      EditTransactionNoteButton.tsx
+      TransactionActivity.tsx
+      TransactionNotes.tsx
     ui/
       Alert/
         Alert.tsx
@@ -133,7 +144,7 @@ app/
     PropertiesTable.tsx
     PropertyContactManager.tsx
     PropertyRelationshipActions.tsx
-    TransactionEditForm.tsx
+    TransactionForm.tsx
     TransactionsTable.old.tsx
     TransactionsTable.tsx
   login/
@@ -147,6 +158,9 @@ app/
   globals.css
   layout.tsx
 lib/
+  activity/
+    getActivity.ts
+    logActivity.ts
   dashboard/
     getDashboardmetrics.ts
     getRecentActivity.ts
@@ -160,6 +174,8 @@ lib/
     shadows.ts
     spacing.ts
     typography.ts
+  transactions/
+    getTransactionNotes.ts
   supabase.ts
 public/
   templates/
@@ -169,8 +185,8 @@ public/
   next.svg
   rose-key-logo-transp.png
   rose-key-logo.png
-  RoseVaultLogo.png
-  RoseVaultLogotext.png
+  rosevaultlogo.png
+  rosevaultlogotext.png
   vercel.svg
   window.svg
 rosevault-os/
@@ -238,6 +254,325 @@ tsconfig.json
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="app/actions/transactions/deleteTransactionNote.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity/logActivity";
+
+interface DeleteTransactionNoteParams {
+  noteId: string;
+  transactionId: string;
+}
+
+export async function deleteTransactionNote({
+  noteId,
+  transactionId,
+}: DeleteTransactionNoteParams) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (membershipError || !membership) {
+    throw new Error("Unauthorized organization access.");
+  }
+
+  const { error } = await supabase
+    .from("transaction_notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("organization_id", membership.organization_id);
+
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to delete note.");
+  }
+
+  await logActivity({
+    organizationId: membership.organization_id,
+    entityType: "transaction",
+    entityId: transactionId,
+    activityType: "note_deleted",
+    description: "Deleted a transaction note",
+    createdBy: user.id,
+  });
+
+  revalidatePath(`/transactions/${transactionId}`);
+}
+</file>
+
+<file path="app/actions/transactions/updateTransactionNote.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+interface UpdateTransactionNoteParams {
+  noteId: string;
+  transactionId: string;
+  note: string;
+}
+
+export async function updateTransactionNote({
+  noteId,
+  transactionId,
+  note,
+}: UpdateTransactionNoteParams) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Fetch the user's current organization membership for tenant scoping
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (membershipError || !membership) {
+    throw new Error("Unauthorized organization access.");
+  }
+
+  console.log("Updating note:", { noteId, note });
+
+  const { data, error } = await supabase
+  .from("transaction_notes")
+  .update({
+    note,
+  })
+  .eq("id", noteId)
+  .eq("organization_id", membership.organization_id)
+  .select();
+
+  console.log("Update result:", data);
+  console.log("Update error:", error);
+
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to update note.");
+  }
+
+  revalidatePath(`/transactions/${transactionId}`);
+}
+</file>
+
+<file path="app/components/transactions/DeleteTransactionNoteButton.tsx">
+"use client";
+
+import { useState } from "react";
+import { Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { deleteTransactionNote } from "@/app/actions/transactions/deleteTransactionNote";
+
+interface DeleteTransactionNoteButtonProps {
+  noteId: string;
+  transactionId: string;
+}
+
+export default function DeleteTransactionNoteButton({
+  noteId,
+  transactionId,
+}: DeleteTransactionNoteButtonProps) {
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    console.log("Deleting note...", { noteId, transactionId });
+    try {
+      setDeleting(true);
+
+      await deleteTransactionNote({
+        noteId,
+        transactionId,
+      });
+
+      toast.success("Note deleted.");
+
+      setOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete note.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
+        title="Delete Note"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="font-serif text-xl text-[#29231D]">Delete Note</h2>
+
+            <p className="mt-3 text-sm text-[#7C7265]">
+              Are you sure you want to permanently delete this note?
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+</file>
+
+<file path="app/components/transactions/EditTransactionNoteButton.tsx">
+"use client";
+
+import { useState } from "react";
+import { Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { updateTransactionNote } from "@/app/actions/transactions/updateTransactionNote";
+import { useRouter } from "next/navigation";
+
+interface EditTransactionNoteButtonProps {
+  noteId: string;
+  transactionId: string;
+  note: string;
+}
+
+export default function EditTransactionNoteButton({
+  noteId,
+  transactionId,
+  note,
+}: EditTransactionNoteButtonProps) {
+  const [open, setOpen] = useState(false);
+  const [noteText, setNoteText] = useState(note);
+
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!noteText.trim()) {
+      toast.error("Note cannot be empty.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await updateTransactionNote({
+        noteId,
+        transactionId,
+        note: noteText.trim(),
+      });
+
+      toast.success("Note updated.");
+
+      setOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update note.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg p-2 text-[#8F8578] transition hover:bg-[#FBF7EF] hover:text-[#29231D]"
+        title="Edit Note"
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="font-serif text-xl text-[#29231D]">Edit Note</h2>
+
+            <div className="mt-6">
+              <label className="mb-2 block text-sm font-medium text-[#29231D]">
+                Note
+              </label>
+
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                rows={6}
+                className="w-full rounded-xl border border-[#E3DCD0] bg-white px-4 py-3 text-sm text-[#29231D] outline-none transition focus:border-[#B7832F] focus:ring-2 focus:ring-[#D8B66A]/30"
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium text-[#29231D] transition hover:bg-[#F5EEDF]"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-xl bg-[#0D0C0A] px-4 py-2 text-sm font-medium text-[#D8B66A] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+</file>
 
 <file path="rosevault-os/.git/gk/config">
 [branch "main"]
@@ -1297,6 +1632,77 @@ export default function GenericFeaturePage() {
 }
 </file>
 
+<file path="app/actions/transactions/createTransactionNote.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity/logActivity";
+
+export async function createTransactionNote(
+  transactionId: string,
+  note: string,
+) {
+  console.log("=== createTransactionNote called ===");
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not authenticated.");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (membershipError || !membership) {
+    throw new Error("Organization not found.");
+  }
+
+  console.log({
+    organization_id: membership.organization_id,
+    transaction_id: transactionId,
+    note,
+    created_by: user.id,
+  });
+
+  const { data, error } = await supabase
+    .from("transaction_notes")
+    .insert({
+      organization_id: membership.organization_id,
+      transaction_id: transactionId,
+      note,
+      created_by: user.id,
+    })
+    .select();
+  console.log("Insert result:", { data, error });
+
+  if (error) {
+    console.error("Transaction Note Insert Error:", error);
+
+    throw new Error(
+      `${error.message}\n${error.details ?? ""}\n${error.hint ?? ""}`,
+    );
+  }
+  await logActivity({
+    organizationId: membership.organization_id,
+    entityType: "transaction",
+    entityId: transactionId,
+    activityType: "note_added",
+    description: "Added a transaction note",
+    createdBy: user.id,
+  });
+  
+  revalidatePath(`/transactions/${transactionId}`);
+}
+</file>
+
 <file path="app/components/layout/WorkspaceLayout.tsx">
 import { ReactNode } from "react";
 
@@ -1314,6 +1720,311 @@ export default function WorkspaceLayout({
         {children}
       </div>
     </main>
+  );
+}
+</file>
+
+<file path="app/components/transactions/AddTransactionNoteButton.tsx">
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createTransactionNote } from "@/app/actions/transactions/createTransactionNote";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+
+interface AddTransactionNoteButtonProps {
+  transactionId: string;
+}
+
+export default function AddTransactionNoteButton({
+  transactionId,
+}: AddTransactionNoteButtonProps) {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noteText.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+      await createTransactionNote(transactionId, noteText.trim());
+
+      toast.success("Note saved successfully.");
+
+      setNoteText("");
+      setIsOpen(false);
+
+      router.refresh(); // Forces Next.js to re-fetch Server Component data
+    } catch (error) {
+        
+      console.error(error);
+
+      toast.error("Unable to save note.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Add Note
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
+            <h3 className="font-serif text-xl font-normal text-[#29231D]">
+              Add Transaction Note
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Type your note here..."
+                rows={4}
+                className="w-full rounded-xl border border-[#E3DCD0] p-3 text-sm text-[#29231D] focus:border-[#B7832F] focus:outline-none"
+                required
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    setNoteText("");
+                  }}
+                  className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium text-[#7C7265] transition hover:bg-[#FBF7EF]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !noteText.trim()}
+                  className="rounded-xl bg-[#0D0C0A] px-4 py-2 text-sm font-semibold text-[#D8B66A] transition hover:bg-[#29231D] disabled:opacity-50"
+                >
+                  {isSubmitting ? "Saving..." : "Save Note"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+</file>
+
+<file path="app/components/transactions/TransactionActivity.tsx">
+import { Clock, FileText, Pencil, Trash2 } from "lucide-react";
+
+interface ActivityItem {
+  id: string;
+  activity_type: string;
+  description: string;
+  created_at: string;
+  user?: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+}
+
+interface TransactionActivityProps {
+  activity: ActivityItem[];
+}
+
+function getActivityIcon(activityType: string) {
+  switch (activityType) {
+    case "note_added":
+      return <FileText className="h-4 w-4" />;
+
+    case "note_updated":
+      return <Pencil className="h-4 w-4" />;
+
+    case "note_deleted":
+      return <Trash2 className="h-4 w-4" />;
+
+    default:
+      return <FileText className="h-4 w-4" />;
+  }
+}
+
+function getActivityBadge(activityType: string) {
+  switch (activityType) {
+    case "note_added":
+      return {
+        label: "Note Added",
+        className: "bg-[#D8B66A]/15 text-[#B7832F] border border-[#D8B66A]/30",
+      };
+
+    case "note_updated":
+      return {
+        label: "Note Edited",
+        className: "bg-blue-50 text-blue-700 border border-blue-200",
+      };
+
+    case "note_deleted":
+      return {
+        label: "Note Deleted",
+        className: "bg-red-50 text-red-700 border border-red-200",
+      };
+
+    default:
+      return {
+        label: "Activity",
+        className: "bg-[#E3DCD0]/40 text-[#7C7265] border border-[#E3DCD0]",
+      };
+  }
+}
+
+function formatActivityDate(date: string) {
+  const now = new Date();
+  const created = new Date(date);
+
+  const diff = Math.floor((now.getTime() - created.getTime()) / 1000);
+
+  if (diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+
+  return created.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export default function TransactionActivity({
+  activity,
+}: TransactionActivityProps) {
+  if (activity.length === 0) {
+    return <p className="text-sm text-[#7C7265]">No activity yet.</p>;
+  }
+
+  return (
+    <div className="relative space-y-4 before:absolute before:bottom-3 before:top-3 before:left-5 before:w-px before:bg-[#EDE7DC]">
+      {activity.map((item) => {
+        const userName = item.user
+          ? `${item.user.first_name ?? ""} ${item.user.last_name ?? ""}`.trim()
+          : "";
+        const badge = getActivityBadge(item.activity_type);
+
+        return (
+          <div
+            key={item.id}
+            className="relative flex items-start gap-4 rounded-2xl border border-[#EDE7DC] bg-white/85 p-4 shadow-sm backdrop-blur-sm transition-all hover:bg-white"
+          >
+            <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0D0C0A] text-[#D8B66A] shadow-sm">
+              {getActivityIcon(item.activity_type)}
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${badge.className}`}
+                >
+                  {badge.label}
+                </span>
+
+                <div className="flex items-center gap-1 text-xs text-[#8F8578]">
+                  <Clock className="h-3.5 w-3.5 text-[#B7832F]" />
+                  <span>{formatActivityDate(item.created_at)}</span>
+                </div>
+              </div>
+
+              <h4 className="text-sm font-medium text-[#29231D]">
+                {item.description}
+              </h4>
+
+              {userName && (
+                <p className="text-xs text-[#8F8578]">
+                  <span className="font-medium text-[#29231D]">{userName}</span>
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+</file>
+
+<file path="app/components/transactions/TransactionNotes.tsx">
+import EditTransactionNoteButton from "@/app/components/transactions/EditTransactionNoteButton";
+import DeleteTransactionNoteButton from "@/app/components/transactions/DeleteTransactionNoteButton";
+
+interface TransactionNote {
+  id: string;
+  transaction_id: string;
+  note: string;
+  created_at: string;
+  user?: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+}
+
+interface TransactionNotesProps {
+  notes: TransactionNote[];
+}
+
+export default function TransactionNotes({ notes }: TransactionNotesProps) {
+  if (notes.length === 0) {
+    return <p className="text-sm text-[#7C7265]">No notes yet.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {notes.map((item) => {
+        const userName = item.user
+          ? `${item.user.first_name ?? ""} ${item.user.last_name ?? ""}`.trim()
+          : "";
+
+        return (
+          <div
+            key={item.id}
+            className="rounded-xl border border-[#EDE7DC] bg-[#FBF7EF] p-4"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <p className="flex-1 whitespace-pre-wrap text-sm text-[#29231D]">
+                {item.note}
+              </p>
+
+              <div className="flex items-center gap-1">
+                <EditTransactionNoteButton
+                  noteId={item.id}
+                  transactionId={item.transaction_id}
+                  note={item.note}
+                />
+
+                <DeleteTransactionNoteButton
+                  noteId={item.id}
+                  transactionId={item.transaction_id}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 text-xs text-[#8F8578]">
+              {userName && (
+                <>
+                  <span className="font-medium text-[#29231D]">{userName}</span>
+                  <span>•</span>
+                </>
+              )}
+              <span>{new Date(item.created_at).toLocaleString()}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 </file>
@@ -2616,130 +3327,6 @@ export default function DataTable({
 }
 </file>
 
-<file path="app/components/ui/PageHeader.tsx">
-import { ReactNode } from "react";
-
-interface Props {
-  eyebrow?: string;
-  title: string;
-  description?: string;
-  actions?: ReactNode;
-}
-
-export default function PageHeader({
-  eyebrow,
-  title,
-  description,
-  actions,
-}: Props) {
-  return (
-    <div className="mb-8 flex items-start justify-between gap-6">
-      <div>
-        {eyebrow && (
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-            {eyebrow}
-          </p>
-        )}
-
-        <h1 className="font-serif text-4xl text-[#29231D]">
-          {title}
-        </h1>
-
-        {description && (
-          <p className="mt-2 max-w-2xl text-[#756A5C]">
-            {description}
-          </p>
-        )}
-      </div>
-
-      {actions}
-    </div>
-  );
-}
-</file>
-
-<file path="app/components/ui/SectionCard.tsx">
-import { ReactNode } from "react";
-import clsx from "clsx";
-
-interface Props {
-  title?: string;
-  description?: string;
-  actions?: ReactNode;
-  children: ReactNode;
-  className?: string;
-}
-
-export default function SectionCard({
-  title,
-  description,
-  actions,
-  children,
-  className,
-}: Props) {
-  return (
-    <div
-      className={clsx(
-        "rounded-xl border border-[#E3DCD0] bg-white shadow-sm",
-        className
-      )}
-    >
-      {(title || actions) && (
-        <div className="flex items-center justify-between border-b border-[#EDE7DC] px-6 py-4">
-          <div>
-            {title && (
-              <h2 className="font-serif text-xl text-[#29231D]">
-                {title}
-              </h2>
-            )}
-
-            {description && (
-              <p className="mt-1 text-sm text-[#8F8578]">
-                {description}
-              </p>
-            )}
-          </div>
-
-          {actions}
-        </div>
-      )}
-
-      <div className="p-6">{children}</div>
-    </div>
-  );
-}
-</file>
-
-<file path="app/components/ui/StatusBadge.tsx">
-type Status = "success" | "warning" | "danger" | "info" | "neutral";
-
-const styles: Record<Status, string> = {
-  success: "bg-green-100 text-green-800",
-  warning: "bg-yellow-100 text-yellow-800",
-  danger: "bg-red-100 text-red-800",
-  info: "bg-blue-100 text-blue-800",
-  neutral: "bg-stone-100 text-stone-700",
-};
-
-interface Props {
-  status: Status;
-  children: React.ReactNode;
-}
-
-export default function StatusBadge({
-  status,
-  children,
-}: Props) {
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${styles[status]}`}
-    >
-      {children}
-    </span>
-  );
-}
-</file>
-
 <file path="app/components/ui/Toolbar.tsx">
 import { ReactNode } from "react";
 
@@ -2785,6 +3372,298 @@ export default function LogoutButton() {
     >
       Sign out
     </button>
+  );
+}
+</file>
+
+<file path="app/components/TransactionForm.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, DollarSign, Calendar, Save } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+
+interface Transaction {
+  id: string;
+  transaction_name?: string | null;
+  transaction_type?: string | null;
+  status?: string | null;
+  purchase_price?: number | null;
+  sale_price?: number | null;
+  assignment_fee?: number | null;
+  closing_date?: string | null;
+}
+
+interface Props {
+  mode: "create" | "edit";
+  transaction?: Transaction;
+}
+
+export default function TransactionForm({
+  mode,
+  transaction,
+}: Props) {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [transactionName, setTransactionName] = useState(
+    transaction?.transaction_name ?? ""
+  );
+  const [transactionType, setTransactionType] = useState(
+    transaction?.transaction_type ?? "purchase"
+  );
+  const [status, setStatus] = useState(transaction?.status ?? "lead");
+  const [purchasePrice, setPurchasePrice] = useState(
+    transaction?.purchase_price?.toString() ?? ""
+  );
+  const [salePrice, setSalePrice] = useState(
+    transaction?.sale_price?.toString() ?? ""
+  );
+  const [assignmentFee, setAssignmentFee] = useState(
+    transaction?.assignment_fee?.toString() ?? ""
+  );
+  const [closingDate, setClosingDate] = useState(
+    transaction?.closing_date ?? ""
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSaving(true);
+
+    if (mode === "create") {
+      const { error } = await supabase.from("transactions").insert({
+        transaction_type: transactionType,
+        transaction_name: transactionName,
+        status,
+        purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
+        sale_price: salePrice === "" ? null : Number(salePrice),
+        assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
+        closing_date: closingDate || null,
+      });
+
+      setIsSaving(false);
+
+      if (error) {
+        toast.error("Unable to create transaction.");
+        return;
+      }
+
+      toast.success("Transaction created successfully.");
+      router.push("/transactions");
+      router.refresh();
+    } else {
+      if (!transaction) {
+        toast.error("Transaction not found.");
+        setIsSaving(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("transactions")
+        .update({
+          transaction_type: transactionType,
+          transaction_name: transactionName,
+          status,
+          purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
+          sale_price: salePrice === "" ? null : Number(salePrice),
+          assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
+          closing_date: closingDate || null,
+        })
+        .eq("id", transaction.id);
+
+      setIsSaving(false);
+
+      if (error) {
+        toast.error("Unable to update transaction.");
+        return;
+      }
+
+      toast.success("Transaction updated successfully.");
+      router.push(`/transactions/${transaction.id}`);
+      router.refresh();
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Basic Details Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          General Details
+        </h3>
+
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Transaction Name
+            </label>
+            <input
+              type="text"
+              value={transactionName}
+              onChange={(e) => setTransactionName(e.target.value)}
+              placeholder="e.g., Main Street Purchase"
+              required
+              className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+                Transaction Type
+              </label>
+              <select
+                value={transactionType}
+                onChange={(e) => setTransactionType(e.target.value)}
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              >
+                <option value="purchase">Purchase</option>
+                <option value="sale">Sale</option>
+                <option value="wholesale_assignment">Wholesale Assignment</option>
+                <option value="rehab">Rehab</option>
+                <option value="rental">Rental</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              >
+                <option value="lead">Lead</option>
+                <option value="offer_made">Offer Made</option>
+                <option value="under_contract">Under Contract</option>
+                <option value="due_diligence">Due Diligence</option>
+                <option value="clear_to_close">Clear to Close</option>
+                <option value="closed">Closed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Financials Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          Financials
+        </h3>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Purchase Price
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Sale Price
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Assignment Fee
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={assignmentFee}
+                onChange={(e) => setAssignmentFee(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Timeline Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          Timeline
+        </h3>
+
+        <div className="max-w-xs">
+          <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+            Closing Date
+          </label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+            <input
+              type="date"
+              value={closingDate}
+              onChange={(e) => setClosingDate(e.target.value)}
+              className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end gap-3 pt-4">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          disabled={isSaving}
+          className="rounded-xl border border-[#EDE7DC] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] shadow-sm hover:bg-[#FBF7EF] transition-colors focus:outline-none"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-6 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition-all hover:bg-[#29231D] disabled:opacity-50"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              {mode === "create" ? "Create Transaction" : "Save Changes"}
+            </>
+          )}
+        </button>
+      </div>
+    </form>
   );
 }
 </file>
@@ -3237,6 +4116,8 @@ body {
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "sonner";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -3263,9 +4144,108 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body>
+  {children}
+
+  <Toaster
+    position="top-right"
+    richColors
+    closeButton
+    duration={3000}
+    theme="light"
+  />
+</body>
     </html>
   );
+}
+</file>
+
+<file path="lib/activity/getActivity.ts">
+import { createClient } from "@/lib/supabase/server";
+
+export async function getActivity(
+  organizationId: string,
+  entityType: string,
+  entityId: string,
+) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("activity_log")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("entity_type", entityType)
+    .eq("entity_id", entityId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+    
+
+  if (error) {
+    console.error("Activity Error:");
+    console.error(JSON.stringify(error, null, 2));
+    throw error;
+  }
+
+  const userIds = [...new Set(data.map((item) => item.created_by))];
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name")
+    .in("id", userIds);
+
+  if (profilesError) {
+    console.error("Profiles Error:", profilesError);
+    throw profilesError;
+  }
+
+  const profileMap = new Map(
+  (profiles ?? []).map((profile) => [profile.id, profile]),
+);
+
+return (data ?? []).map((activity) => ({
+  ...activity,
+  user: profileMap.get(activity.created_by) ?? null,
+}));
+}
+</file>
+
+<file path="lib/activity/logActivity.ts">
+import { createClient } from "@/lib/supabase/server";
+
+interface LogActivityParams {
+  organizationId: string;
+  entityType: string;
+  entityId: string;
+  activityType: string;
+  description: string;
+  createdBy: string;
+  metadata?: Record<string, unknown>;
+}
+
+export async function logActivity({
+  organizationId,
+  entityType,
+  entityId,
+  activityType,
+  description,
+  createdBy,
+  metadata = {},
+}: LogActivityParams) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("activity_log").insert({
+    organization_id: organizationId,
+    entity_type: entityType,
+    entity_id: entityId,
+    activity_type: activityType,
+    description,
+    created_by: createdBy,
+    metadata,
+  });
+
+  if (error) {
+    console.error("Activity Log Error:", error);
+  }
 }
 </file>
 
@@ -3503,6 +4483,31 @@ export const typography = {
 
   caption: "text-xs",
 };
+</file>
+
+<file path="lib/transactions/getTransactionNotes.ts">
+import { createClient } from "@/lib/supabase/server";
+
+export async function getTransactionNotes(
+  organizationId: string,
+  transactionId: string
+) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("transaction_notes")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("transaction_id", transactionId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error loading transaction notes:", error);
+    return [];
+  }
+
+  return data;
+}
 </file>
 
 <file path="lib/supabase.ts">
@@ -4243,455 +5248,6 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
       </p>
     </div>
   );
-}
-</file>
-
-<file path="app/(dashboard)/transactions/[id]/edit/page.tsx">
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Receipt } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import TransactionEditForm from "@/app/components/TransactionEditForm";
-
-export default async function EditTransactionPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const supabase = await createClient();
-
-  // 1. Get authenticated user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  // 2. Fetch active membership/organization details for the user
-  const { data: membership, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (membershipError || !membership) {
-    if (membershipError) console.error("Membership error:", membershipError);
-    notFound();
-  }
-
-  // 3. Fetch transaction scoped to the organization
-  const { data: transaction, error: transactionError } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("organization_id", membership.organization_id)
-    .eq("id", id)
-    .single();
-
-  if (transactionError || !transaction) {
-  console.error("Fetch Error:", transactionError);
-  return <div>Failed to load transaction ID: {id}</div>; // Remove notFound() temporarily
-}
-
-  return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-      {/* Navigation & Header */}
-      <div className="space-y-4">
-        <Link
-          href="/transactions"
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Transactions
-        </Link>
-
-        <div className="flex items-center justify-between border-b border-[#EDE7DC] pb-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0D0C0A] text-[#D8B66A] shadow-sm">
-              <Receipt className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-[#29231D]">
-                Edit Transaction
-              </h1>
-              <p className="text-xs text-[#8F8578]">
-                ID: <span className="font-mono text-[#0D0C0A]">{id}</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Form Card */}
-      <div className="rounded-2xl border border-[#EDE7DC] bg-[#FBF7EF]/40 p-6 shadow-sm backdrop-blur-md sm:p-8">
-        <TransactionEditForm transaction={transaction} />
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="app/(dashboard)/transactions/[id]/page.tsx">
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import {
-  ArrowLeft,
-  Building2,
-  Calendar,
-  DollarSign,
-  Edit,
-  FileText,
-  CheckCircle2,
-  Circle,
-  Plus,
-  Upload,
-} from "lucide-react";
-
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default async function TransactionDetailPage({ params }: PageProps) {
-  const { id } = await params;
-  const supabase = await createClient();
-
-  // 1. Fetch active membership/organization details for tenant safety
-  const { data: membership, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-    .maybeSingle();
-
-  if (membershipError || !membership) {
-    if (membershipError) console.error("Membership error:", membershipError);
-    notFound();
-  }
-
-  // 2. Fetch the transaction scoped to the organization along with its related property data
-  const { data: transaction, error } = await supabase
-    .from("transactions")
-    .select("*, property:properties(*)")
-    .eq("id", id)
-    .eq("organization_id", membership.organization_id)
-    .single();
-
-  if (error || !transaction) {
-    notFound();
-  }
-
-  const timelineSteps = [
-    {
-      label: "Created",
-      statuses: [
-        "lead",
-        "offer_made",
-        "under_contract",
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Offer Made",
-      statuses: [
-        "offer_made",
-        "under_contract",
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Under Contract",
-      statuses: [
-        "under_contract",
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Due Diligence",
-      statuses: [
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Clear To Close",
-      statuses: [
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Closed",
-      statuses: [
-        "closed",
-      ],
-    },
-  ];
-
-  return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-      {/* Navigation & Header */}
-      <div className="space-y-4">
-        <Link
-          href="/transactions"
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Transactions
-        </Link>
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-serif text-3xl font-normal text-[#29231D]">
-                {transaction.transaction_name}
-              </h1>
-              <span className="rounded-full border border-[#EDE7DC] bg-[#FBF7EF] px-3 py-1 text-xs font-semibold capitalize text-[#7C7265]">
-                {transaction.status.replaceAll("_", " ")}
-              </span>
-            </div>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-              {transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/transactions/${transaction.id}/edit`}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-5 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#29231D]"
-            >
-              <Edit className="h-4 w-4" />
-              Edit
-            </Link>
-
-            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
-              Documents
-            </button>
-
-            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
-              Add Note
-            </button>
-
-            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
-              Activity
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <hr className="border-[#EDE7DC]" />
-
-      {/* Two-Column Layout Grid */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Left Column */}
-        <div className="space-y-8">
-          {/* Financial Summary */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Financial Summary
-              </h2>
-            </div>
-            <div>
-              <SummaryRow
-                label="Purchase Price"
-                value={formatCurrency(transaction.purchase_price)}
-              />
-              <SummaryRow
-                label="Sale Price"
-                value={formatCurrency(transaction.sale_price)}
-              />
-              <SummaryRow
-                label="Assignment Fee"
-                value={formatCurrency(transaction.assignment_fee)}
-              />
-              <SummaryRow
-                label="Earnest Money"
-                value={formatCurrency(transaction.earnest_money)}
-              />
-            </div>
-          </div>
-
-          {/* Property Information Section */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Property Details
-              </h2>
-            </div>
-
-            {transaction.property ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                      Address
-                    </p>
-                    <p className="mt-1 text-[#29231D] font-medium">
-                      {transaction.property.property_address_line_1}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                      Location
-                    </p>
-                    <p className="mt-1 text-[#29231D] font-medium">
-                      {transaction.property.property_city},{" "}
-                      {transaction.property.property_state}{" "}
-                      {transaction.property.property_postal_code}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Link
-                    href={`/properties/${transaction.property.id}`}
-                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
-                  >
-                    View Property →
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-[#7C7265]">
-                No property linked to this transaction yet.
-              </p>
-            )}
-          </div>
-
-          {/* Notes Section */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Notes
-              </h2>
-              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
-                <Plus className="h-3.5 w-3.5" />
-                Add Note
-              </button>
-            </div>
-            <p className="text-sm text-[#7C7265]">No notes yet.</p>
-          </div>
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-8">
-          {/* Deal Timeline */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Deal Timeline
-              </h2>
-            </div>
-            <div className="space-y-3 pt-2">
-              {timelineSteps.map((step) => {
-                const isCompleted = step.statuses.includes(transaction.status);
-                return (
-                  <div key={step.label} className="flex items-center gap-3">
-                    {isCompleted ? (
-                      <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-[#D1C7B7]" />
-                    )}
-                    <span
-                      className={`text-sm font-medium ${
-                        isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
-                      }`}
-                    >
-                      {step.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Deal Metadata */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Deal Information
-              </h2>
-            </div>
-            <div>
-              <SummaryRow
-                label="Transaction Type"
-                value={transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
-              />
-              <SummaryRow
-                label="Created"
-                value={formatDate(transaction.created_at?.split("T")[0])}
-              />
-              <SummaryRow
-                label="Updated"
-                value={formatDate(transaction.updated_at?.split("T")[0])}
-              />
-              <SummaryRow
-                label="Closing Attorney"
-                value={transaction.closing_attorney ?? "—"}
-              />
-              <SummaryRow
-                label="Title Company"
-                value={transaction.title_company ?? "—"}
-              />
-            </div>
-          </div>
-
-          {/* Documents Section */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Documents
-              </h2>
-              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
-                <Upload className="h-3.5 w-3.5" />
-                Upload Document
-              </button>
-            </div>
-            <p className="text-sm text-[#7C7265]">No documents uploaded yet.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between border-b border-[#F1ECE3] py-3 last:border-b-0">
-      <span className="text-sm text-[#7C7265]">{label}</span>
-      <span className="font-medium text-[#29231D]">{value}</span>
-    </div>
-  );
-}
-
-function formatCurrency(value: number | null) {
-  if (value === null) return "—";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 </file>
 
@@ -5586,6 +6142,127 @@ export default function EmptyState({
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+</file>
+
+<file path="app/components/ui/PageHeader.tsx">
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { ReactNode } from "react";
+
+interface PageHeaderProps {
+  title: string;
+  subtitle?: string;
+  backHref?: string;
+  backLabel?: string;
+  actions?: ReactNode;
+}
+
+export default function PageHeader({
+  title,
+  subtitle,
+  backHref,
+  backLabel,
+  actions,
+}: PageHeaderProps) {
+  return (
+    <header className="space-y-4">
+      {backHref && (
+        <Link
+          href={backHref}
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition hover:text-[#29231D]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {backLabel ?? "Back"}
+        </Link>
+      )}
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+            {title}
+          </h1>
+
+          {subtitle && (
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+              {subtitle}
+            </p>
+          )}
+        </div>
+
+        {actions && (
+          <div className="flex flex-wrap gap-3">
+            {actions}
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
+</file>
+
+<file path="app/components/ui/SectionCard.tsx">
+import { ReactNode } from "react";
+import { LucideIcon } from "lucide-react";
+import clsx from "clsx";
+
+interface Props {
+  title?: string;
+  description?: string;
+  icon?: LucideIcon;
+  actions?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+
+export default function SectionCard({
+  title,
+  description,
+  icon: Icon,
+  actions,
+  children,
+  className,
+}: Props) {
+  return (
+    <div
+      className={clsx(
+        "rounded-2xl border border-[#EDE7DC] bg-white/70 shadow-sm backdrop-blur-sm",
+        className
+      )}
+    >
+      {(title || actions) && (
+        <div className="flex items-center justify-between border-b border-[#EDE7DC] px-6 py-4">
+          <div>
+            <div className="flex items-start gap-3">
+              {Icon && (
+                <div className="mt-0.5 rounded-lg bg-[#FBF7EF] p-2">
+                  <Icon className="h-5 w-5 text-[#B7832F]" />
+                </div>
+              )}
+
+              <div>
+                {title && (
+                  <h2 className="font-serif text-xl text-[#29231D]">
+                    {title}
+                  </h2>
+                )}
+
+                {description && (
+                  <p className="mt-1 text-sm text-[#8F8578]">
+                    {description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {actions}
+        </div>
+      )}
+
+      <div className="p-6">{children}</div>
     </div>
   );
 }
@@ -10729,32 +11406,22 @@ const inputClasses =
   "w-full rounded-lg border border-[#EDE7DC] bg-white/80 px-4 py-3 text-sm text-[#5C544A] outline-none transition duration-200 placeholder:text-[#CAD1C3]/80 focus:border-[#D8B66A] focus:bg-white focus:ring-1 focus:ring-[#D8B66A]/30 hover:border-[#D8B66A]/40";
 </file>
 
-<file path="app/(dashboard)/transactions/page.tsx">
+<file path="app/(dashboard)/transactions/[id]/edit/page.tsx">
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import TransactionsTable, {
-  TransactionRow,
-} from "@/app/components/TransactionsTable";
+import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, Receipt } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import StatCard from "@/app/components/ui/StatCard";
-import {
-    FolderOpen,
-    Briefcase,
-    FileSignature,
-    CheckCircle2,
-} from "lucide-react";
+import TransactionForm from "@/app/components/TransactionForm";
 
-type Property = {
-  id: string;
-  property_address_line_1: string;
-  property_city: string;
-  property_state: string;
-  property_postal_code: string;
-};
-
-export default async function TransactionsPage() {
+export default async function EditTransactionPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
   const supabase = await createClient();
 
+  // 1. Get authenticated user
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -10763,224 +11430,64 @@ export default async function TransactionsPage() {
     redirect("/login");
   }
 
+  // 2. Fetch active membership/organization details for the user
   const { data: membership, error: membershipError } = await supabase
     .from("organization_members")
     .select("organization_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (membershipError) {
-    console.error("Error loading organization membership:", membershipError);
+  if (membershipError || !membership) {
+    if (membershipError) console.error("Membership error:", membershipError);
+    notFound();
   }
 
-  if (!membership) {
-    redirect("/onboarding");
-  }
-
-  const { data: transactions, error: transactionsError } = await supabase
+  // 3. Fetch transaction scoped to the organization
+  const { data: transaction, error: transactionError } = await supabase
     .from("transactions")
-    .select(
-      `
-      id,
-      organization_id,
-      property_id,
-      transaction_name,
-      transaction_type,
-      status,
-      purchase_price,
-      sale_price,
-      assignment_fee,
-      earnest_money,
-      contract_date,
-      inspection_deadline,
-      financing_deadline,
-      closing_date,
-      actual_closing_date,
-      title_company,
-      closing_attorney,
-      notes,
-      created_at,
-      updated_at
-    `,
-    )
+    .select("*")
     .eq("organization_id", membership.organization_id)
-    .order("created_at", { ascending: false });
+    .eq("id", id)
+    .single();
 
-  if (transactionsError) {
-    console.error("Error loading transactions:", transactionsError);
-  }
-
-  const propertyIds = [
-    ...new Set(
-      (transactions ?? [])
-        .map((transaction) => transaction.property_id)
-        .filter((propertyId): propertyId is string => Boolean(propertyId)),
-    ),
-  ];
-
-  let properties: Property[] = [];
-
-  if (propertyIds.length > 0) {
-    const { data: propertiesData, error: propertiesError } = await supabase
-      .from("properties")
-      .select(
-        `
-        id,
-        property_address_line_1,
-        property_city,
-        property_state,
-        property_postal_code
-      `,
-      )
-      .eq("organization_id", membership.organization_id)
-      .in("id", propertyIds);
-
-    if (propertiesError) {
-      console.error("Error loading transaction properties:", propertiesError);
-    } else {
-      properties = propertiesData ?? [];
-    }
-  }
-
-  const transactionRows: TransactionRow[] = (transactions ?? []).map(
-    (transaction) => {
-      const property =
-        properties.find((item) => item.id === transaction.property_id) ?? null;
-
-      return {
-        ...transaction,
-        property,
-      };
-    },
-  );
-
-  const totalTransactions = transactionRows.length;
-
-  const ACTIVE_STATUSES = [
-    "lead",
-    "offer_made",
-    "under_contract",
-    "due_diligence",
-    "clear_to_close",
-];
-
-  const activeTransactions = transactionRows.filter((transaction) =>
-    ACTIVE_STATUSES.includes(transaction.status)
-).length;
-
-  
-
-  const underContractTransactions = transactionRows.filter(
-    (transaction) => transaction.status === "under_contract",
-  ).length;
-
-  const closedTransactions = transactionRows.filter(
-    (transaction) => transaction.status === "closed",
-  ).length;
-
-  return (
-    <div className="min-h-screen bg-[#FBF7EF] p-8 text-[#29231D]">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
-          <div>
-            <Link
-              href="/"
-              className="mb-3 inline-block text-sm font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
-            >
-              ← Back to Dashboard
-            </Link>
-
-            <h1 className="font-serif text-3xl font-normal text-[#29231D]">
-              Transactions
-            </h1>
-
-            <p className="mt-2 max-w-2xl text-[#7C7265]">
-              Manage purchases, sales, wholesale assignments, closings, key
-              deadlines, and every active deal in RoseVault.
-            </p>
-          </div>
-
-          <Link
-            href="/transactions/new"
-            className="rounded-xl bg-[#B7832F] px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50"
-          >
-            + New Transaction
-          </Link>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            title="Total Transactions"
-            value={totalTransactions}
-            subtitle="All recorded deals"
-          />
-          <StatCard
-            title="Active Deals"
-            value={activeTransactions}
-            subtitle="Currently in progress"
-          />
-
-          <StatCard
-            title="Under Contract"
-            value={underContractTransactions}
-            subtitle="Awaiting closing"
-          />
-
-          <StatCard
-            title="Closed"
-            value={closedTransactions}
-            subtitle="Completed transactions"
-          />
-        </div>
-
-        {/* Transactions Table or Global Empty State */}
-        {transactionRows.length === 0 ? (
-          <section className="flex min-h-96 items-center justify-center rounded-2xl border border-[#EDE7DC] bg-white/60 p-8 shadow-sm backdrop-blur-sm">
-            <div className="max-w-lg text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B66A]/30 bg-[#FBF7EF]">
-                <span className="font-serif text-xl font-bold text-[#B7832F]">
-                  RV
-                </span>
-              </div>
-
-              <h2 className="mt-5 font-serif text-xl font-medium text-[#29231D]">
-                No transactions yet
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-[#7C7265]">
-                Create your first transaction to begin tracking properties,
-                financials, contract dates, closing deadlines, and deal progress
-                inside RoseVault.
-              </p>
-
-              <Link
-                href="/transactions/new"
-                className="mt-6 inline-block rounded-xl bg-[#B7832F] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#966822]"
-              >
-                + Create First Transaction
-              </Link>
-            </div>
-          </section>
-        ) : (
-          <TransactionsTable transactions={transactionRows} />
-        )}
-      </div>
-    </div>
-  );
+  if (transactionError || !transaction) {
+  console.error("Fetch Error:", transactionError);
+  return <div>Failed to load transaction ID: {id}</div>; // Remove notFound() temporarily
 }
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-5 shadow-sm backdrop-blur-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-        {label}
-      </p>
+    <div className="mx-auto max-w-4xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+      {/* Navigation & Header */}
+      <div className="space-y-4">
+        <Link
+          href="/transactions"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Transactions
+        </Link>
 
-      <p className="mt-2 font-serif text-3xl font-normal text-[#B7832F]">
-        {value}
-      </p>
+        <div className="flex items-center justify-between border-b border-[#EDE7DC] pb-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0D0C0A] text-[#D8B66A] shadow-sm">
+              <Receipt className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#29231D]">
+                Edit Transaction
+              </h1>
+              <p className="text-xs text-[#8F8578]">
+                ID: <span className="font-mono text-[#0D0C0A]">{id}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Form Card */}
+      <div className="rounded-2xl border border-[#EDE7DC] bg-[#FBF7EF]/40 p-6 shadow-sm backdrop-blur-md sm:p-8">
+        <TransactionForm mode="edit" transaction={transaction} />
+      </div>
     </div>
   );
 }
@@ -11064,6 +11571,48 @@ export default function SearchInput({ className = "", ...props }: SearchInputPro
         <path d="m21 21-4.3-4.3" />
       </svg>
     </div>
+  );
+}
+</file>
+
+<file path="app/components/ui/StatusBadge.tsx">
+import clsx from "clsx";
+
+interface StatusBadgeProps {
+  status: string | null | undefined;
+}
+
+const statusStyles = {
+  lead: "bg-slate-100 text-slate-700 border-slate-200",
+  offer_made: "bg-blue-50 text-blue-700 border-blue-200",
+  under_contract: "bg-amber-50 text-amber-700 border-amber-200",
+  due_diligence: "bg-purple-50 text-purple-700 border-purple-200",
+  clear_to_close: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  closed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  cancelled: "bg-red-50 text-red-700 border-red-200",
+  expired: "bg-gray-100 text-gray-600 border-gray-200",
+} as const;
+
+export default function StatusBadge({ status }: StatusBadgeProps) {
+  if (!status) {
+    return (
+      <span className="rounded-full border border-[#EDE7DC] bg-[#FBF7EF] px-3 py-1 text-xs font-semibold text-[#8F8578]">
+        Unknown
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize",
+        // ensure we only index statusStyles with its known keys
+        statusStyles[status as keyof typeof statusStyles] ??
+          "border-[#EDE7DC] bg-[#FBF7EF] text-[#7C7265]"
+      )}
+    >
+      {status.replaceAll("_", " ")}
+    </span>
   );
 }
 </file>
@@ -13100,261 +13649,6 @@ export default function PropertyContactManager({
 }
 </file>
 
-<file path="app/components/TransactionEditForm.tsx">
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, DollarSign, Calendar, Save } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
-
-interface Transaction {
-  id: string;
-  transaction_name?: string | null;
-  transaction_type?: string | null;
-  status?: string | null;
-  purchase_price?: number | null;
-  sale_price?: number | null;
-  assignment_fee?: number | null;
-  closing_date?: string | null;
-}
-
-interface Props {
-  transaction: Transaction;
-}
-
-export default function TransactionEditForm({ transaction }: Props) {
-  const router = useRouter();
-  const supabase = createClient();
-
-  const [isSaving, setIsSaving] = useState(false);
-  const [transactionName, setTransactionName] = useState(
-    transaction.transaction_name ?? ""
-  );
-  const [transactionType, setTransactionType] = useState(
-    transaction.transaction_type ?? "purchase"
-  );
-  const [status, setStatus] = useState(transaction.status ?? "lead");
-  const [purchasePrice, setPurchasePrice] = useState(
-    transaction.purchase_price?.toString() ?? ""
-  );
-  const [salePrice, setSalePrice] = useState(
-    transaction.sale_price?.toString() ?? ""
-  );
-  const [assignmentFee, setAssignmentFee] = useState(
-    transaction.assignment_fee?.toString() ?? ""
-  );
-  const [closingDate, setClosingDate] = useState(
-    transaction.closing_date ?? ""
-  );
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setIsSaving(true);
-
-    const { error } = await supabase
-      .from("transactions")
-      .update({
-        transaction_type: transactionType,
-        transaction_name: transactionName,
-        status,
-        purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
-        sale_price: salePrice === "" ? null : Number(salePrice),
-        assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
-        closing_date: closingDate || null,
-      })
-      .eq("id", transaction.id);
-
-    setIsSaving(false);
-
-    if (error) {
-      toast.error("Unable to update transaction.");
-      return;
-    }
-
-    toast.success("Transaction updated successfully.");
-    router.push(`/transactions/${transaction.id}`);
-    router.refresh();
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Basic Details Section */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          General Details
-        </h3>
-
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-              Transaction Name
-            </label>
-            <input
-              type="text"
-              value={transactionName}
-              onChange={(e) => setTransactionName(e.target.value)}
-              placeholder="e.g., Main Street Purchase"
-              required
-              className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-                Transaction Type
-              </label>
-              <select
-                value={transactionType}
-                onChange={(e) => setTransactionType(e.target.value)}
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              >
-                <option value="purchase">Purchase</option>
-                <option value="sale">Sale</option>
-                <option value="wholesale_assignment">Wholesale Assignment</option>
-                <option value="rehab">Rehab</option>
-                <option value="rental">Rental</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              >
-                <option value="lead">Lead</option>
-                <option value="under_contract">Under Contract</option>
-                <option value="closed">Closed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <hr className="border-[#EDE7DC]" />
-
-      {/* Financials Section */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Financials
-        </h3>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-              Purchase Price
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
-              <input
-                type="number"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-                placeholder="0"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-              Sale Price
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
-              <input
-                type="number"
-                value={salePrice}
-                onChange={(e) => setSalePrice(e.target.value)}
-                placeholder="0"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-              Assignment Fee
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
-              <input
-                type="number"
-                value={assignmentFee}
-                onChange={(e) => setAssignmentFee(e.target.value)}
-                placeholder="0"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <hr className="border-[#EDE7DC]" />
-
-      {/* Timeline Section */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Timeline
-        </h3>
-
-        <div className="max-w-xs">
-          <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-            Closing Date
-          </label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
-            <input
-              type="date"
-              value={closingDate}
-              onChange={(e) => setClosingDate(e.target.value)}
-              className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          disabled={isSaving}
-          className="rounded-xl border border-[#EDE7DC] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] shadow-sm hover:bg-[#FBF7EF] transition-colors focus:outline-none"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-6 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition-all hover:bg-[#29231D] disabled:opacity-50"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Save Changes
-            </>
-          )}
-        </button>
-      </div>
-    </form>
-  );
-}
-</file>
-
 <file path="app/onboarding/page.tsx">
 "use client";
 
@@ -15065,6 +15359,264 @@ function formatDate(value: string | null | undefined): string {
     day: "numeric",
     year: "numeric",
   }).format(date);
+}
+</file>
+
+<file path="app/(dashboard)/transactions/page.tsx">
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import TransactionsTable, {
+  TransactionRow,
+} from "@/app/components/TransactionsTable";
+import { createClient } from "@/lib/supabase/server";
+import StatCard from "@/app/components/ui/StatCard";
+import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
+import {
+    FolderOpen,
+    Briefcase,
+    FileSignature,
+    CheckCircle2,
+} from "lucide-react";
+
+type Property = {
+  id: string;
+  property_address_line_1: string;
+  property_city: string;
+  property_state: string;
+  property_postal_code: string;
+};
+
+export default async function TransactionsPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError) {
+    console.error("Error loading organization membership:", membershipError);
+  }
+
+  if (!membership) {
+    redirect("/onboarding");
+  }
+
+  const { data: transactions, error: transactionsError } = await supabase
+    .from("transactions")
+    .select(
+      `
+      id,
+      organization_id,
+      property_id,
+      transaction_name,
+      transaction_type,
+      status,
+      purchase_price,
+      sale_price,
+      assignment_fee,
+      earnest_money,
+      contract_date,
+      inspection_deadline,
+      financing_deadline,
+      closing_date,
+      actual_closing_date,
+      title_company,
+      closing_attorney,
+      notes,
+      created_at,
+      updated_at
+    `,
+    )
+    .eq("organization_id", membership.organization_id)
+    .order("created_at", { ascending: false });
+
+  if (transactionsError) {
+    console.error("Error loading transactions:", transactionsError);
+  }
+
+  const propertyIds = [
+    ...new Set(
+      (transactions ?? [])
+        .map((transaction) => transaction.property_id)
+        .filter((propertyId): propertyId is string => Boolean(propertyId)),
+    ),
+  ];
+
+  let properties: Property[] = [];
+
+  if (propertyIds.length > 0) {
+    const { data: propertiesData, error: propertiesError } = await supabase
+      .from("properties")
+      .select(
+        `
+        id,
+        property_address_line_1,
+        property_city,
+        property_state,
+        property_postal_code
+      `,
+      )
+      .eq("organization_id", membership.organization_id)
+      .in("id", propertyIds);
+
+    if (propertiesError) {
+      console.error("Error loading transaction properties:", propertiesError);
+    } else {
+      properties = propertiesData ?? [];
+    }
+  }
+
+  const transactionRows: TransactionRow[] = (transactions ?? []).map(
+    (transaction) => {
+      const property =
+        properties.find((item) => item.id === transaction.property_id) ?? null;
+
+      return {
+        ...transaction,
+        property,
+      };
+    },
+  );
+
+  const totalTransactions = transactionRows.length;
+
+  const ACTIVE_STATUSES = [
+    "lead",
+    "offer_made",
+    "under_contract",
+    "due_diligence",
+    "clear_to_close",
+];
+
+  const activeTransactions = transactionRows.filter((transaction) =>
+    ACTIVE_STATUSES.includes(transaction.status)
+).length;
+
+  
+
+  const underContractTransactions = transactionRows.filter(
+    (transaction) => transaction.status === "under_contract",
+  ).length;
+
+  const closedTransactions = transactionRows.filter(
+    (transaction) => transaction.status === "closed",
+  ).length;
+
+  return (
+    <div className="min-h-screen bg-[#FBF7EF] p-8 text-[#29231D]">
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+          <div>
+            <Link
+              href="/"
+              className="mb-3 inline-block text-sm font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
+            >
+              ← Back to Dashboard
+            </Link>
+
+            <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+              Transactions
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-[#7C7265]">
+              Manage purchases, sales, wholesale assignments, closings, key
+              deadlines, and every active deal in RoseVault.
+            </p>
+          </div>
+
+          <Link
+            href="/transactions/new"
+            className="rounded-xl bg-[#B7832F] px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50"
+          >
+            + New Transaction
+          </Link>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Total Transactions"
+            value={totalTransactions}
+            subtitle="All recorded deals"
+          />
+          <StatCard
+            title="Active Deals"
+            value={activeTransactions}
+            subtitle="Currently in progress"
+          />
+
+          <StatCard
+            title="Under Contract"
+            value={underContractTransactions}
+            subtitle="Awaiting closing"
+          />
+
+          <StatCard
+            title="Closed"
+            value={closedTransactions}
+            subtitle="Completed transactions"
+          />
+        </div>
+
+        {/* Transactions Table or Global Empty State */}
+        {transactionRows.length === 0 ? (
+          <section className="flex min-h-96 items-center justify-center rounded-2xl border border-[#EDE7DC] bg-white/60 p-8 shadow-sm backdrop-blur-sm">
+            <div className="max-w-lg text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B66A]/30 bg-[#FBF7EF]">
+                <span className="font-serif text-xl font-bold text-[#B7832F]">
+                  RV
+                </span>
+              </div>
+
+              <h2 className="mt-5 font-serif text-xl font-medium text-[#29231D]">
+                No transactions yet
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-[#7C7265]">
+                Create your first transaction to begin tracking properties,
+                financials, contract dates, closing deadlines, and deal progress
+                inside RoseVault.
+              </p>
+
+              <Link
+                href="/transactions/new"
+                className="mt-6 inline-block rounded-xl bg-[#B7832F] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#966822]"
+              >
+                + Create First Transaction
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <TransactionsTable transactions={transactionRows} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-5 shadow-sm backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+        {label}
+      </p>
+
+      <p className="mt-2 font-serif text-3xl font-normal text-[#B7832F]">
+        {value}
+      </p>
+    </div>
+  );
 }
 </file>
 
@@ -17171,203 +17723,368 @@ export default function ContactsTable({
 }
 </file>
 
-<file path="app/(dashboard)/contacts/page.tsx">
+<file path="app/(dashboard)/transactions/[id]/page.tsx">
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-
-import ContactsTable from "@/app/components/ContactsTable";
+import TransactionActivity from "@/app/components/transactions/TransactionActivity";
 import { createClient } from "@/lib/supabase/server";
-
-import WorkspaceLayout from "@/app/components/layout/WorkspaceLayout";
-
-import PageHeader from "@/app/components/ui/PageHeader";
-import Button from "@/app/components/ui/Button";
-import StatCard from "@/app/components/ui/StatCard";
+import { getActivity } from "@/lib/activity/getActivity";
+import { getTransactionNotes } from "@/lib/transactions/getTransactionNotes";
+import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
+import TransactionNotes from "@/app/components/transactions/TransactionNotes";
+import StatusBadge from "@/app/components/ui/StatusBadge";
 import SectionCard from "@/app/components/ui/SectionCard";
-import EmptyState from "@/app/components/ui/EmptyState";
-import DataTable from "@/app/components/ui/DataTable";
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  DollarSign,
+  Edit,
+  FileText,
+  CheckCircle2,
+  Circle,
+  Upload,
+} from "lucide-react";
 
-export default async function ContactsPage() {
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function TransactionDetailPage({ params }: PageProps) {
+  const { id } = await params;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: membership } = await supabase
+  // 1. Fetch active membership/organization details for tenant safety
+  const { data: membership, error: membershipError } = await supabase
     .from("organization_members")
     .select("organization_id")
-    .eq("user_id", user.id)
+    .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
     .maybeSingle();
 
-  if (!membership) {
-    redirect("/onboarding");
+  if (membershipError || !membership) {
+    if (membershipError) console.error("Membership error:", membershipError);
+    notFound();
   }
 
-  const [
-    { data: contacts, error: contactsError },
-    { data: groups },
-    { data: tags },
-    { data: groupMemberships },
-    { data: tagAssignments },
-  ] = await Promise.all([
-    supabase
-      .from("contacts")
-      .select(
-        `
-          id,
-          first_name,
-          last_name,
-          email,
-          primary_phone,
-          primary_phone_type,
-          secondary_phone,
-          secondary_phone_type,
-          spouse_primary_phone,
-          spouse_primary_phone_type,
-          spouse_secondary_phone,
-          spouse_secondary_phone_type,
-          contact_type,
-          status,
-          lead_source,
-          mailing_address_line_1,
-          mailing_address_line_2,
-          mailing_city,
-          mailing_state,
-          mailing_postal_code,
-          property_address_line_1,
-          property_address_line_2,
-          property_city,
-          property_state,
-          property_postal_code,
-          created_at
-        `
-      )
-      .eq("organization_id", membership.organization_id)
-      .order("created_at", { ascending: false }),
+  // 2. Fetch the transaction scoped to the organization along with its related property data
+  const { data: transaction, error } = await supabase
+    .from("transactions")
+    .select("*, property:properties(*)")
+    .eq("id", id)
+    .eq("organization_id", membership.organization_id)
+    .single();
 
-    supabase
-      .from("contact_groups")
-      .select("id, name")
-      .eq("organization_id", membership.organization_id)
-      .order("name"),
-
-    supabase
-      .from("contact_tags")
-      .select("id, name")
-      .eq("organization_id", membership.organization_id)
-      .order("name"),
-
-    supabase
-      .from("contact_group_memberships")
-      .select("contact_id, group_id")
-      .eq("organization_id", membership.organization_id),
-
-    supabase
-      .from("contact_tag_assignments")
-      .select("contact_id, tag_id")
-      .eq("organization_id", membership.organization_id),
-  ]);
-
-  if (contactsError) {
-    console.error("Error loading contacts:", contactsError);
+  if (error || !transaction) {
+    notFound();
   }
 
-  const contactMetrics = [
-    ["Total Contacts", contacts?.length ?? 0],
-    ["Buyers", contacts?.filter((c) => c.contact_type === "buyer").length ?? 0],
-    ["Sellers", contacts?.filter((c) => c.contact_type === "seller").length ?? 0],
-    ["Leads", contacts?.filter((c) => c.contact_type === "lead").length ?? 0],
+  const notes = await getTransactionNotes(
+    membership.organization_id,
+    transaction.id,
+  );
+
+  const activity = await getActivity(
+    membership.organization_id,
+    "transaction",
+    transaction.id,
+  );
+
+  console.log("Activity:", activity);
+
+  const timelineSteps = [
+    {
+      label: "Created",
+      statuses: [
+        "lead",
+        "offer_made",
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Offer Made",
+      statuses: [
+        "offer_made",
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Under Contract",
+      statuses: ["under_contract", "due_diligence", "clear_to_close", "closed"],
+    },
+    {
+      label: "Due Diligence",
+      statuses: ["due_diligence", "clear_to_close", "closed"],
+    },
+    {
+      label: "Clear To Close",
+      statuses: ["clear_to_close", "closed"],
+    },
+    {
+      label: "Closed",
+      statuses: ["closed"],
+    },
   ];
 
-  // Uniform responsive button styles with pointer feedback
-  const buttonStyle = "min-w-[120px] cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0";
+  console.log("Transaction Notes:", notes);
 
   return (
-    <WorkspaceLayout>
-      <PageHeader
-        eyebrow="Dashboard"
-        title="Relationship Registry"
-        description="Manage clients, buyers, sellers, lenders, vendors, and business relationships inside your RoseVault workspace."
-        actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/contacts/groups-tags">
-              <Button 
-                variant="secondary" 
-                className={`${buttonStyle} hover:border-[#D8B66A]/60`}
-              >
-                Groups & Tags
-              </Button>
-            </Link>
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+      {/* Navigation & Header */}
+      <div className="space-y-4">
+        <Link
+          href="/transactions"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Transactions
+        </Link>
 
-            <Link href="/contacts/import">
-              <Button 
-                variant="secondary" 
-                className={`${buttonStyle} hover:border-[#D8B66A]/60`}
-              >
-                Bulk Import
-              </Button>
-            </Link>
-
-            <Link href="/contacts/new">
-              <Button 
-                variant="primary" 
-                className={`${buttonStyle} hover:opacity-95`}
-              >
-                + Add Contact
-              </Button>
-            </Link>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+                {transaction.transaction_name}
+              </h1>
+              <StatusBadge status={transaction.status} />
+            </div>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+              {transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
+            </p>
           </div>
-        }
-      />
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {contactMetrics.map(([title, value]) => (
-          <StatCard
-            key={title as string}
-            title={title as string}
-            value={value as number}
-          />
-        ))}
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/transactions/${transaction.id}/edit`}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-5 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#29231D]"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
+            </Link>
+
+            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
+              Documents
+            </button>
+
+            <AddTransactionNoteButton transactionId={transaction.id} />
+          </div>
+        </div>
       </div>
 
-      {!contacts || contacts.length === 0 ? (
-        <>
-          <EmptyState
-            title="No Contacts Yet"
-            description="Start building your CRM by adding your first contact or importing a CSV file."
-          />
-          <div className="mt-6">
-            <Link href="/contacts/new">
-              <Button 
-                variant="primary" 
-                className="min-w-[140px] cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:opacity-95 hover:shadow-sm active:translate-y-0"
-              >
-                + Add Contact
-              </Button>
-            </Link>
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Two-Column Layout Grid */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {/* Left Column */}
+        <div className="space-y-8">
+          {/* Financial Summary */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Financial Summary
+              </h2>
+            </div>
+            <div>
+              <SummaryRow
+                label="Purchase Price"
+                value={formatCurrency(transaction.purchase_price)}
+              />
+              <SummaryRow
+                label="Sale Price"
+                value={formatCurrency(transaction.sale_price)}
+              />
+              <SummaryRow
+                label="Assignment Fee"
+                value={formatCurrency(transaction.assignment_fee)}
+              />
+              <SummaryRow
+                label="Earnest Money"
+                value={formatCurrency(transaction.earnest_money)}
+              />
+            </div>
           </div>
-        </>
-      ) : (
-        <SectionCard>
-          <DataTable>
-            <ContactsTable
-              contacts={contacts ?? []}
-              groups={groups ?? []}
-              tags={tags ?? []}
-              groupMemberships={groupMemberships ?? []}
-              tagAssignments={tagAssignments ?? []}
-              organizationId={membership.organization_id}
-            />
-          </DataTable>
-        </SectionCard>
-      )}
-    </WorkspaceLayout>
+
+          {/* Property Information Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Property Details
+              </h2>
+            </div>
+
+            {transaction.property ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Address
+                    </p>
+                    <p className="mt-1 text-[#29231D] font-medium">
+                      {transaction.property.property_address_line_1}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Location
+                    </p>
+                    <p className="mt-1 text-[#29231D] font-medium">
+                      {transaction.property.property_city},{" "}
+                      {transaction.property.property_state}{" "}
+                      {transaction.property.property_postal_code}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Link
+                    href={`/properties/${transaction.property.id}`}
+                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
+                  >
+                    View Property →
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#7C7265]">No property linked.</p>
+            )}
+          </div>
+
+          {/* Notes Section */}
+          <SectionCard
+            title="Notes"
+            actions={
+              <AddTransactionNoteButton transactionId={transaction.id} />
+            }
+          >
+            <TransactionNotes notes={notes} />
+          </SectionCard>
+
+          {/* Activity Section */}
+          <SectionCard
+            title="Activity"
+            description="Everything that has happened on this transaction."
+          >
+            <TransactionActivity activity={activity} />
+          </SectionCard>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-8">
+          {/* Deal Timeline */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Deal Timeline
+              </h2>
+            </div>
+            <div className="space-y-3 pt-2">
+              {timelineSteps.map((step) => {
+                const isCompleted = step.statuses.includes(transaction.status);
+                return (
+                  <div key={step.label} className="flex items-center gap-3">
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-[#D1C7B7]" />
+                    )}
+                    <span
+                      className={`text-sm font-medium ${
+                        isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Deal Metadata */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Deal Information
+              </h2>
+            </div>
+            <div>
+              <SummaryRow
+                label="Transaction Type"
+                value={transaction.transaction_type
+                  .replaceAll("_", " ")
+                  .toUpperCase()}
+              />
+              <SummaryRow
+                label="Created"
+                value={formatDate(transaction.created_at?.split("T")[0])}
+              />
+              <SummaryRow
+                label="Updated"
+                value={formatDate(transaction.updated_at?.split("T")[0])}
+              />
+              <SummaryRow
+                label="Closing Attorney"
+                value={transaction.closing_attorney ?? "—"}
+              />
+              <SummaryRow
+                label="Title Company"
+                value={transaction.title_company ?? "—"}
+              />
+            </div>
+          </div>
+
+          {/* Documents Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Documents
+              </h2>
+              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
+                <Upload className="h-3.5 w-3.5" />
+                Upload Document
+              </button>
+            </div>
+            <p className="text-sm text-[#7C7265]">No documents uploaded yet.</p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-[#F1ECE3] py-3 last:border-b-0">
+      <span className="text-sm text-[#7C7265]">{label}</span>
+      <span className="font-medium text-[#29231D]">{value}</span>
+    </div>
+  );
+}
+
+function formatCurrency(value: number | null) {
+  if (value === null) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 </file>
 
@@ -18947,6 +19664,209 @@ function formatCurrency(value: number | string | null | undefined): string {
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(numericValue);
+}
+</file>
+
+<file path="app/(dashboard)/contacts/page.tsx">
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import ContactsTable from "@/app/components/ContactsTable";
+import { createClient } from "@/lib/supabase/server";
+
+import WorkspaceLayout from "@/app/components/layout/WorkspaceLayout";
+
+import PageHeader from "@/app/components/ui/PageHeader";
+import Button from "@/app/components/ui/Button";
+import StatCard from "@/app/components/ui/StatCard";
+import SectionCard from "@/app/components/ui/SectionCard";
+import EmptyState from "@/app/components/ui/EmptyState";
+import DataTable from "@/app/components/ui/DataTable";
+
+export default async function ContactsPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership) {
+    redirect("/onboarding");
+  }
+
+  const [
+    { data: contacts, error: contactsError },
+    { data: groups },
+    { data: tags },
+    { data: groupMemberships },
+    { data: tagAssignments },
+  ] = await Promise.all([
+    supabase
+      .from("contacts")
+      .select(
+        `
+          id,
+          first_name,
+          last_name,
+          email,
+          primary_phone,
+          primary_phone_type,
+          secondary_phone,
+          secondary_phone_type,
+          spouse_primary_phone,
+          spouse_primary_phone_type,
+          spouse_secondary_phone,
+          spouse_secondary_phone_type,
+          contact_type,
+          status,
+          lead_source,
+          mailing_address_line_1,
+          mailing_address_line_2,
+          mailing_city,
+          mailing_state,
+          mailing_postal_code,
+          property_address_line_1,
+          property_address_line_2,
+          property_city,
+          property_state,
+          property_postal_code,
+          created_at
+        `
+      )
+      .eq("organization_id", membership.organization_id)
+      .order("created_at", { ascending: false }),
+
+    supabase
+      .from("contact_groups")
+      .select("id, name")
+      .eq("organization_id", membership.organization_id)
+      .order("name"),
+
+    supabase
+      .from("contact_tags")
+      .select("id, name")
+      .eq("organization_id", membership.organization_id)
+      .order("name"),
+
+    supabase
+      .from("contact_group_memberships")
+      .select("contact_id, group_id")
+      .eq("organization_id", membership.organization_id),
+
+    supabase
+      .from("contact_tag_assignments")
+      .select("contact_id, tag_id")
+      .eq("organization_id", membership.organization_id),
+  ]);
+
+  if (contactsError) {
+    console.error("Error loading contacts:", contactsError);
+  }
+
+  const contactMetrics = [
+    ["Total Contacts", contacts?.length ?? 0],
+    ["Buyers", contacts?.filter((c) => c.contact_type === "buyer").length ?? 0],
+    ["Sellers", contacts?.filter((c) => c.contact_type === "seller").length ?? 0],
+    ["Leads", contacts?.filter((c) => c.contact_type === "lead").length ?? 0],
+  ];
+
+  // Uniform responsive button styles with pointer feedback matching your custom theme
+  const buttonStyle = "min-w-[120px] cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0";
+
+  return (
+    <WorkspaceLayout>
+      <PageHeader
+        title="Relationship Registry"
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/contacts/groups-tags">
+              <Button 
+                variant="secondary" 
+                className={`${buttonStyle} border-[#EDE7DC] bg-white text-[#29231D] hover:border-[#D8B66A] hover:bg-[#FBF7EF]`}
+              >
+                Groups & Tags
+              </Button>
+            </Link>
+
+            <Link href="/contacts/import">
+              <Button 
+                variant="secondary" 
+                className={`${buttonStyle} border-[#EDE7DC] bg-white text-[#29231D] hover:border-[#D8B66A] hover:bg-[#FBF7EF]`}
+              >
+                Bulk Import
+              </Button>
+            </Link>
+
+            <Link href="/contacts/new">
+              <Button 
+                variant="primary" 
+                className={`${buttonStyle} bg-[#0D0C0A] text-[#D8B66A] hover:bg-[#29231D]`}
+              >
+                + Add Contact
+              </Button>
+            </Link>
+          </div>
+        }
+      />
+      <p className="mt-3 text-sm text-[#8F8578] max-w-2xl">
+        Manage clients, buyers, sellers, lenders, vendors, and business relationships inside your workspace.
+      </p>
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-6">
+        {contactMetrics.map(([title, value]) => (
+          <StatCard
+            key={title as string}
+            title={title as string}
+            value={value as number}
+          />
+        ))}
+      </div>
+
+      {!contacts || contacts.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState
+            title="No Contacts Yet"
+            description="Start building your CRM by adding your first contact or importing a CSV file."
+          />
+          <div className="mt-6">
+            <Link href="/contacts/new">
+              <Button 
+                variant="primary" 
+                className="min-w-[140px] cursor-pointer bg-[#0D0C0A] text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#29231D] hover:shadow-sm active:translate-y-0"
+              >
+                + Add Contact
+              </Button>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-8">
+          <SectionCard>
+            <DataTable>
+              <ContactsTable
+                contacts={contacts ?? []}
+                groups={groups ?? []}
+                tags={tags ?? []}
+                groupMemberships={groupMemberships ?? []}
+                tagAssignments={tagAssignments ?? []}
+                organizationId={membership.organization_id}
+              />
+            </DataTable>
+          </SectionCard>
+        </div>
+      )}
+    </WorkspaceLayout>
+  );
 }
 </file>
 
