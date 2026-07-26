@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import TransactionActivity from "@/app/components/transactions/TransactionActivity";
 import { createClient } from "@/lib/supabase/server";
+import { getActivity } from "@/lib/activity/getActivity";
 import { getTransactionNotes } from "@/lib/transactions/getTransactionNotes";
 import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
 import TransactionNotes from "@/app/components/transactions/TransactionNotes";
@@ -54,6 +56,14 @@ export default async function TransactionDetailPage({ params }: PageProps) {
     membership.organization_id,
     transaction.id,
   );
+
+  const activity = await getActivity(
+    membership.organization_id,
+    "transaction",
+    transaction.id,
+  );
+
+  console.log("Activity:", activity);
 
   const timelineSteps = [
     {
@@ -135,13 +145,7 @@ export default async function TransactionDetailPage({ params }: PageProps) {
               Documents
             </button>
 
-            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
-              Add Note
-            </button>
-
-            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
-              Activity
-            </button>
+            <AddTransactionNoteButton transactionId={transaction.id} />
           </div>
         </div>
       </div>
@@ -233,6 +237,14 @@ export default async function TransactionDetailPage({ params }: PageProps) {
             }
           >
             <TransactionNotes notes={notes} />
+          </SectionCard>
+
+          {/* Activity Section */}
+          <SectionCard
+            title="Activity"
+            description="Everything that has happened on this transaction."
+          >
+            <TransactionActivity activity={activity} />
           </SectionCard>
         </div>
 
