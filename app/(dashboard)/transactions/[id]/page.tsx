@@ -1,0 +1,267 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  DollarSign,
+  Edit,
+  FileText,
+  CheckCircle2,
+  Circle,
+  Plus,
+  Upload,
+} from "lucide-react";
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function TransactionDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  // Fetch the transaction along with its related property data
+  const { data: transaction, error } = await supabase
+    .from("transactions")
+    .select("*, property:properties(*)")
+    .eq("id", id)
+    .single();
+
+  if (error || !transaction) {
+    notFound();
+  }
+
+  const primaryAmount =
+    transaction.transaction_type === "wholesale_assignment"
+      ? transaction.assignment_fee
+      : transaction.transaction_type === "sale"
+        ? transaction.sale_price
+        : transaction.purchase_price;
+
+  const timelineSteps = [
+    "Created",
+    "Under Contract",
+    "Inspection",
+    "Financing",
+    "Closing",
+  ];
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+      {/* Navigation & Header */}
+      <div className="space-y-4">
+        <Link
+          href="/transactions"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Transactions
+        </Link>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+                {transaction.transaction_name}
+              </h1>
+              <span className="rounded-full border border-[#EDE7DC] bg-[#FBF7EF] px-3 py-1 text-xs font-semibold capitalize text-[#7C7265]">
+                {transaction.status.replaceAll("_", " ")}
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+              {transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/transactions/${transaction.id}/edit`}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-5 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#29231D]"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
+            </Link>
+
+            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
+              Documents
+            </button>
+
+            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
+              Add Note
+            </button>
+
+            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
+              Activity
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Phase 2 — Financial Summary */}
+      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-5 w-5 text-[#B7832F]" />
+          <h2 className="font-serif text-xl font-normal text-[#29231D]">
+            Financial Summary
+          </h2>
+        </div>
+        <div>
+          <SummaryRow
+            label="Purchase Price"
+            value={formatCurrency(transaction.purchase_price)}
+          />
+          <SummaryRow
+            label="Sale Price"
+            value={formatCurrency(transaction.sale_price)}
+          />
+          <SummaryRow
+            label="Assignment Fee"
+            value={formatCurrency(transaction.assignment_fee)}
+          />
+          <SummaryRow
+            label="Earnest Money"
+            value={formatCurrency(transaction.earnest_money)}
+          />
+        </div>
+      </div>
+
+      {/* Property Information Section */}
+      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+        <div className="flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-[#B7832F]" />
+          <h2 className="font-serif text-xl font-normal text-[#29231D]">
+            Property Details
+          </h2>
+        </div>
+
+        {transaction.property ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                  Address
+                </p>
+                <p className="mt-1 text-[#29231D] font-medium">
+                  {transaction.property.property_address_line_1}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                  Location
+                </p>
+                <p className="mt-1 text-[#29231D] font-medium">
+                  {transaction.property.property_city},{" "}
+                  {transaction.property.property_state}{" "}
+                  {transaction.property.property_postal_code}
+                </p>
+              </div>
+            </div>
+            <div>
+              <Link
+                href={`/properties/${transaction.property.id}`}
+                className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
+              >
+                View Property →
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[#7C7265]">
+            No property linked to this transaction yet.
+          </p>
+        )}
+      </div>
+
+      {/* Phase 4 — Deal Timeline */}
+      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-[#B7832F]" />
+          <h2 className="font-serif text-xl font-normal text-[#29231D]">
+            Deal Timeline
+          </h2>
+        </div>
+        <div className="space-y-3 pt-2">
+          {timelineSteps.map((step, index) => {
+            // Placeholder logic: mark first two as completed, rest upcoming
+            const isCompleted = index < 2;
+            return (
+              <div key={step} className="flex items-center gap-3">
+                {isCompleted ? (
+                  <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
+                ) : (
+                  <Circle className="h-5 w-5 text-[#D1C7B7]" />
+                )}
+                <span
+                  className={`text-sm font-medium ${
+                    isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
+                  }`}
+                >
+                  {step}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Phase 5 — Notes Section */}
+      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-xl font-normal text-[#29231D]">
+            Notes
+          </h2>
+          <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
+            <Plus className="h-3.5 w-3.5" />
+            Add Note
+          </button>
+        </div>
+        <p className="text-sm text-[#7C7265]">No notes yet.</p>
+      </div>
+
+      {/* Phase 6 — Documents Section */}
+      <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-xl font-normal text-[#29231D]">
+            Documents
+          </h2>
+          <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
+            <Upload className="h-3.5 w-3.5" />
+            Upload Document
+          </button>
+        </div>
+        <p className="text-sm text-[#7C7265]">No documents uploaded yet.</p>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-[#F1ECE3] py-3 last:border-b-0">
+      <span className="text-sm text-[#7C7265]">{label}</span>
+      <span className="font-medium text-[#29231D]">{value}</span>
+    </div>
+  );
+}
+
+function formatCurrency(value: number | null) {
+  if (value === null) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}

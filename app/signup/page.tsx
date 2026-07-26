@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function SignupPage() {
   const supabase = createClient();
@@ -40,7 +41,7 @@ export default function SignupPage() {
 
     if (!data.session) {
       setMessage(
-        "Account created. Check your email to confirm your account, then sign in.",
+        "Account created. Check your email to confirm your account, then sign in."
       );
       setIsLoading(false);
       return;
@@ -50,42 +51,46 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0b0b0b] px-6 py-12 text-white">
+    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
       <div className="w-full max-w-md">
+        {/* Header & Branding */}
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
             <Image
               src="/rosevaultlogo.png"
               alt="Rose Key Realty Co. logo"
-              width={110}
-              height={110}
+              width={450}
+              height={450}
               priority
-              className="h-auto w-auto object-contain"
+              className="h-auto max-w-[240px] object-contain"
             />
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight text-[#d4af37]">
+          <h1 className="font-serif text-2xl font-normal tracking-wide text-[#29231D]">
             ROSE KEY OS
           </h1>
 
-          <p className="mt-2 text-sm text-gray-400">
-            Real Estate Command Center
+          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
+            &ldquo;Where Every Home Blooms with Possibility&rdquo;
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[#2a2a2a] bg-[#151515] p-8 shadow-2xl">
-          <h2 className="text-2xl font-semibold">Create your account</h2>
+        {/* Card Container */}
+        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
+          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
+            Create your account
+          </h2>
 
-          <p className="mt-2 text-sm text-gray-400">
+          <p className="mt-2 text-sm text-[#7C7265]">
             Start building your real estate command center.
           </p>
 
           <form onSubmit={handleSignUp} className="mt-8 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label
                   htmlFor="firstName"
-                  className="mb-2 block text-sm font-medium text-gray-300"
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
                 >
                   First name
                 </label>
@@ -96,14 +101,14 @@ export default function SignupPage() {
                   required
                   value={firstName}
                   onChange={(event) => setFirstName(event.target.value)}
-                  className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition focus:border-[#d4af37]"
+                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="lastName"
-                  className="mb-2 block text-sm font-medium text-gray-300"
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
                 >
                   Last name
                 </label>
@@ -114,7 +119,7 @@ export default function SignupPage() {
                   required
                   value={lastName}
                   onChange={(event) => setLastName(event.target.value)}
-                  className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition focus:border-[#d4af37]"
+                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
                 />
               </div>
             </div>
@@ -122,7 +127,7 @@ export default function SignupPage() {
             <div>
               <label
                 htmlFor="organizationName"
-                className="mb-2 block text-sm font-medium text-gray-300"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
               >
                 Company or organization name
               </label>
@@ -134,14 +139,14 @@ export default function SignupPage() {
                 value={organizationName}
                 onChange={(event) => setOrganizationName(event.target.value)}
                 placeholder="Rose Key Realty Co."
-                className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
               />
             </div>
 
             <div>
               <label
                 htmlFor="email"
-                className="mb-2 block text-sm font-medium text-gray-300"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
               >
                 Email address
               </label>
@@ -154,14 +159,14 @@ export default function SignupPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
               />
             </div>
 
             <div>
               <label
                 htmlFor="password"
-                className="mb-2 block text-sm font-medium text-gray-300"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
               >
                 Password
               </label>
@@ -175,12 +180,12 @@ export default function SignupPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="At least 8 characters"
-                className="w-full rounded-lg border border-[#333333] bg-[#0f0f0f] px-4 py-3 text-white outline-none transition placeholder:text-gray-600 focus:border-[#d4af37]"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
               />
             </div>
 
             {message && (
-              <div className="rounded-lg border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-3 text-sm text-[#e2c35b]">
+              <div className="rounded-xl border border-[#B7832F]/30 bg-[#FBF7EF] px-4 py-3 text-sm text-[#966822]">
                 {message}
               </div>
             )}
@@ -188,22 +193,26 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-lg bg-[#d4af37] px-4 py-3 font-semibold text-black transition hover:bg-[#e2c35b] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? "Creating account..." : "Create account"}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-gray-400">
+          <div className="mt-6 text-center text-sm text-[#7C7265]">
             Already have an account?{" "}
-            <a
+            <Link
               href="/login"
-              className="font-medium text-[#d4af37] hover:underline"
+              className="font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
             >
               Sign in
-            </a>
+            </Link>
           </div>
         </div>
+
+        <p className="mt-6 text-center text-xs tracking-wide text-[#8F8578]">
+          Secure access to your real estate command center.
+        </p>
       </div>
     </main>
   );

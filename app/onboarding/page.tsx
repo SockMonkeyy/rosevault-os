@@ -83,9 +83,9 @@ export default function OnboardingPage() {
 
   if (isLoadingUser) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0D0C0A] text-[#FBF7EF]">
+      <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] text-[#29231D]">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#D8B66A] border-t-transparent" />
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#B7832F] border-t-transparent" />
           <p className="text-sm tracking-wide text-[#8F8578]">
             Loading your workspace...
           </p>
@@ -95,28 +95,28 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0D0C0A] px-6 py-12 text-[#FBF7EF]">
+    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="mb-3 text-3xl">🌹🔑</div>
 
-          <h1 className="font-serif text-3xl tracking-wide text-[#D8B66A]">
+          <h1 className="font-serif text-3xl tracking-wide text-[#29231D]">
             ROSE KEY OS
           </h1>
 
-          <p className="mt-2 text-sm text-[#8F8578]">
-            Let&apos;s set up your workspace.
+          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
+            &ldquo;Where Every Home Blooms with Possibility&rdquo;
           </p>
         </div>
 
         {/* Form Container */}
-        <div className="rounded-2xl border border-[#29231D] bg-[#161412] p-8 shadow-2xl backdrop-blur-sm">
-          <h2 className="font-serif text-2xl text-[#FBF7EF]">
+        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
+          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
             Create your command center
           </h2>
 
-          <p className="mt-2 text-sm leading-6 text-[#8F8578]">
+          <p className="mt-2 text-sm leading-6 text-[#7C7265]">
             Confirm your information below. Your organization will have its own
             secure workspace inside Rose Key OS.
           </p>
@@ -126,7 +126,7 @@ export default function OnboardingPage() {
               <div>
                 <label
                   htmlFor="firstName"
-                  className="mb-2 block text-xs font-medium uppercase tracking-wider text-[#8F8578]"
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
                 >
                   First name
                 </label>
@@ -137,14 +137,14 @@ export default function OnboardingPage() {
                   required
                   value={firstName}
                   onChange={(event) => setFirstName(event.target.value)}
-                  className="w-full rounded-xl border border-[#29231D] bg-[#0D0C0A] px-4 py-3 text-[#FBF7EF] placeholder-[#8F8578] outline-none transition focus:border-[#D8B66A] focus:ring-1 focus:ring-[#D8B66A]"
+                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="lastName"
-                  className="mb-2 block text-xs font-medium uppercase tracking-wider text-[#8F8578]"
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
                 >
                   Last name
                 </label>
@@ -155,7 +155,7 @@ export default function OnboardingPage() {
                   required
                   value={lastName}
                   onChange={(event) => setLastName(event.target.value)}
-                  className="w-full rounded-xl border border-[#29231D] bg-[#0D0C0A] px-4 py-3 text-[#FBF7EF] placeholder-[#8F8578] outline-none transition focus:border-[#D8B66A] focus:ring-1 focus:ring-[#D8B66A]"
+                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
                 />
               </div>
             </div>
@@ -163,7 +163,7 @@ export default function OnboardingPage() {
             <div>
               <label
                 htmlFor="organizationName"
-                className="mb-2 block text-xs font-medium uppercase tracking-wider text-[#8F8578]"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
               >
                 Company or organization name
               </label>
@@ -175,12 +175,12 @@ export default function OnboardingPage() {
                 value={organizationName}
                 onChange={(event) => setOrganizationName(event.target.value)}
                 placeholder="Rose Key Realty Co."
-                className="w-full rounded-xl border border-[#29231D] bg-[#0D0C0A] px-4 py-3 text-[#FBF7EF] placeholder-[#5C554B] outline-none transition focus:border-[#D8B66A] focus:ring-1 focus:ring-[#D8B66A]"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
               />
             </div>
 
             {message && (
-              <div className="rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+              <div className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-sm text-rose-800">
                 {message}
               </div>
             )}
@@ -188,7 +188,7 @@ export default function OnboardingPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-2 w-full rounded-xl bg-[#D8B66A] px-4 py-3.5 font-medium text-[#0D0C0A] transition hover:bg-[#B7832F] hover:text-[#FBF7EF] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting
                 ? "Creating your workspace..."

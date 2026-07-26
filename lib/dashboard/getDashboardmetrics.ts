@@ -43,7 +43,7 @@ export async function getDashboardMetrics(organizationId: string) {
   // Pipeline Value
   const { data: pipelineTransactions } = await supabase
     .from("transactions")
-    .select("purchase_price")
+    .select("transaction_type, purchase_price, sale_price, assignment_fee")
     .eq("organization_id", organizationId)
     .in("status", [
       "lead",
@@ -54,10 +54,25 @@ export async function getDashboardMetrics(organizationId: string) {
     ]);
 
   const pipelineValue =
-    pipelineTransactions?.reduce(
-      (sum, transaction) => sum + Number(transaction.purchase_price ?? 0),
-      0
-    ) ?? 0;
+  pipelineTransactions?.reduce((sum, transaction) => {
+    let value = 0;
+
+    switch (transaction.transaction_type) {
+      case "wholesale_assignment":
+        value = Number(transaction.assignment_fee ?? 0);
+        break;
+
+      case "sale":
+        value = Number(transaction.sale_price ?? 0);
+        break;
+
+      default:
+        value = Number(transaction.purchase_price ?? 0);
+        break;
+    }
+
+    return sum + value;
+  }, 0) ?? 0;
 
   return {
     pipelineValue,

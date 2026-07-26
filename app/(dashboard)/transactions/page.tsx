@@ -1,7 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import TransactionsTable, { TransactionRow } from "@/app/components/TransactionsTable";
+import TransactionsTable, {
+  TransactionRow,
+} from "@/app/components/TransactionsTable";
 import { createClient } from "@/lib/supabase/server";
+import StatCard from "@/app/components/ui/StatCard";
+import {
+    FolderOpen,
+    Briefcase,
+    FileSignature,
+    CheckCircle2,
+} from "lucide-react";
 
 type Property = {
   id: string;
@@ -115,15 +124,19 @@ export default async function TransactionsPage() {
 
   const totalTransactions = transactionRows.length;
 
+  const ACTIVE_STATUSES = [
+    "lead",
+    "offer_made",
+    "under_contract",
+    "due_diligence",
+    "clear_to_close",
+];
+
   const activeTransactions = transactionRows.filter((transaction) =>
-    [
-      "lead",
-      "offer_made",
-      "under_contract",
-      "due_diligence",
-      "clear_to_close",
-    ].includes(transaction.status),
-  ).length;
+    ACTIVE_STATUSES.includes(transaction.status)
+).length;
+
+  
 
   const underContractTransactions = transactionRows.filter(
     (transaction) => transaction.status === "under_contract",
@@ -166,13 +179,28 @@ export default async function TransactionsPage() {
 
         {/* Summary Cards */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="Total Transactions" value={totalTransactions} />
-          <SummaryCard label="Active Deals" value={activeTransactions} />
-          <SummaryCard
-            label="Under Contract"
-            value={underContractTransactions}
+          <StatCard
+            title="Total Transactions"
+            value={totalTransactions}
+            subtitle="All recorded deals"
           />
-          <SummaryCard label="Closed" value={closedTransactions} />
+          <StatCard
+            title="Active Deals"
+            value={activeTransactions}
+            subtitle="Currently in progress"
+          />
+
+          <StatCard
+            title="Under Contract"
+            value={underContractTransactions}
+            subtitle="Awaiting closing"
+          />
+
+          <StatCard
+            title="Closed"
+            value={closedTransactions}
+            subtitle="Completed transactions"
+          />
         </div>
 
         {/* Transactions Table or Global Empty State */}

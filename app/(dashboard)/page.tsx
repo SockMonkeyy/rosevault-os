@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import StatCard from "@/app/components/ui/StatCard";
 import { getDashboardMetrics } from "@/lib/dashboard/getDashboardmetrics";
+import { getRecentActivity } from "@/lib/dashboard/getRecentActivity";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -39,6 +40,7 @@ export default async function Home() {
   const { pipelineValue, activeLeads, underContract, closingsThisMonth } =
     await getDashboardMetrics(membership.organization_id);
 
+  const recentActivity = await getRecentActivity(membership.organization_id);
 
   const formattedPipelineValue = pipelineValue.toLocaleString("en-US", {
     style: "currency",
@@ -126,17 +128,64 @@ export default async function Home() {
             </button>
           </div>
 
-          {/* Empty Slate Dashboard Wrapper with Interactive Micro-Shift */}
-          <div className="flex min-h-72 cursor-pointer items-center justify-center rounded-xl border border-dashed border-[#E3DCD0] bg-[#12110F]/[0.01] transition-colors duration-300 hover:border-[#D8B66A]/25 hover:bg-[#12110F]/[0.02]">
-            <div className="max-w-sm px-6 text-center">
-              <p className="font-serif text-lg text-[#29231D]">
-                Your pipeline is ready
+          <div className="rounded-xl border border-[#EDE7DC] bg-white/60">
+            <div className="border-b border-[#EDE7DC] px-6 py-4">
+              <h3 className="font-serif text-xl text-[#29231D]">
+                Business Timeline
+              </h3>
+
+              <p className="mt-1 text-xs text-[#7C7265]">
+                Latest activity across your organization
               </p>
-              <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
-                Add your first deal transaction to begin securely mapping asset
-                portfolios, buyer profiles, pipelines, and upcoming closing
-                logs.
-              </p>
+            </div>
+
+            <div className="divide-y divide-[#F3EEE6]">
+              {recentActivity.length === 0 ? (
+                <div className="px-6 py-10 text-center">
+                  <p className="font-serif text-lg text-[#29231D]">
+                    No recent activity
+                  </p>
+
+                  <p className="mt-2 text-xs text-[#7C7265]">
+                    As you add contacts, properties, and transactions,
+                    they&apos;ll appear here.
+                  </p>
+                </div>
+              ) : (
+                recentActivity.map((activity) => {
+                  const icon =
+                    activity.type === "contact"
+                      ? "👤"
+                      : activity.type === "property"
+                        ? "🏠"
+                        : "📄";
+
+                  return (
+                    <div
+                      key={`${activity.type}-${activity.id}`}
+                      className="flex items-center justify-between px-6 py-4 transition-colors duration-200 hover:bg-[#FBF7EF]
+hover:border-l-4
+hover:border-[#D8B66A]"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-[#29231D]">
+                          {icon} {activity.title}
+                        </p>
+
+                        <div className="mt-1 flex items-center">
+                          <p className="flex-1 text-xs text-[#8F8578]">
+                            {activity.subtitle}
+                          </p>
+
+                          <span className="ml-4 shrink-0 text-[11px] text-[#A89C8D]">
+                            {activity.timeAgo}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
