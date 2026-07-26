@@ -53,7 +53,7 @@ export default function SignupPage() {
         <div className="mb-8 text-center">
           <div className="mb-4 flex justify-center">
             <Image
-              src="/rosevaultlogo.png"
+              src="/RoseVaultlogo.png"
               alt="Rose Key Realty Co. logo"
               width={450}
               height={450}

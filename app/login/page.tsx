@@ -37,7 +37,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Header & Branding */}
         <div className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
+          <div className="mb-0 flex justify-center">
             <Image
               src="/RoseVaultLogo.png"
               alt="Rose Key Realty Co. logo"
