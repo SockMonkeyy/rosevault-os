@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getTransactionNotes } from "@/lib/transactions/getTransactionNotes";
+import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
+import TransactionNotes from "@/app/components/transactions/TransactionNotes";
 import StatusBadge from "@/app/components/ui/StatusBadge";
+import SectionCard from "@/app/components/ui/SectionCard";
 import {
   ArrowLeft,
   Building2,
@@ -11,7 +15,6 @@ import {
   FileText,
   CheckCircle2,
   Circle,
-  Plus,
   Upload,
 } from "lucide-react";
 
@@ -47,6 +50,11 @@ export default async function TransactionDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  const notes = await getTransactionNotes(
+    membership.organization_id,
+    transaction.id,
+  );
+
   const timelineSteps = [
     {
       label: "Created",
@@ -71,35 +79,23 @@ export default async function TransactionDetailPage({ params }: PageProps) {
     },
     {
       label: "Under Contract",
-      statuses: [
-        "under_contract",
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
+      statuses: ["under_contract", "due_diligence", "clear_to_close", "closed"],
     },
     {
       label: "Due Diligence",
-      statuses: [
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
+      statuses: ["due_diligence", "clear_to_close", "closed"],
     },
     {
       label: "Clear To Close",
-      statuses: [
-        "clear_to_close",
-        "closed",
-      ],
+      statuses: ["clear_to_close", "closed"],
     },
     {
       label: "Closed",
-      statuses: [
-        "closed",
-      ],
+      statuses: ["closed"],
     },
   ];
+
+  console.log("Transaction Notes:", notes);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
@@ -225,25 +221,19 @@ export default async function TransactionDetailPage({ params }: PageProps) {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-[#7C7265]">
-                No property linked to this transaction yet.
-              </p>
+              <p className="text-sm text-[#7C7265]">No property linked.</p>
             )}
           </div>
 
           {/* Notes Section */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Notes
-              </h2>
-              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
-                <Plus className="h-3.5 w-3.5" />
-                Add Note
-              </button>
-            </div>
-            <p className="text-sm text-[#7C7265]">No notes yet.</p>
-          </div>
+          <SectionCard
+            title="Notes"
+            actions={
+              <AddTransactionNoteButton transactionId={transaction.id} />
+            }
+          >
+            <TransactionNotes notes={notes} />
+          </SectionCard>
         </div>
 
         {/* Right Column */}
@@ -290,7 +280,9 @@ export default async function TransactionDetailPage({ params }: PageProps) {
             <div>
               <SummaryRow
                 label="Transaction Type"
-                value={transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
+                value={transaction.transaction_type
+                  .replaceAll("_", " ")
+                  .toUpperCase()}
               />
               <SummaryRow
                 label="Created"

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Receipt } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import TransactionEditForm from "@/app/components/TransactionEditForm";
+import TransactionForm from "@/app/components/TransactionForm";
 
 export default async function EditTransactionPage({
   params,
@@ -77,7 +77,7 @@ export default async function EditTransactionPage({
 
       {/* Main Form Card */}
       <div className="rounded-2xl border border-[#EDE7DC] bg-[#FBF7EF]/40 p-6 shadow-sm backdrop-blur-md sm:p-8">
-        <TransactionEditForm transaction={transaction} />
+        <TransactionForm mode="edit" transaction={transaction} />
       </div>
     </div>
   );

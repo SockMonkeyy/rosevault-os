@@ -5,6 +5,7 @@ import TransactionsTable, {
 } from "@/app/components/TransactionsTable";
 import { createClient } from "@/lib/supabase/server";
 import StatCard from "@/app/components/ui/StatCard";
+import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
 import {
     FolderOpen,
     Briefcase,
@@ -252,3 +253,4 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
+

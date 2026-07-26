@@ -28,7 +28,8 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
     <span
       className={clsx(
         "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold capitalize",
-        statusStyles[status] ??
+        // ensure we only index statusStyles with its known keys
+        statusStyles[status as keyof typeof statusStyles] ??
           "border-[#EDE7DC] bg-[#FBF7EF] text-[#7C7265]"
       )}
     >

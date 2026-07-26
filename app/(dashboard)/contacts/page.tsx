@@ -110,21 +110,19 @@ export default async function ContactsPage() {
     ["Leads", contacts?.filter((c) => c.contact_type === "lead").length ?? 0],
   ];
 
-  // Uniform responsive button styles with pointer feedback
+  // Uniform responsive button styles with pointer feedback matching your custom theme
   const buttonStyle = "min-w-[120px] cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0";
 
   return (
     <WorkspaceLayout>
       <PageHeader
-        eyebrow="Dashboard"
         title="Relationship Registry"
-        description="Manage clients, buyers, sellers, lenders, vendors, and business relationships inside your RoseVault workspace."
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/contacts/groups-tags">
               <Button 
                 variant="secondary" 
-                className={`${buttonStyle} hover:border-[#D8B66A]/60`}
+                className={`${buttonStyle} border-[#EDE7DC] bg-white text-[#29231D] hover:border-[#D8B66A] hover:bg-[#FBF7EF]`}
               >
                 Groups & Tags
               </Button>
@@ -133,7 +131,7 @@ export default async function ContactsPage() {
             <Link href="/contacts/import">
               <Button 
                 variant="secondary" 
-                className={`${buttonStyle} hover:border-[#D8B66A]/60`}
+                className={`${buttonStyle} border-[#EDE7DC] bg-white text-[#29231D] hover:border-[#D8B66A] hover:bg-[#FBF7EF]`}
               >
                 Bulk Import
               </Button>
@@ -142,7 +140,7 @@ export default async function ContactsPage() {
             <Link href="/contacts/new">
               <Button 
                 variant="primary" 
-                className={`${buttonStyle} hover:opacity-95`}
+                className={`${buttonStyle} bg-[#0D0C0A] text-[#D8B66A] hover:bg-[#29231D]`}
               >
                 + Add Contact
               </Button>
@@ -150,8 +148,11 @@ export default async function ContactsPage() {
           </div>
         }
       />
+      <p className="mt-3 text-sm text-[#8F8578] max-w-2xl">
+        Manage clients, buyers, sellers, lenders, vendors, and business relationships inside your workspace.
+      </p>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-6">
         {contactMetrics.map(([title, value]) => (
           <StatCard
             key={title as string}
@@ -162,7 +163,7 @@ export default async function ContactsPage() {
       </div>
 
       {!contacts || contacts.length === 0 ? (
-        <>
+        <div className="mt-8">
           <EmptyState
             title="No Contacts Yet"
             description="Start building your CRM by adding your first contact or importing a CSV file."
@@ -171,26 +172,28 @@ export default async function ContactsPage() {
             <Link href="/contacts/new">
               <Button 
                 variant="primary" 
-                className="min-w-[140px] cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:opacity-95 hover:shadow-sm active:translate-y-0"
+                className="min-w-[140px] cursor-pointer bg-[#0D0C0A] text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#29231D] hover:shadow-sm active:translate-y-0"
               >
                 + Add Contact
               </Button>
             </Link>
           </div>
-        </>
+        </div>
       ) : (
-        <SectionCard>
-          <DataTable>
-            <ContactsTable
-              contacts={contacts ?? []}
-              groups={groups ?? []}
-              tags={tags ?? []}
-              groupMemberships={groupMemberships ?? []}
-              tagAssignments={tagAssignments ?? []}
-              organizationId={membership.organization_id}
-            />
-          </DataTable>
-        </SectionCard>
+        <div className="mt-8">
+          <SectionCard>
+            <DataTable>
+              <ContactsTable
+                contacts={contacts ?? []}
+                groups={groups ?? []}
+                tags={tags ?? []}
+                groupMemberships={groupMemberships ?? []}
+                tagAssignments={tagAssignments ?? []}
+                organizationId={membership.organization_id}
+              />
+            </DataTable>
+          </SectionCard>
+        </div>
       )}
     </WorkspaceLayout>
   );
