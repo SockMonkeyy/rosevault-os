@@ -31,6 +31,9 @@ function getActivityIcon(activityType: string) {
     case "note_deleted":
       return <Trash2 className="h-4 w-4" />;
 
+    case "field_updated":
+      return <Pencil className="h-4 w-4" />;
+
     default:
       return <FileText className="h-4 w-4" />;
   }
@@ -54,6 +57,12 @@ function getActivityBadge(activityType: string) {
       return {
         label: "Note Deleted",
         className: "bg-red-50 text-red-700 border border-red-200",
+      };
+
+    case "field_updated":
+      return {
+        label: "Field Updated",
+        className: "bg-[#D8B66A]/15 text-[#B7832F] border border-[#D8B66A]/30",
       };
 
     default:
@@ -105,12 +114,38 @@ function formatMetadataValue(value: unknown) {
       });
     }
 
+    function formatFieldName(field?: string) {
+      switch (field) {
+        case "transaction_name":
+          return "Transaction Name";
+
+        case "transaction_type":
+          return "Transaction Type";
+
+        case "status":
+          return "Status";
+
+        case "purchase_price":
+          return "Purchase Price";
+
+        case "sale_price":
+          return "Sale Price";
+
+        case "assignment_fee":
+          return "Assignment Fee";
+
+        case "closing_date":
+          return "Closing Date";
+
+        default:
+          return field ?? "";
+      }
+    }
+
     // under_contract -> Under Contract
     return value
       .split("_")
-      .map(
-        word => word.charAt(0).toUpperCase() + word.slice(1)
-      )
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   }
 
@@ -159,14 +194,14 @@ export default function TransactionActivity({
                 {item.description}
               </h4>
               {item.activity_type === "field_updated" && item.metadata && (
-                <p className="text-sm text-[#7C7265]">
-                  <span className="font-medium">
+                <p className="flex items-center gap-2 text-sm">
+                  <span className="text-[#8F8578] line-through">
                     {formatMetadataValue(item.metadata.oldValue)}
                   </span>
 
-                  <span className="mx-2 text-[#B7832F]">→</span>
+                  <span className="text-[#B7832F]">→</span>
 
-                  <span className="font-medium text-[#29231D]">
+                  <span className="font-semibold text-[#29231D]">
                     {formatMetadataValue(item.metadata.newValue)}
                   </span>
                 </p>

@@ -105,28 +105,25 @@ export async function updateTransaction(params: UpdateTransactionParams) {
 
   if (updateError) {
     console.error("Transaction update error:", updateError);
-
     throw new Error(updateError.message || JSON.stringify(updateError));
   }
 
   for (const change of changes) {
     console.log("Logging activity for:", change);
 
-    const { error: activityError } = await supabase
-      .from("activity_log")
-      .insert({
-        organization_id: membership.organization_id,
-        entity_type: "transaction",
-        entity_id: params.transactionId,
-        activity_type: "field_updated",
-        description: `${change.label} changed`,
-        created_by: user.id,
-        metadata: {
-          field: change.key,
-          oldValue: existingTransaction[change.key],
-          newValue: params[change.key],
-        },
-      });
+    const { error: activityError } = await supabase.from("activity_log").insert({
+      organization_id: membership.organization_id,
+      entity_type: "transaction",
+      entity_id: params.transactionId,
+      activity_type: "field_updated",
+      description: `${change.label} changed`,
+      created_by: user.id,
+      metadata: {
+        field: change.key,
+        oldValue: existingTransaction[change.key],
+        newValue: params[change.key],
+      },
+    });
 
     if (activityError) {
       console.error("Activity log insert error:", activityError);

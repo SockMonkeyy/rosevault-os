@@ -25,11 +25,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          organization_name: organizationName,
-        },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
       },
     });
 
@@ -41,7 +37,7 @@ export default function SignupPage() {
 
     if (!data.session) {
       setMessage(
-        "Account created. Check your email to confirm your account, then sign in."
+        "Account created. Check your email to confirm your account, then sign in.",
       );
       setIsLoading(false);
       return;
