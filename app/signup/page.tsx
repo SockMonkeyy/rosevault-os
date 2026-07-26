@@ -45,7 +45,43 @@ export default function SignupPage() {
 
     window.location.href = "/onboarding";
   }
+  async function handleSignUp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setIsLoading(true);
 
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        },
+      });
+
+      console.log("SIGNUP DATA:", data);
+      console.log("SIGNUP ERROR:", error);
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      if (!data.session) {
+        setMessage(
+          "Account created. Check your email to confirm your account.",
+        );
+        return;
+      }
+
+      window.location.href = "/onboarding";
+    } catch (err) {
+      console.error("Unexpected signup error:", err);
+      setMessage(err instanceof Error ? err.message : "Unexpected error");
+    } finally {
+      setIsLoading(false);
+    }
+  }
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
       <div className="w-full max-w-md">
