@@ -78,6 +78,7 @@ app/
       [id]/
         edit/
           page.tsx
+        page.tsx
       new/
         page.tsx
       page.tsx
@@ -238,104 +239,9 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
-<file path="lib/dashboard/getRecentActivity.ts">
-import { createClient } from "@/lib/supabase/server";
-
-function timeAgo(date: string) {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-
-  const intervals = [
-    { label: "year", seconds: 31536000 },
-    { label: "month", seconds: 2592000 },
-    { label: "week", seconds: 604800 },
-    { label: "day", seconds: 86400 },
-    { label: "hour", seconds: 3600 },
-    { label: "minute", seconds: 60 },
-  ];
-
-  for (const interval of intervals) {
-    const count = Math.floor(seconds / interval.seconds);
-
-    if (count >= 1) {
-      return `${count} ${interval.label}${count > 1 ? "s" : ""} ago`;
-    }
-  }
-
-  return "Just now";
-}
-
-export async function getRecentActivity(organizationId: string) {
-  const supabase = await createClient();
-
-  const [contactsResult, propertiesResult, transactionsResult] =
-    await Promise.all([
-      supabase
-        .from("contacts")
-        .select("id, first_name, last_name, created_at")
-        .eq("organization_id", organizationId)
-        .order("created_at", { ascending: false })
-        .limit(5),
-
-      supabase
-        .from("properties")
-        .select(
-          "id, property_address_line_1, property_city, property_state, created_at",
-        )
-        .eq("organization_id", organizationId)
-        .order("created_at", { ascending: false })
-        .limit(5),
-
-      supabase
-        .from("transactions")
-        .select("id, transaction_name, status, created_at")
-        .eq("organization_id", organizationId)
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
-
-  const activity = [
-    ...(contactsResult.data ?? []).map((contact) => ({
-      id: contact.id,
-      type: "contact",
-      title: [contact.first_name, contact.last_name].filter(Boolean).join(" "),
-      subtitle: "New contact added",
-      created_at: contact.created_at,
-      timeAgo: timeAgo(contact.created_at),
-    })),
-
-    ...(propertiesResult.data ?? []).map((property) => ({
-      id: property.id,
-      type: "property",
-      title: property.property_address_line_1,
-      subtitle: `${property.property_city}, ${property.property_state}`,
-      created_at: property.created_at,
-      timeAgo: timeAgo(property.created_at),
-    })),
-
-    ...(transactionsResult.data ?? []).map((transaction) => ({
-      id: transaction.id,
-      type: "transaction",
-      title: transaction.transaction_name,
-      subtitle: transaction.status
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (c: string) => c.toUpperCase()),
-      created_at: transaction.created_at,
-      timeAgo: timeAgo(transaction.created_at),
-    })),
-  ];
-
-  activity.sort(
-    (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-  );
-
-  return activity.slice(0, 10);
-}
-</file>
-
 <file path="rosevault-os/.git/gk/config">
 [branch "main"]
-	gk-last-accessed = 2026-07-25T22:46:26.392Z
+	gk-last-accessed = 2026-07-25T23:43:35.689Z
 </file>
 
 <file path="rosevault-os/.git/hooks/applypatch-msg.sample">
@@ -1385,58 +1291,6 @@ export default function GenericFeaturePage() {
           </div>
         </div>
 
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="app/(dashboard)/transactions/[id]/edit/page.tsx">
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import TransactionEditForm from "@/app/components/TransactionEditForm";
-
-export default async function EditTransactionPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return notFound();
-  }
-
-  const { data: transaction, error } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error || !transaction) {
-    return notFound();
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Transactions
-        </p>
-
-        <h1 className="mt-2 font-serif text-4xl text-[#29231D]">
-          Edit Transaction
-        </h1>
-      </div>
-
-      <div className="rounded-2xl border border-[#EDE7DC] bg-white/70 p-8">
-        <TransactionEditForm transaction={transaction} />
       </div>
     </div>
   );
@@ -3350,228 +3204,6 @@ export const config = {
 };
 </file>
 
-<file path="app/signup/page.tsx">
-"use client";
-
-import { FormEvent, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import Image from "next/image";
-import Link from "next/link";
-
-export default function SignupPage() {
-  const supabase = createClient();
-
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  async function handleSignUp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
-    setIsLoading(true);
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          organization_name: organizationName,
-        },
-      },
-    });
-
-    if (error) {
-      setMessage(error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!data.session) {
-      setMessage(
-        "Account created. Check your email to confirm your account, then sign in."
-      );
-      setIsLoading(false);
-      return;
-    }
-
-    window.location.href = "/onboarding";
-  }
-
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
-      <div className="w-full max-w-md">
-        {/* Header & Branding */}
-        <div className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <Image
-              src="/rosevaultlogo.png"
-              alt="Rose Key Realty Co. logo"
-              width={450}
-              height={450}
-              priority
-              className="h-auto max-w-[240px] object-contain"
-            />
-          </div>
-
-          <h1 className="font-serif text-2xl font-normal tracking-wide text-[#29231D]">
-            ROSE KEY OS
-          </h1>
-
-          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
-            &ldquo;Where Every Home Blooms with Possibility&rdquo;
-          </p>
-        </div>
-
-        {/* Card Container */}
-        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
-          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
-            Create your account
-          </h2>
-
-          <p className="mt-2 text-sm text-[#7C7265]">
-            Start building your real estate command center.
-          </p>
-
-          <form onSubmit={handleSignUp} className="mt-8 space-y-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="firstName"
-                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-                >
-                  First name
-                </label>
-
-                <input
-                  id="firstName"
-                  type="text"
-                  required
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="lastName"
-                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-                >
-                  Last name
-                </label>
-
-                <input
-                  id="lastName"
-                  type="text"
-                  required
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="organizationName"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Company or organization name
-              </label>
-
-              <input
-                id="organizationName"
-                type="text"
-                required
-                value={organizationName}
-                onChange={(event) => setOrganizationName(event.target.value)}
-                placeholder="Rose Key Realty Co."
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Email address
-              </label>
-
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Password
-              </label>
-
-              <input
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="At least 8 characters"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            {message && (
-              <div className="rounded-xl border border-[#B7832F]/30 bg-[#FBF7EF] px-4 py-3 text-sm text-[#966822]">
-                {message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading ? "Creating account..." : "Create account"}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-[#7C7265]">
-            Already have an account?{" "}
-            <Link
-              href="/login"
-              className="font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
-            >
-              Sign in
-            </Link>
-          </div>
-        </div>
-
-        <p className="mt-6 text-center text-xs tracking-wide text-[#8F8578]">
-          Secure access to your real estate command center.
-        </p>
-      </div>
-    </main>
-  );
-}
-</file>
-
 <file path="app/globals.css">
 @import "tailwindcss";
 
@@ -3637,89 +3269,98 @@ export default function RootLayout({
 }
 </file>
 
-<file path="lib/dashboard/getDashboardmetrics.ts">
+<file path="lib/dashboard/getRecentActivity.ts">
 import { createClient } from "@/lib/supabase/server";
 
-export async function getDashboardMetrics(organizationId: string) {
+function timeAgo(date: string) {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+
+  const intervals = [
+    { label: "year", seconds: 31536000 },
+    { label: "month", seconds: 2592000 },
+    { label: "week", seconds: 604800 },
+    { label: "day", seconds: 86400 },
+    { label: "hour", seconds: 3600 },
+    { label: "minute", seconds: 60 },
+  ];
+
+  for (const interval of intervals) {
+    const count = Math.floor(seconds / interval.seconds);
+
+    if (count >= 1) {
+      return `${count} ${interval.label}${count > 1 ? "s" : ""} ago`;
+    }
+  }
+
+  return "Just now";
+}
+
+export async function getRecentActivity(organizationId: string) {
   const supabase = await createClient();
 
-  // Active Leads
-  const { count: activeLeads } = await supabase
-    .from("contacts")
-    .select("*", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .eq("contact_type", "lead");
+  const [contactsResult, propertiesResult, transactionsResult] =
+    await Promise.all([
+      supabase
+        .from("contacts")
+        .select("id, first_name, last_name, created_at")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .limit(5),
 
-  // Under Contract
-  const { count: underContract } = await supabase
-    .from("transactions")
-    .select("*", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .eq("status", "under_contract");
+      supabase
+        .from("properties")
+        .select(
+          "id, property_address_line_1, property_city, property_state, created_at",
+        )
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .limit(5),
 
-  // Closings This Month
-  const today = new Date();
-
-  const startOfMonth = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    1
-  );
-
-  const endOfMonth = new Date(
-    today.getFullYear(),
-    today.getMonth() + 1,
-    1
-  );
-
-  const { count: closingsThisMonth } = await supabase
-    .from("transactions")
-    .select("*", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .eq("status", "closed")
-    .gte("actual_closing_date", startOfMonth.toISOString())
-    .lt("actual_closing_date", endOfMonth.toISOString());
-
-  // Pipeline Value
-  const { data: pipelineTransactions } = await supabase
-    .from("transactions")
-    .select("transaction_type, purchase_price, sale_price, assignment_fee")
-    .eq("organization_id", organizationId)
-    .in("status", [
-      "lead",
-      "offer_made",
-      "under_contract",
-      "due_diligence",
-      "clear_to_close",
+      supabase
+        .from("transactions")
+        .select("id, transaction_name, status, created_at")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .limit(5),
     ]);
 
-  const pipelineValue =
-  pipelineTransactions?.reduce((sum, transaction) => {
-    let value = 0;
+  const activity = [
+    ...(contactsResult.data ?? []).map((contact) => ({
+      id: contact.id,
+      type: "contact",
+      title: [contact.first_name, contact.last_name].filter(Boolean).join(" "),
+      subtitle: "New contact added",
+      created_at: contact.created_at,
+      timeAgo: timeAgo(contact.created_at),
+    })),
 
-    switch (transaction.transaction_type) {
-      case "wholesale_assignment":
-        value = Number(transaction.assignment_fee ?? 0);
-        break;
+    ...(propertiesResult.data ?? []).map((property) => ({
+      id: property.id,
+      type: "property",
+      title: property.property_address_line_1,
+      subtitle: `${property.property_city}, ${property.property_state}`,
+      created_at: property.created_at,
+      timeAgo: timeAgo(property.created_at),
+    })),
 
-      case "sale":
-        value = Number(transaction.sale_price ?? 0);
-        break;
+    ...(transactionsResult.data ?? []).map((transaction) => ({
+      id: transaction.id,
+      type: "transaction",
+      title: transaction.transaction_name,
+      subtitle: transaction.status
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c: string) => c.toUpperCase()),
+      created_at: transaction.created_at,
+      timeAgo: timeAgo(transaction.created_at),
+    })),
+  ];
 
-      default:
-        value = Number(transaction.purchase_price ?? 0);
-        break;
-    }
+  activity.sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
 
-    return sum + value;
-  }, 0) ?? 0;
-
-  return {
-    pipelineValue,
-    activeLeads: activeLeads ?? 0,
-    underContract: underContract ?? 0,
-    closingsThisMonth: closingsThisMonth ?? 0,
-  };
+  return activity.slice(0, 10);
 }
 </file>
 
@@ -4605,6 +4246,455 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
 }
 </file>
 
+<file path="app/(dashboard)/transactions/[id]/edit/page.tsx">
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, Receipt } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import TransactionEditForm from "@/app/components/TransactionEditForm";
+
+export default async function EditTransactionPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  // 1. Get authenticated user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // 2. Fetch active membership/organization details for the user
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    if (membershipError) console.error("Membership error:", membershipError);
+    notFound();
+  }
+
+  // 3. Fetch transaction scoped to the organization
+  const { data: transaction, error: transactionError } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("organization_id", membership.organization_id)
+    .eq("id", id)
+    .single();
+
+  if (transactionError || !transaction) {
+  console.error("Fetch Error:", transactionError);
+  return <div>Failed to load transaction ID: {id}</div>; // Remove notFound() temporarily
+}
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+      {/* Navigation & Header */}
+      <div className="space-y-4">
+        <Link
+          href="/transactions"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Transactions
+        </Link>
+
+        <div className="flex items-center justify-between border-b border-[#EDE7DC] pb-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0D0C0A] text-[#D8B66A] shadow-sm">
+              <Receipt className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#29231D]">
+                Edit Transaction
+              </h1>
+              <p className="text-xs text-[#8F8578]">
+                ID: <span className="font-mono text-[#0D0C0A]">{id}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Form Card */}
+      <div className="rounded-2xl border border-[#EDE7DC] bg-[#FBF7EF]/40 p-6 shadow-sm backdrop-blur-md sm:p-8">
+        <TransactionEditForm transaction={transaction} />
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="app/(dashboard)/transactions/[id]/page.tsx">
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  DollarSign,
+  Edit,
+  FileText,
+  CheckCircle2,
+  Circle,
+  Plus,
+  Upload,
+} from "lucide-react";
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function TransactionDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  // 1. Fetch active membership/organization details for tenant safety
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    if (membershipError) console.error("Membership error:", membershipError);
+    notFound();
+  }
+
+  // 2. Fetch the transaction scoped to the organization along with its related property data
+  const { data: transaction, error } = await supabase
+    .from("transactions")
+    .select("*, property:properties(*)")
+    .eq("id", id)
+    .eq("organization_id", membership.organization_id)
+    .single();
+
+  if (error || !transaction) {
+    notFound();
+  }
+
+  const timelineSteps = [
+    {
+      label: "Created",
+      statuses: [
+        "lead",
+        "offer_made",
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Offer Made",
+      statuses: [
+        "offer_made",
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Under Contract",
+      statuses: [
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Due Diligence",
+      statuses: [
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Clear To Close",
+      statuses: [
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Closed",
+      statuses: [
+        "closed",
+      ],
+    },
+  ];
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+      {/* Navigation & Header */}
+      <div className="space-y-4">
+        <Link
+          href="/transactions"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Transactions
+        </Link>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+                {transaction.transaction_name}
+              </h1>
+              <span className="rounded-full border border-[#EDE7DC] bg-[#FBF7EF] px-3 py-1 text-xs font-semibold capitalize text-[#7C7265]">
+                {transaction.status.replaceAll("_", " ")}
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+              {transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/transactions/${transaction.id}/edit`}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-5 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#29231D]"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
+            </Link>
+
+            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
+              Documents
+            </button>
+
+            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
+              Add Note
+            </button>
+
+            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
+              Activity
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Two-Column Layout Grid */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {/* Left Column */}
+        <div className="space-y-8">
+          {/* Financial Summary */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Financial Summary
+              </h2>
+            </div>
+            <div>
+              <SummaryRow
+                label="Purchase Price"
+                value={formatCurrency(transaction.purchase_price)}
+              />
+              <SummaryRow
+                label="Sale Price"
+                value={formatCurrency(transaction.sale_price)}
+              />
+              <SummaryRow
+                label="Assignment Fee"
+                value={formatCurrency(transaction.assignment_fee)}
+              />
+              <SummaryRow
+                label="Earnest Money"
+                value={formatCurrency(transaction.earnest_money)}
+              />
+            </div>
+          </div>
+
+          {/* Property Information Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Property Details
+              </h2>
+            </div>
+
+            {transaction.property ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Address
+                    </p>
+                    <p className="mt-1 text-[#29231D] font-medium">
+                      {transaction.property.property_address_line_1}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Location
+                    </p>
+                    <p className="mt-1 text-[#29231D] font-medium">
+                      {transaction.property.property_city},{" "}
+                      {transaction.property.property_state}{" "}
+                      {transaction.property.property_postal_code}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Link
+                    href={`/properties/${transaction.property.id}`}
+                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
+                  >
+                    View Property →
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#7C7265]">
+                No property linked to this transaction yet.
+              </p>
+            )}
+          </div>
+
+          {/* Notes Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Notes
+              </h2>
+              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
+                <Plus className="h-3.5 w-3.5" />
+                Add Note
+              </button>
+            </div>
+            <p className="text-sm text-[#7C7265]">No notes yet.</p>
+          </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-8">
+          {/* Deal Timeline */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Deal Timeline
+              </h2>
+            </div>
+            <div className="space-y-3 pt-2">
+              {timelineSteps.map((step) => {
+                const isCompleted = step.statuses.includes(transaction.status);
+                return (
+                  <div key={step.label} className="flex items-center gap-3">
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-[#D1C7B7]" />
+                    )}
+                    <span
+                      className={`text-sm font-medium ${
+                        isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Deal Metadata */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Deal Information
+              </h2>
+            </div>
+            <div>
+              <SummaryRow
+                label="Transaction Type"
+                value={transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
+              />
+              <SummaryRow
+                label="Created"
+                value={formatDate(transaction.created_at?.split("T")[0])}
+              />
+              <SummaryRow
+                label="Updated"
+                value={formatDate(transaction.updated_at?.split("T")[0])}
+              />
+              <SummaryRow
+                label="Closing Attorney"
+                value={transaction.closing_attorney ?? "—"}
+              />
+              <SummaryRow
+                label="Title Company"
+                value={transaction.title_company ?? "—"}
+              />
+            </div>
+          </div>
+
+          {/* Documents Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Documents
+              </h2>
+              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
+                <Upload className="h-3.5 w-3.5" />
+                Upload Document
+              </button>
+            </div>
+            <p className="text-sm text-[#7C7265]">No documents uploaded yet.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-[#F1ECE3] py-3 last:border-b-0">
+      <span className="text-sm text-[#7C7265]">{label}</span>
+      <span className="font-medium text-[#29231D]">{value}</span>
+    </div>
+  );
+}
+
+function formatCurrency(value: number | null) {
+  if (value === null) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+</file>
+
 <file path="app/(dashboard)/transactions/new/page.tsx">
 "use client";
 
@@ -5314,235 +5404,6 @@ function formatPropertyOption(property: PropertyOption): string {
     .join(" ");
 
   return [address, location].filter(Boolean).join(" — ");
-}
-</file>
-
-<file path="app/(dashboard)/transactions/page.tsx">
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import TransactionsTable, { TransactionRow } from "@/app/components/TransactionsTable";
-import { createClient } from "@/lib/supabase/server";
-
-type Property = {
-  id: string;
-  property_address_line_1: string;
-  property_city: string;
-  property_state: string;
-  property_postal_code: string;
-};
-
-export default async function TransactionsPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: membership, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (membershipError) {
-    console.error("Error loading organization membership:", membershipError);
-  }
-
-  if (!membership) {
-    redirect("/onboarding");
-  }
-
-  const { data: transactions, error: transactionsError } = await supabase
-    .from("transactions")
-    .select(
-      `
-      id,
-      organization_id,
-      property_id,
-      transaction_name,
-      transaction_type,
-      status,
-      purchase_price,
-      sale_price,
-      assignment_fee,
-      earnest_money,
-      contract_date,
-      inspection_deadline,
-      financing_deadline,
-      closing_date,
-      actual_closing_date,
-      title_company,
-      closing_attorney,
-      notes,
-      created_at,
-      updated_at
-    `,
-    )
-    .eq("organization_id", membership.organization_id)
-    .order("created_at", { ascending: false });
-
-  if (transactionsError) {
-    console.error("Error loading transactions:", transactionsError);
-  }
-
-  const propertyIds = [
-    ...new Set(
-      (transactions ?? [])
-        .map((transaction) => transaction.property_id)
-        .filter((propertyId): propertyId is string => Boolean(propertyId)),
-    ),
-  ];
-
-  let properties: Property[] = [];
-
-  if (propertyIds.length > 0) {
-    const { data: propertiesData, error: propertiesError } = await supabase
-      .from("properties")
-      .select(
-        `
-        id,
-        property_address_line_1,
-        property_city,
-        property_state,
-        property_postal_code
-      `,
-      )
-      .eq("organization_id", membership.organization_id)
-      .in("id", propertyIds);
-
-    if (propertiesError) {
-      console.error("Error loading transaction properties:", propertiesError);
-    } else {
-      properties = propertiesData ?? [];
-    }
-  }
-
-  const transactionRows: TransactionRow[] = (transactions ?? []).map(
-    (transaction) => {
-      const property =
-        properties.find((item) => item.id === transaction.property_id) ?? null;
-
-      return {
-        ...transaction,
-        property,
-      };
-    },
-  );
-
-  const totalTransactions = transactionRows.length;
-
-  const activeTransactions = transactionRows.filter((transaction) =>
-    [
-      "lead",
-      "offer_made",
-      "under_contract",
-      "due_diligence",
-      "clear_to_close",
-    ].includes(transaction.status),
-  ).length;
-
-  const underContractTransactions = transactionRows.filter(
-    (transaction) => transaction.status === "under_contract",
-  ).length;
-
-  const closedTransactions = transactionRows.filter(
-    (transaction) => transaction.status === "closed",
-  ).length;
-
-  return (
-    <div className="min-h-screen bg-[#FBF7EF] p-8 text-[#29231D]">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
-          <div>
-            <Link
-              href="/"
-              className="mb-3 inline-block text-sm font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
-            >
-              ← Back to Dashboard
-            </Link>
-
-            <h1 className="font-serif text-3xl font-normal text-[#29231D]">
-              Transactions
-            </h1>
-
-            <p className="mt-2 max-w-2xl text-[#7C7265]">
-              Manage purchases, sales, wholesale assignments, closings, key
-              deadlines, and every active deal in RoseVault.
-            </p>
-          </div>
-
-          <Link
-            href="/transactions/new"
-            className="rounded-xl bg-[#B7832F] px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50"
-          >
-            + New Transaction
-          </Link>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="Total Transactions" value={totalTransactions} />
-          <SummaryCard label="Active Deals" value={activeTransactions} />
-          <SummaryCard
-            label="Under Contract"
-            value={underContractTransactions}
-          />
-          <SummaryCard label="Closed" value={closedTransactions} />
-        </div>
-
-        {/* Transactions Table or Global Empty State */}
-        {transactionRows.length === 0 ? (
-          <section className="flex min-h-96 items-center justify-center rounded-2xl border border-[#EDE7DC] bg-white/60 p-8 shadow-sm backdrop-blur-sm">
-            <div className="max-w-lg text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B66A]/30 bg-[#FBF7EF]">
-                <span className="font-serif text-xl font-bold text-[#B7832F]">
-                  RV
-                </span>
-              </div>
-
-              <h2 className="mt-5 font-serif text-xl font-medium text-[#29231D]">
-                No transactions yet
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-[#7C7265]">
-                Create your first transaction to begin tracking properties,
-                financials, contract dates, closing deadlines, and deal progress
-                inside RoseVault.
-              </p>
-
-              <Link
-                href="/transactions/new"
-                className="mt-6 inline-block rounded-xl bg-[#B7832F] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#966822]"
-              >
-                + Create First Transaction
-              </Link>
-            </div>
-          </section>
-        ) : (
-          <TransactionsTable transactions={transactionRows} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-5 shadow-sm backdrop-blur-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-        {label}
-      </p>
-
-      <p className="mt-2 font-serif text-3xl font-normal text-[#B7832F]">
-        {value}
-      </p>
-    </div>
-  );
 }
 </file>
 
@@ -7522,219 +7383,6 @@ export default function PropertyRelationshipActions({
 }
 </file>
 
-<file path="app/components/TransactionEditForm.tsx">
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
-
-interface Props {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  transaction: any;
-}
-
-export default function TransactionEditForm({ transaction }: Props) {
-  const [transactionType, setTransactionType] = useState(
-    transaction.transaction_type ?? "purchase",
-  );
-  const router = useRouter();
-  const supabase = createClient();
-
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [transactionName, setTransactionName] = useState(
-    transaction.transaction_name ?? "",
-  );
-
-  const [status, setStatus] = useState(transaction.status ?? "lead");
-
-  const [purchasePrice, setPurchasePrice] = useState(
-    transaction.purchase_price?.toString() ?? "",
-  );
-
-  const [salePrice, setSalePrice] = useState(
-    transaction.sale_price?.toString() ?? "",
-  );
-
-  const [assignmentFee, setAssignmentFee] = useState(
-    transaction.assignment_fee?.toString() ?? "",
-  );
-
-  const [closingDate, setClosingDate] = useState(
-    transaction.closing_date ?? "",
-  );
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-
-    setIsSaving(true);
-
-    const { error } = await supabase
-      .from("transactions")
-      .update({
-        transaction_type: transactionType,
-        transaction_name: transactionName,
-        status,
-        purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
-        sale_price: salePrice === "" ? null : Number(salePrice),
-        assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
-        closing_date: closingDate || null,
-      })
-      .eq("id", transaction.id);
-
-    setIsSaving(false);
-
-    if (error) {
-      toast.error("Unable to update transaction.");
-      return;
-    }
-
-    toast.success("Transaction updated.");
-
-    router.push(`/transactions/${transaction.id}`);
-    router.refresh();
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6 rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 backdrop-blur-sm sm:p-8"
-    >
-      {/* Transaction Name */}
-      <div>
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Transaction Name
-        </label>
-
-        <input
-          type="text"
-          value={transactionName}
-          onChange={(e) => setTransactionName(e.target.value)}
-          placeholder="e.g., Main Street Purchase"
-          className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-        />
-      </div>
-
-      <div>
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Transaction Type
-        </label>
-
-        <select
-          value={transactionType}
-          onChange={(e) => setTransactionType(e.target.value)}
-          className="w-full rounded-xl border border-[#EDE7DC] px-4 py-3"
-        >
-          <option value="purchase">Purchase</option>
-          <option value="sale">Sale</option>
-          <option value="wholesale_assignment">Wholesale Assignment</option>
-          <option value="rehab">Rehab</option>
-          <option value="rental">Rental</option>
-        </select>
-      </div>
-
-      {/* Status */}
-      <div>
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Status
-        </label>
-
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-        >
-          <option value="lead">Lead</option>
-          <option value="under_contract">Under Contract</option>
-          <option value="closed">Closed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
-
-      {/* Financials Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-            Purchase Price
-          </label>
-
-          <input
-            type="number"
-            value={purchasePrice}
-            onChange={(e) => setPurchasePrice(e.target.value)}
-            placeholder="0"
-            className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-            Sale Price
-          </label>
-
-          <input
-            type="number"
-            value={salePrice}
-            onChange={(e) => setSalePrice(e.target.value)}
-            placeholder="0"
-            className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-            Assignment Fee
-          </label>
-
-          <input
-            type="number"
-            value={assignmentFee}
-            onChange={(e) => setAssignmentFee(e.target.value)}
-            placeholder="0"
-            className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-          />
-        </div>
-      </div>
-
-      {/* Closing Date */}
-      <div>
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Closing Date
-        </label>
-
-        <input
-          type="date"
-          value={closingDate}
-          onChange={(e) => setClosingDate(e.target.value)}
-          className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-        />
-      </div>
-
-      {/* Form Action Controls */}
-      <div className="flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded-xl border border-[#EDE7DC] px-6 py-3 text-[#7C7265] hover:bg-[#FBF7EF]"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="rounded-xl bg-black px-6 py-3 text-[#D8B66A]"
-        >
-          {isSaving ? "Saving..." : "Save Changes"}
-        </button>
-      </div>
-    </form>
-  );
-}
-</file>
-
 <file path="app/components/TransactionsTable.tsx">
 "use client";
 
@@ -8196,111 +7844,76 @@ export default function LoginPage() {
 }
 </file>
 
-<file path="app/onboarding/page.tsx">
+<file path="app/signup/page.tsx">
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
+import Link from "next/link";
 
-export default function OnboardingPage() {
+export default function SignupPage() {
   const supabase = createClient();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
-
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    async function loadUser() {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error || !user) {
-        window.location.href = "/login";
-        return;
-      }
-
-      const metadata = user.user_metadata;
-
-      setFirstName(metadata?.first_name ?? "");
-      setLastName(metadata?.last_name ?? "");
-      setOrganizationName(metadata?.organization_name ?? "");
-
-      setIsLoadingUser(false);
-    }
-
-    loadUser();
-  }, [supabase]);
-
-  function createSlug(name: string) {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  }
-
-  async function handleOnboarding(event: FormEvent<HTMLFormElement>) {
+  async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     setMessage("");
-    setIsSubmitting(true);
+    setIsLoading(true);
 
-    const baseSlug = createSlug(organizationName);
-
-    if (!baseSlug) {
-      setMessage("Please enter a valid organization name.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const uniqueSlug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
-
-    const { error } = await supabase.rpc(
-      "create_organization_for_current_user",
-      {
-        organization_name: organizationName,
-        organization_slug: uniqueSlug,
-        first_name: firstName,
-        last_name: lastName,
-      }
-    );
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          organization_name: organizationName,
+        },
+      },
+    });
 
     if (error) {
       setMessage(error.message);
-      setIsSubmitting(false);
+      setIsLoading(false);
       return;
     }
 
-    window.location.href = "/";
-  }
+    if (!data.session) {
+      setMessage(
+        "Account created. Check your email to confirm your account, then sign in."
+      );
+      setIsLoading(false);
+      return;
+    }
 
-  if (isLoadingUser) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] text-[#29231D]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#B7832F] border-t-transparent" />
-          <p className="text-sm tracking-wide text-[#8F8578]">
-            Loading your workspace...
-          </p>
-        </div>
-      </main>
-    );
+    window.location.href = "/onboarding";
   }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
-      <div className="w-full max-w-lg">
-        {/* Header */}
+      <div className="w-full max-w-md">
+        {/* Header & Branding */}
         <div className="mb-8 text-center">
-          <div className="mb-3 text-3xl">🌹🔑</div>
+          <div className="mb-4 flex justify-center">
+            <Image
+              src="/rosevaultlogo.png"
+              alt="Rose Key Realty Co. logo"
+              width={450}
+              height={450}
+              priority
+              className="h-auto max-w-[240px] object-contain"
+            />
+          </div>
 
-          <h1 className="font-serif text-3xl tracking-wide text-[#29231D]">
+          <h1 className="font-serif text-2xl font-normal tracking-wide text-[#29231D]">
             ROSE KEY OS
           </h1>
 
@@ -8309,18 +7922,17 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        {/* Form Container */}
+        {/* Card Container */}
         <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
           <h2 className="font-serif text-2xl font-normal text-[#29231D]">
-            Create your command center
+            Create your account
           </h2>
 
-          <p className="mt-2 text-sm leading-6 text-[#7C7265]">
-            Confirm your information below. Your organization will have its own
-            secure workspace inside Rose Key OS.
+          <p className="mt-2 text-sm text-[#7C7265]">
+            Start building your real estate command center.
           </p>
 
-          <form onSubmit={handleOnboarding} className="mt-8 space-y-5">
+          <form onSubmit={handleSignUp} className="mt-8 space-y-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label
@@ -8378,26 +7990,165 @@ export default function OnboardingPage() {
               />
             </div>
 
+            <div>
+              <label
+                htmlFor="email"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+              >
+                Email address
+              </label>
+
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+              >
+                Password
+              </label>
+
+              <input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="At least 8 characters"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+
             {message && (
-              <div className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-sm text-rose-800">
+              <div className="rounded-xl border border-[#B7832F]/30 bg-[#FBF7EF] px-4 py-3 text-sm text-[#966822]">
                 {message}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isLoading}
               className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting
-                ? "Creating your workspace..."
-                : "Create my workspace"}
+              {isLoading ? "Creating account..." : "Create account"}
             </button>
           </form>
+
+          <div className="mt-6 text-center text-sm text-[#7C7265]">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
+            >
+              Sign in
+            </Link>
+          </div>
         </div>
+
+        <p className="mt-6 text-center text-xs tracking-wide text-[#8F8578]">
+          Secure access to your real estate command center.
+        </p>
       </div>
     </main>
   );
+}
+</file>
+
+<file path="lib/dashboard/getDashboardmetrics.ts">
+import { createClient } from "@/lib/supabase/server";
+
+export async function getDashboardMetrics(organizationId: string) {
+  const supabase = await createClient();
+
+  // Active Leads
+  const { count: activeLeads } = await supabase
+    .from("contacts")
+    .select("*", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("contact_type", "lead");
+
+  // Under Contract
+  const { count: underContract } = await supabase
+    .from("transactions")
+    .select("*", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("status", "under_contract");
+
+  // Closings This Month
+  const today = new Date();
+
+  const startOfMonth = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    1
+  );
+
+  const endOfMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    1
+  );
+
+  const { count: closingsThisMonth } = await supabase
+    .from("transactions")
+    .select("*", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("status", "closed")
+    .gte("actual_closing_date", startOfMonth.toISOString())
+    .lt("actual_closing_date", endOfMonth.toISOString());
+
+  // Pipeline Value
+  const { data: pipelineTransactions } = await supabase
+    .from("transactions")
+    .select("transaction_type, purchase_price, sale_price, assignment_fee")
+    .eq("organization_id", organizationId)
+    .in("status", [
+      "lead",
+      "offer_made",
+      "under_contract",
+      "due_diligence",
+      "clear_to_close",
+    ]);
+
+  const pipelineValue =
+  pipelineTransactions?.reduce((sum, transaction) => {
+    let value = 0;
+
+    switch (transaction.transaction_type) {
+      case "wholesale_assignment":
+        value = Number(transaction.assignment_fee ?? 0);
+        break;
+
+      case "sale":
+        value = Number(transaction.sale_price ?? 0);
+        break;
+
+      default:
+        value = Number(transaction.purchase_price ?? 0);
+        break;
+    }
+
+    return sum + value;
+  }, 0) ?? 0;
+
+  return {
+    pipelineValue,
+    activeLeads: activeLeads ?? 0,
+    underContract: underContract ?? 0,
+    closingsThisMonth: closingsThisMonth ?? 0,
+  };
 }
 </file>
 
@@ -10978,6 +10729,263 @@ const inputClasses =
   "w-full rounded-lg border border-[#EDE7DC] bg-white/80 px-4 py-3 text-sm text-[#5C544A] outline-none transition duration-200 placeholder:text-[#CAD1C3]/80 focus:border-[#D8B66A] focus:bg-white focus:ring-1 focus:ring-[#D8B66A]/30 hover:border-[#D8B66A]/40";
 </file>
 
+<file path="app/(dashboard)/transactions/page.tsx">
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import TransactionsTable, {
+  TransactionRow,
+} from "@/app/components/TransactionsTable";
+import { createClient } from "@/lib/supabase/server";
+import StatCard from "@/app/components/ui/StatCard";
+import {
+    FolderOpen,
+    Briefcase,
+    FileSignature,
+    CheckCircle2,
+} from "lucide-react";
+
+type Property = {
+  id: string;
+  property_address_line_1: string;
+  property_city: string;
+  property_state: string;
+  property_postal_code: string;
+};
+
+export default async function TransactionsPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError) {
+    console.error("Error loading organization membership:", membershipError);
+  }
+
+  if (!membership) {
+    redirect("/onboarding");
+  }
+
+  const { data: transactions, error: transactionsError } = await supabase
+    .from("transactions")
+    .select(
+      `
+      id,
+      organization_id,
+      property_id,
+      transaction_name,
+      transaction_type,
+      status,
+      purchase_price,
+      sale_price,
+      assignment_fee,
+      earnest_money,
+      contract_date,
+      inspection_deadline,
+      financing_deadline,
+      closing_date,
+      actual_closing_date,
+      title_company,
+      closing_attorney,
+      notes,
+      created_at,
+      updated_at
+    `,
+    )
+    .eq("organization_id", membership.organization_id)
+    .order("created_at", { ascending: false });
+
+  if (transactionsError) {
+    console.error("Error loading transactions:", transactionsError);
+  }
+
+  const propertyIds = [
+    ...new Set(
+      (transactions ?? [])
+        .map((transaction) => transaction.property_id)
+        .filter((propertyId): propertyId is string => Boolean(propertyId)),
+    ),
+  ];
+
+  let properties: Property[] = [];
+
+  if (propertyIds.length > 0) {
+    const { data: propertiesData, error: propertiesError } = await supabase
+      .from("properties")
+      .select(
+        `
+        id,
+        property_address_line_1,
+        property_city,
+        property_state,
+        property_postal_code
+      `,
+      )
+      .eq("organization_id", membership.organization_id)
+      .in("id", propertyIds);
+
+    if (propertiesError) {
+      console.error("Error loading transaction properties:", propertiesError);
+    } else {
+      properties = propertiesData ?? [];
+    }
+  }
+
+  const transactionRows: TransactionRow[] = (transactions ?? []).map(
+    (transaction) => {
+      const property =
+        properties.find((item) => item.id === transaction.property_id) ?? null;
+
+      return {
+        ...transaction,
+        property,
+      };
+    },
+  );
+
+  const totalTransactions = transactionRows.length;
+
+  const ACTIVE_STATUSES = [
+    "lead",
+    "offer_made",
+    "under_contract",
+    "due_diligence",
+    "clear_to_close",
+];
+
+  const activeTransactions = transactionRows.filter((transaction) =>
+    ACTIVE_STATUSES.includes(transaction.status)
+).length;
+
+  
+
+  const underContractTransactions = transactionRows.filter(
+    (transaction) => transaction.status === "under_contract",
+  ).length;
+
+  const closedTransactions = transactionRows.filter(
+    (transaction) => transaction.status === "closed",
+  ).length;
+
+  return (
+    <div className="min-h-screen bg-[#FBF7EF] p-8 text-[#29231D]">
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+          <div>
+            <Link
+              href="/"
+              className="mb-3 inline-block text-sm font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
+            >
+              ← Back to Dashboard
+            </Link>
+
+            <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+              Transactions
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-[#7C7265]">
+              Manage purchases, sales, wholesale assignments, closings, key
+              deadlines, and every active deal in RoseVault.
+            </p>
+          </div>
+
+          <Link
+            href="/transactions/new"
+            className="rounded-xl bg-[#B7832F] px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50"
+          >
+            + New Transaction
+          </Link>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Total Transactions"
+            value={totalTransactions}
+            subtitle="All recorded deals"
+          />
+          <StatCard
+            title="Active Deals"
+            value={activeTransactions}
+            subtitle="Currently in progress"
+          />
+
+          <StatCard
+            title="Under Contract"
+            value={underContractTransactions}
+            subtitle="Awaiting closing"
+          />
+
+          <StatCard
+            title="Closed"
+            value={closedTransactions}
+            subtitle="Completed transactions"
+          />
+        </div>
+
+        {/* Transactions Table or Global Empty State */}
+        {transactionRows.length === 0 ? (
+          <section className="flex min-h-96 items-center justify-center rounded-2xl border border-[#EDE7DC] bg-white/60 p-8 shadow-sm backdrop-blur-sm">
+            <div className="max-w-lg text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B66A]/30 bg-[#FBF7EF]">
+                <span className="font-serif text-xl font-bold text-[#B7832F]">
+                  RV
+                </span>
+              </div>
+
+              <h2 className="mt-5 font-serif text-xl font-medium text-[#29231D]">
+                No transactions yet
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-[#7C7265]">
+                Create your first transaction to begin tracking properties,
+                financials, contract dates, closing deadlines, and deal progress
+                inside RoseVault.
+              </p>
+
+              <Link
+                href="/transactions/new"
+                className="mt-6 inline-block rounded-xl bg-[#B7832F] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#966822]"
+              >
+                + Create First Transaction
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <TransactionsTable transactions={transactionRows} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-5 shadow-sm backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+        {label}
+      </p>
+
+      <p className="mt-2 font-serif text-3xl font-normal text-[#B7832F]">
+        {value}
+      </p>
+    </div>
+  );
+}
+</file>
+
 <file path="app/(dashboard)/layout.tsx">
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
@@ -11026,231 +11034,6 @@ export default async function DashboardLayout({
             duration={3000}
           />
       </main>
-    </div>
-  );
-}
-</file>
-
-<file path="app/(dashboard)/page.tsx">
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import StatCard from "@/app/components/ui/StatCard";
-import { getDashboardMetrics } from "@/lib/dashboard/getDashboardmetrics";
-import { getRecentActivity } from "@/lib/dashboard/getRecentActivity";
-
-export default async function Home() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("first_name, last_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("organization_id, role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!membership) {
-    redirect("/onboarding");
-  }
-
-  const { data: organization } = await supabase
-    .from("organizations")
-    .select("id, name")
-    .eq("id", membership.organization_id)
-    .single();
-
-  const { pipelineValue, activeLeads, underContract, closingsThisMonth } =
-    await getDashboardMetrics(membership.organization_id);
-
-  const recentActivity = await getRecentActivity(membership.organization_id);
-
-  const formattedPipelineValue = pipelineValue.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-
-  const firstName =
-    profile?.first_name || user.user_metadata?.first_name || "there";
-
-  const organizationName = organization?.name || "Your Organization";
-
-  const userInitial =
-    firstName && firstName !== "there"
-      ? firstName.charAt(0).toUpperCase()
-      : "U";
-
-  const currentHour = new Date().getHours();
-
-  const greeting =
-    currentHour < 12
-      ? "Good morning"
-      : currentHour < 18
-        ? "Good afternoon"
-        : "Good evening";
-
-  const metrics = [
-    ["Pipeline Value", formattedPipelineValue],
-    ["Active Leads", activeLeads],
-    ["Under Contract", underContract],
-    ["Closings This Month", closingsThisMonth],
-  ] as const;
-
-  return (
-    <div className="mx-auto w-full max-w-7xl px-8 py-12 lg:px-12 lg:py-16">
-      {/* Editorial Header Section */}
-      <header className="mb-12 flex items-center justify-between gap-6 border-b border-[#EDE7DC]/60 pb-8">
-        <div>
-          <h2 className="font-serif text-3xl font-normal tracking-wide text-[#29231D] sm:text-4xl">
-            {greeting}, {firstName}
-          </h2>
-          <p className="mt-2 text-xs tracking-wide text-[#7C7265]">
-            Here&apos;s the current status of your workspace inside{" "}
-            <span className="font-medium text-[#29231D]">
-              {organizationName}
-            </span>{" "}
-            today.
-          </p>
-        </div>
-
-        {/* Profile Avatar Badge with Hover Scale and Pointer Cursor */}
-        <div className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#171512] text-xs font-semibold tracking-wider text-[#D8B66A] transition-transform duration-300 hover:scale-105">
-          {userInitial}
-        </div>
-      </header>
-
-      {/* Metrics Section with Interactive Clickable Card Micro-Elevation */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(([label, value]) => (
-          <StatCard
-            key={label}
-            title={label}
-            value={value}
-            subtitle="Live business metric"
-          />
-        ))}
-      </div>
-
-      {/* Primary Workspace Layout Split */}
-      <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-3">
-        {/* Left Side: Pipeline Portfolio Area */}
-        <div className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 xl:col-span-2">
-          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div>
-              <h3 className="font-serif text-xl font-normal tracking-wide text-[#29231D]">
-                Deal Pipeline
-              </h3>
-              <p className="mt-1 text-xs text-[#7C7265]">
-                Active commercial and private real estate opportunities
-              </p>
-            </div>
-
-            <button className="cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-2.5 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 ease-out hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.98]">
-              + Add Deal
-            </button>
-          </div>
-
-          <div className="rounded-xl border border-[#EDE7DC] bg-white/60">
-            <div className="border-b border-[#EDE7DC] px-6 py-4">
-              <h3 className="font-serif text-xl text-[#29231D]">
-                Business Timeline
-              </h3>
-
-              <p className="mt-1 text-xs text-[#7C7265]">
-                Latest activity across your organization
-              </p>
-            </div>
-
-            <div className="divide-y divide-[#F3EEE6]">
-              {recentActivity.length === 0 ? (
-                <div className="px-6 py-10 text-center">
-                  <p className="font-serif text-lg text-[#29231D]">
-                    No recent activity
-                  </p>
-
-                  <p className="mt-2 text-xs text-[#7C7265]">
-                    As you add contacts, properties, and transactions,
-                    they&apos;ll appear here.
-                  </p>
-                </div>
-              ) : (
-                recentActivity.map((activity) => {
-                  const icon =
-                    activity.type === "contact"
-                      ? "👤"
-                      : activity.type === "property"
-                        ? "🏠"
-                        : "📄";
-
-                  return (
-                    <div
-                      key={`${activity.type}-${activity.id}`}
-                      className="flex items-center justify-between px-6 py-4 transition-colors duration-200 hover:bg-[#FBF7EF]
-hover:border-l-4
-hover:border-[#D8B66A]"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-[#29231D]">
-                          {icon} {activity.title}
-                        </p>
-
-                        <div className="mt-1 flex items-center">
-                          <p className="flex-1 text-xs text-[#8F8578]">
-                            {activity.subtitle}
-                          </p>
-
-                          <span className="ml-4 shrink-0 text-[11px] text-[#A89C8D]">
-                            {activity.timeAgo}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side: Contextual Assistant Card (Rosie AI) */}
-        <div className="flex flex-col justify-between rounded-xl border border-[#D8B66A]/25 bg-[#12110F]/[0.02] p-8 transition-all duration-300 hover:border-[#D8B66A]/40 hover:bg-[#12110F]/[0.04]">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-              Rosie AI
-            </p>
-            <h3 className="mt-3 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
-              How can I support your pipeline today?
-            </h3>
-            <p className="mt-3 text-xs leading-relaxed text-[#7C7265]">
-              Request immediate insights across lead registries, outstanding
-              tasks, portfolio valuations, or marketing templates.
-            </p>
-
-            {/* Interactive Simulated Input Area */}
-            <div className="group mt-8 cursor-pointer rounded-md border border-[#EDE7DC] bg-white/70 p-4 transition-all duration-300 focus-within:border-[#B7832F]/50 hover:border-[#C4BCB1] hover:bg-white/90">
-              <p className="text-xs text-[#A89C8D] tracking-wide transition-colors duration-300 group-hover:text-[#7C7265]">
-                Ask Rosie a question...
-              </p>
-            </div>
-          </div>
-
-          <button className="mt-8 w-full cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 ease-out hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.98]">
-            Consult Assistant
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -13317,6 +13100,466 @@ export default function PropertyContactManager({
 }
 </file>
 
+<file path="app/components/TransactionEditForm.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, DollarSign, Calendar, Save } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+
+interface Transaction {
+  id: string;
+  transaction_name?: string | null;
+  transaction_type?: string | null;
+  status?: string | null;
+  purchase_price?: number | null;
+  sale_price?: number | null;
+  assignment_fee?: number | null;
+  closing_date?: string | null;
+}
+
+interface Props {
+  transaction: Transaction;
+}
+
+export default function TransactionEditForm({ transaction }: Props) {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [transactionName, setTransactionName] = useState(
+    transaction.transaction_name ?? ""
+  );
+  const [transactionType, setTransactionType] = useState(
+    transaction.transaction_type ?? "purchase"
+  );
+  const [status, setStatus] = useState(transaction.status ?? "lead");
+  const [purchasePrice, setPurchasePrice] = useState(
+    transaction.purchase_price?.toString() ?? ""
+  );
+  const [salePrice, setSalePrice] = useState(
+    transaction.sale_price?.toString() ?? ""
+  );
+  const [assignmentFee, setAssignmentFee] = useState(
+    transaction.assignment_fee?.toString() ?? ""
+  );
+  const [closingDate, setClosingDate] = useState(
+    transaction.closing_date ?? ""
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSaving(true);
+
+    const { error } = await supabase
+      .from("transactions")
+      .update({
+        transaction_type: transactionType,
+        transaction_name: transactionName,
+        status,
+        purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
+        sale_price: salePrice === "" ? null : Number(salePrice),
+        assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
+        closing_date: closingDate || null,
+      })
+      .eq("id", transaction.id);
+
+    setIsSaving(false);
+
+    if (error) {
+      toast.error("Unable to update transaction.");
+      return;
+    }
+
+    toast.success("Transaction updated successfully.");
+    router.push(`/transactions/${transaction.id}`);
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Basic Details Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          General Details
+        </h3>
+
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Transaction Name
+            </label>
+            <input
+              type="text"
+              value={transactionName}
+              onChange={(e) => setTransactionName(e.target.value)}
+              placeholder="e.g., Main Street Purchase"
+              required
+              className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+                Transaction Type
+              </label>
+              <select
+                value={transactionType}
+                onChange={(e) => setTransactionType(e.target.value)}
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              >
+                <option value="purchase">Purchase</option>
+                <option value="sale">Sale</option>
+                <option value="wholesale_assignment">Wholesale Assignment</option>
+                <option value="rehab">Rehab</option>
+                <option value="rental">Rental</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              >
+                <option value="lead">Lead</option>
+                <option value="under_contract">Under Contract</option>
+                <option value="closed">Closed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Financials Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          Financials
+        </h3>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Purchase Price
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Sale Price
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Assignment Fee
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={assignmentFee}
+                onChange={(e) => setAssignmentFee(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Timeline Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          Timeline
+        </h3>
+
+        <div className="max-w-xs">
+          <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+            Closing Date
+          </label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+            <input
+              type="date"
+              value={closingDate}
+              onChange={(e) => setClosingDate(e.target.value)}
+              className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end gap-3 pt-4">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          disabled={isSaving}
+          className="rounded-xl border border-[#EDE7DC] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] shadow-sm hover:bg-[#FBF7EF] transition-colors focus:outline-none"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-6 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition-all hover:bg-[#29231D] disabled:opacity-50"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              Save Changes
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
+</file>
+
+<file path="app/onboarding/page.tsx">
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+export default function OnboardingPage() {
+  const supabase = createClient();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      const metadata = user.user_metadata;
+
+      setFirstName(metadata?.first_name ?? "");
+      setLastName(metadata?.last_name ?? "");
+      setOrganizationName(metadata?.organization_name ?? "");
+
+      setIsLoadingUser(false);
+    }
+
+    loadUser();
+  }, [supabase]);
+
+  function createSlug(name: string) {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  async function handleOnboarding(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setMessage("");
+    setIsSubmitting(true);
+
+    const baseSlug = createSlug(organizationName);
+
+    if (!baseSlug) {
+      setMessage("Please enter a valid organization name.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const uniqueSlug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
+
+    const { error } = await supabase.rpc(
+      "create_organization_for_current_user",
+      {
+        organization_name: organizationName,
+        organization_slug: uniqueSlug,
+        first_name: firstName,
+        last_name: lastName,
+      }
+    );
+
+    if (error) {
+      setMessage(error.message);
+      setIsSubmitting(false);
+      return;
+    }
+
+    window.location.href = "/";
+  }
+
+  if (isLoadingUser) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] text-[#29231D]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#B7832F] border-t-transparent" />
+          <p className="text-sm tracking-wide text-[#8F8578]">
+            Loading your workspace...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
+      <div className="w-full max-w-lg">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <div className="mb-3 text-3xl">🌹🔑</div>
+
+          <h1 className="font-serif text-3xl tracking-wide text-[#29231D]">
+            ROSE KEY OS
+          </h1>
+
+          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
+            &ldquo;Where Every Home Blooms with Possibility&rdquo;
+          </p>
+        </div>
+
+        {/* Form Container */}
+        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
+          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
+            Create your command center
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-[#7C7265]">
+            Confirm your information below. Your organization will have its own
+            secure workspace inside Rose Key OS.
+          </p>
+
+          <form onSubmit={handleOnboarding} className="mt-8 space-y-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="firstName"
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+                >
+                  First name
+                </label>
+
+                <input
+                  id="firstName"
+                  type="text"
+                  required
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="lastName"
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+                >
+                  Last name
+                </label>
+
+                <input
+                  id="lastName"
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="organizationName"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+              >
+                Company or organization name
+              </label>
+
+              <input
+                id="organizationName"
+                type="text"
+                required
+                value={organizationName}
+                onChange={(event) => setOrganizationName(event.target.value)}
+                placeholder="Rose Key Realty Co."
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+
+            {message && (
+              <div className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-sm text-rose-800">
+                {message}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting
+                ? "Creating your workspace..."
+                : "Create my workspace"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </main>
+  );
+}
+</file>
+
 <file path="app/(dashboard)/contacts/new/page.tsx">
 "use client";
 
@@ -14822,6 +15065,231 @@ function formatDate(value: string | null | undefined): string {
     day: "numeric",
     year: "numeric",
   }).format(date);
+}
+</file>
+
+<file path="app/(dashboard)/page.tsx">
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import StatCard from "@/app/components/ui/StatCard";
+import { getDashboardMetrics } from "@/lib/dashboard/getDashboardmetrics";
+import { getRecentActivity } from "@/lib/dashboard/getRecentActivity";
+
+export default async function Home() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("first_name, last_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("organization_id, role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership) {
+    redirect("/onboarding");
+  }
+
+  const { data: organization } = await supabase
+    .from("organizations")
+    .select("id, name")
+    .eq("id", membership.organization_id)
+    .single();
+
+  const { pipelineValue, activeLeads, underContract, closingsThisMonth } =
+    await getDashboardMetrics(membership.organization_id);
+
+  const recentActivity = await getRecentActivity(membership.organization_id);
+
+  const formattedPipelineValue = pipelineValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+
+  const firstName =
+    profile?.first_name || user.user_metadata?.first_name || "there";
+
+  const organizationName = organization?.name || "Your Organization";
+
+  const userInitial =
+    firstName && firstName !== "there"
+      ? firstName.charAt(0).toUpperCase()
+      : "U";
+
+  const currentHour = new Date().getHours();
+
+  const greeting =
+    currentHour < 12
+      ? "Good morning"
+      : currentHour < 18
+        ? "Good afternoon"
+        : "Good evening";
+
+  const metrics = [
+    ["Pipeline Value", formattedPipelineValue],
+    ["Active Leads", activeLeads],
+    ["Under Contract", underContract],
+    ["Closings This Month", closingsThisMonth],
+  ] as const;
+
+  return (
+    <div className="mx-auto w-full max-w-7xl px-8 py-12 lg:px-12 lg:py-16">
+      {/* Editorial Header Section */}
+      <header className="mb-12 flex items-center justify-between gap-6 border-b border-[#EDE7DC]/60 pb-8">
+        <div>
+          <h2 className="font-serif text-3xl font-normal tracking-wide text-[#29231D] sm:text-4xl">
+            {greeting}, {firstName}
+          </h2>
+          <p className="mt-2 text-xs tracking-wide text-[#7C7265]">
+            Here&apos;s the current status of your workspace inside{" "}
+            <span className="font-medium text-[#29231D]">
+              {organizationName}
+            </span>{" "}
+            today.
+          </p>
+        </div>
+
+        {/* Profile Avatar Badge with Hover Scale and Pointer Cursor */}
+        <div className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#171512] text-xs font-semibold tracking-wider text-[#D8B66A] transition-transform duration-300 hover:scale-105">
+          {userInitial}
+        </div>
+      </header>
+
+      {/* Metrics Section with Interactive Clickable Card Micro-Elevation */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {metrics.map(([label, value]) => (
+          <StatCard
+            key={label}
+            title={label}
+            value={value}
+            subtitle="Live business metric"
+          />
+        ))}
+      </div>
+
+      {/* Primary Workspace Layout Split */}
+      <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-3">
+        {/* Left Side: Pipeline Portfolio Area */}
+        <div className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 xl:col-span-2">
+          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <h3 className="font-serif text-xl font-normal tracking-wide text-[#29231D]">
+                Deal Pipeline
+              </h3>
+              <p className="mt-1 text-xs text-[#7C7265]">
+                Active commercial and private real estate opportunities
+              </p>
+            </div>
+
+            <button className="cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-2.5 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 ease-out hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.98]">
+              + Add Deal
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-[#EDE7DC] bg-white/60">
+            <div className="border-b border-[#EDE7DC] px-6 py-4">
+              <h3 className="font-serif text-xl text-[#29231D]">
+                Business Timeline
+              </h3>
+
+              <p className="mt-1 text-xs text-[#7C7265]">
+                Latest activity across your organization
+              </p>
+            </div>
+
+            <div className="divide-y divide-[#F3EEE6]">
+              {recentActivity.length === 0 ? (
+                <div className="px-6 py-10 text-center">
+                  <p className="font-serif text-lg text-[#29231D]">
+                    No recent activity
+                  </p>
+
+                  <p className="mt-2 text-xs text-[#7C7265]">
+                    As you add contacts, properties, and transactions,
+                    they&apos;ll appear here.
+                  </p>
+                </div>
+              ) : (
+                recentActivity.map((activity) => {
+                  const icon =
+                    activity.type === "contact"
+                      ? "👤"
+                      : activity.type === "property"
+                        ? "🏠"
+                        : "📄";
+
+                  return (
+                    <div
+                      key={`${activity.type}-${activity.id}`}
+                      className="flex items-center justify-between px-6 py-4 transition-colors duration-200 hover:bg-[#FBF7EF]
+hover:border-l-4
+hover:border-[#D8B66A]"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-[#29231D]">
+                          {icon} {activity.title}
+                        </p>
+
+                        <div className="mt-1 flex items-center">
+                          <p className="flex-1 text-xs text-[#8F8578]">
+                            {activity.subtitle}
+                          </p>
+
+                          <span className="ml-4 shrink-0 text-[11px] text-[#A89C8D]">
+                            {activity.timeAgo}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Contextual Assistant Card (Rosie AI) */}
+        <div className="flex flex-col justify-between rounded-xl border border-[#D8B66A]/25 bg-[#12110F]/[0.02] p-8 transition-all duration-300 hover:border-[#D8B66A]/40 hover:bg-[#12110F]/[0.04]">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Rosie AI
+            </p>
+            <h3 className="mt-3 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+              How can I support your pipeline today?
+            </h3>
+            <p className="mt-3 text-xs leading-relaxed text-[#7C7265]">
+              Request immediate insights across lead registries, outstanding
+              tasks, portfolio valuations, or marketing templates.
+            </p>
+
+            {/* Interactive Simulated Input Area */}
+            <div className="group mt-8 cursor-pointer rounded-md border border-[#EDE7DC] bg-white/70 p-4 transition-all duration-300 focus-within:border-[#B7832F]/50 hover:border-[#C4BCB1] hover:bg-white/90">
+              <p className="text-xs text-[#A89C8D] tracking-wide transition-colors duration-300 group-hover:text-[#7C7265]">
+                Ask Rosie a question...
+              </p>
+            </div>
+          </div>
+
+          <button className="mt-8 w-full cursor-pointer rounded-md bg-[#0D0C0A] px-5 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 ease-out hover:bg-[#211E1A] hover:text-[#EAE5DE] active:scale-[0.98]">
+            Consult Assistant
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 </file>
 

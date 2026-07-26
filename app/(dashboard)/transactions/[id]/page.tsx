@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import StatusBadge from "@/app/components/ui/StatusBadge";
 import {
   ArrowLeft,
   Building2,
@@ -118,9 +119,7 @@ export default async function TransactionDetailPage({ params }: PageProps) {
               <h1 className="font-serif text-3xl font-normal text-[#29231D]">
                 {transaction.transaction_name}
               </h1>
-              <span className="rounded-full border border-[#EDE7DC] bg-[#FBF7EF] px-3 py-1 text-xs font-semibold capitalize text-[#7C7265]">
-                {transaction.status.replaceAll("_", " ")}
-              </span>
+              <StatusBadge status={transaction.status} />
             </div>
             <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
               {transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
