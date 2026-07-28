@@ -88,7 +88,9 @@ app/
     transactions/
       createTransactionNote.ts
       deleteTransactionNote.ts
+      updateTransaction.ts
       updateTransactionNote.ts
+      uploadTransactionDocument.ts
   components/
     layout/
       WorkspaceLayout.tsx
@@ -97,6 +99,7 @@ app/
       DeleteTransactionNoteButton.tsx
       EditTransactionNoteButton.tsx
       TransactionActivity.tsx
+      TransactionDocuments.tsx
       TransactionNotes.tsx
     ui/
       Alert/
@@ -254,325 +257,6 @@ tsconfig.json
 
 <files>
 This section contains the contents of the repository's files.
-
-<file path="app/actions/transactions/deleteTransactionNote.ts">
-"use server";
-
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import { logActivity } from "@/lib/activity/logActivity";
-
-interface DeleteTransactionNoteParams {
-  noteId: string;
-  transactionId: string;
-}
-
-export async function deleteTransactionNote({
-  noteId,
-  transactionId,
-}: DeleteTransactionNoteParams) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
-
-  const { data: membership, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-
-  if (membershipError || !membership) {
-    throw new Error("Unauthorized organization access.");
-  }
-
-  const { error } = await supabase
-    .from("transaction_notes")
-    .delete()
-    .eq("id", noteId)
-    .eq("organization_id", membership.organization_id);
-
-  if (error) {
-    console.error(error);
-    throw new Error("Failed to delete note.");
-  }
-
-  await logActivity({
-    organizationId: membership.organization_id,
-    entityType: "transaction",
-    entityId: transactionId,
-    activityType: "note_deleted",
-    description: "Deleted a transaction note",
-    createdBy: user.id,
-  });
-
-  revalidatePath(`/transactions/${transactionId}`);
-}
-</file>
-
-<file path="app/actions/transactions/updateTransactionNote.ts">
-"use server";
-
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-
-interface UpdateTransactionNoteParams {
-  noteId: string;
-  transactionId: string;
-  note: string;
-}
-
-export async function updateTransactionNote({
-  noteId,
-  transactionId,
-  note,
-}: UpdateTransactionNoteParams) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Unauthorized");
-  }
-
-  // Fetch the user's current organization membership for tenant scoping
-  const { data: membership, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .single();
-
-  if (membershipError || !membership) {
-    throw new Error("Unauthorized organization access.");
-  }
-
-  console.log("Updating note:", { noteId, note });
-
-  const { data, error } = await supabase
-  .from("transaction_notes")
-  .update({
-    note,
-  })
-  .eq("id", noteId)
-  .eq("organization_id", membership.organization_id)
-  .select();
-
-  console.log("Update result:", data);
-  console.log("Update error:", error);
-
-  if (error) {
-    console.error(error);
-    throw new Error("Failed to update note.");
-  }
-
-  revalidatePath(`/transactions/${transactionId}`);
-}
-</file>
-
-<file path="app/components/transactions/DeleteTransactionNoteButton.tsx">
-"use client";
-
-import { useState } from "react";
-import { Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { deleteTransactionNote } from "@/app/actions/transactions/deleteTransactionNote";
-
-interface DeleteTransactionNoteButtonProps {
-  noteId: string;
-  transactionId: string;
-}
-
-export default function DeleteTransactionNoteButton({
-  noteId,
-  transactionId,
-}: DeleteTransactionNoteButtonProps) {
-  const [open, setOpen] = useState(false);
-  const router = useRouter();
-  const [deleting, setDeleting] = useState(false);
-
-  async function handleDelete() {
-    console.log("Deleting note...", { noteId, transactionId });
-    try {
-      setDeleting(true);
-
-      await deleteTransactionNote({
-        noteId,
-        transactionId,
-      });
-
-      toast.success("Note deleted.");
-
-      setOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete note.");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
-        title="Delete Note"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="font-serif text-xl text-[#29231D]">Delete Note</h2>
-
-            <p className="mt-3 text-sm text-[#7C7265]">
-              Are you sure you want to permanently delete this note?
-            </p>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deleting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-</file>
-
-<file path="app/components/transactions/EditTransactionNoteButton.tsx">
-"use client";
-
-import { useState } from "react";
-import { Pencil } from "lucide-react";
-import { toast } from "sonner";
-import { updateTransactionNote } from "@/app/actions/transactions/updateTransactionNote";
-import { useRouter } from "next/navigation";
-
-interface EditTransactionNoteButtonProps {
-  noteId: string;
-  transactionId: string;
-  note: string;
-}
-
-export default function EditTransactionNoteButton({
-  noteId,
-  transactionId,
-  note,
-}: EditTransactionNoteButtonProps) {
-  const [open, setOpen] = useState(false);
-  const [noteText, setNoteText] = useState(note);
-
-  const router = useRouter();
-  const [saving, setSaving] = useState(false);
-
-  async function handleSave() {
-    if (!noteText.trim()) {
-      toast.error("Note cannot be empty.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      await updateTransactionNote({
-        noteId,
-        transactionId,
-        note: noteText.trim(),
-      });
-
-      toast.success("Note updated.");
-
-      setOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to update note.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-lg p-2 text-[#8F8578] transition hover:bg-[#FBF7EF] hover:text-[#29231D]"
-        title="Edit Note"
-      >
-        <Pencil className="h-4 w-4" />
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="font-serif text-xl text-[#29231D]">Edit Note</h2>
-
-            <div className="mt-6">
-              <label className="mb-2 block text-sm font-medium text-[#29231D]">
-                Note
-              </label>
-
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                rows={6}
-                className="w-full rounded-xl border border-[#E3DCD0] bg-white px-4 py-3 text-sm text-[#29231D] outline-none transition focus:border-[#B7832F] focus:ring-2 focus:ring-[#D8B66A]/30"
-              />
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium text-[#29231D] transition hover:bg-[#F5EEDF]"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="rounded-xl bg-[#0D0C0A] px-4 py-2 text-sm font-medium text-[#D8B66A] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-</file>
 
 <file path="rosevault-os/.git/gk/config">
 [branch "main"]
@@ -1703,6 +1387,66 @@ export async function createTransactionNote(
 }
 </file>
 
+<file path="app/actions/transactions/deleteTransactionNote.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity/logActivity";
+
+interface DeleteTransactionNoteParams {
+  noteId: string;
+  transactionId: string;
+}
+
+export async function deleteTransactionNote({
+  noteId,
+  transactionId,
+}: DeleteTransactionNoteParams) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (membershipError || !membership) {
+    throw new Error("Unauthorized organization access.");
+  }
+
+  const { error } = await supabase
+    .from("transaction_notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("organization_id", membership.organization_id);
+
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to delete note.");
+  }
+
+  await logActivity({
+    organizationId: membership.organization_id,
+    entityType: "transaction",
+    entityId: transactionId,
+    activityType: "note_deleted",
+    description: "Deleted a transaction note",
+    createdBy: user.id,
+  });
+
+  revalidatePath(`/transactions/${transactionId}`);
+}
+</file>
+
 <file path="app/components/layout/WorkspaceLayout.tsx">
 import { ReactNode } from "react";
 
@@ -1724,95 +1468,88 @@ export default function WorkspaceLayout({
 }
 </file>
 
-<file path="app/components/transactions/AddTransactionNoteButton.tsx">
+<file path="app/components/transactions/DeleteTransactionNoteButton.tsx">
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createTransactionNote } from "@/app/actions/transactions/createTransactionNote";
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
 
-interface AddTransactionNoteButtonProps {
+import { useState } from "react";
+import { Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { deleteTransactionNote } from "@/app/actions/transactions/deleteTransactionNote";
+
+interface DeleteTransactionNoteButtonProps {
+  noteId: string;
   transactionId: string;
 }
 
-export default function AddTransactionNoteButton({
+export default function DeleteTransactionNoteButton({
+  noteId,
   transactionId,
-}: AddTransactionNoteButtonProps) {
+}: DeleteTransactionNoteButtonProps) {
+  const [open, setOpen] = useState(false);
   const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
-  const [noteText, setNoteText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!noteText.trim()) return;
-
+  async function handleDelete() {
+    console.log("Deleting note...", { noteId, transactionId });
     try {
-      setIsSubmitting(true);
-      await createTransactionNote(transactionId, noteText.trim());
+      setDeleting(true);
 
-      toast.success("Note saved successfully.");
+      await deleteTransactionNote({
+        noteId,
+        transactionId,
+      });
 
-      setNoteText("");
-      setIsOpen(false);
+      toast.success("Note deleted.");
 
-      router.refresh(); // Forces Next.js to re-fetch Server Component data
+      setOpen(false);
+      router.refresh();
     } catch (error) {
-        
       console.error(error);
-
-      toast.error("Unable to save note.");
+      toast.error("Failed to delete note.");
     } finally {
-      setIsSubmitting(false);
+      setDeleting(false);
     }
-  };
+  }
 
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]"
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
+        title="Delete Note"
       >
-        <Plus className="h-3.5 w-3.5" />
-        Add Note
+        <Trash2 className="h-4 w-4" />
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
-            <h3 className="font-serif text-xl font-normal text-[#29231D]">
-              Add Transaction Note
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Type your note here..."
-                rows={4}
-                className="w-full rounded-xl border border-[#E3DCD0] p-3 text-sm text-[#29231D] focus:border-[#B7832F] focus:outline-none"
-                required
-              />
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setNoteText("");
-                  }}
-                  className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium text-[#7C7265] transition hover:bg-[#FBF7EF]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !noteText.trim()}
-                  className="rounded-xl bg-[#0D0C0A] px-4 py-2 text-sm font-semibold text-[#D8B66A] transition hover:bg-[#29231D] disabled:opacity-50"
-                >
-                  {isSubmitting ? "Saving..." : "Save Note"}
-                </button>
-              </div>
-            </form>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="font-serif text-xl text-[#29231D]">Delete Note</h2>
+
+            <p className="mt-3 text-sm text-[#7C7265]">
+              Are you sure you want to permanently delete this note?
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1821,209 +1558,156 @@ export default function AddTransactionNoteButton({
 }
 </file>
 
-<file path="app/components/transactions/TransactionActivity.tsx">
-import { Clock, FileText, Pencil, Trash2 } from "lucide-react";
+<file path="app/components/transactions/TransactionDocuments.tsx">
+"use client";
 
-interface ActivityItem {
-  id: string;
-  activity_type: string;
-  description: string;
-  created_at: string;
-  user?: {
-    first_name: string | null;
-    last_name: string | null;
-  } | null;
-}
+import { useRef, useState, useTransition } from "react";
+import { Upload, FileText, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { uploadTransactionDocument } from "@/app/actions/transactions/uploadTransactionDocument";
 
-interface TransactionActivityProps {
-  activity: ActivityItem[];
-}
+export function TransactionDocuments({
+  transactionId,
+}: {
+  transactionId: string;
+}) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-function getActivityIcon(activityType: string) {
-  switch (activityType) {
-    case "note_added":
-      return <FileText className="h-4 w-4" />;
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-    case "note_updated":
-      return <Pencil className="h-4 w-4" />;
+  const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
-    case "note_deleted":
-      return <Trash2 className="h-4 w-4" />;
+    const form = formRef.current;
+    if (!form) return;
 
-    default:
-      return <FileText className="h-4 w-4" />;
-  }
-}
+    if (!selectedFile) {
+      setMessage("Please select a file.");
+      return;
+    }
 
-function getActivityBadge(activityType: string) {
-  switch (activityType) {
-    case "note_added":
-      return {
-        label: "Note Added",
-        className: "bg-[#D8B66A]/15 text-[#B7832F] border border-[#D8B66A]/30",
-      };
+    const formData = new FormData(form);
 
-    case "note_updated":
-      return {
-        label: "Note Edited",
-        className: "bg-blue-50 text-blue-700 border border-blue-200",
-      };
+    setMessage(null);
 
-    case "note_deleted":
-      return {
-        label: "Note Deleted",
-        className: "bg-red-50 text-red-700 border border-red-200",
-      };
+    startTransition(async () => {
+      try {
+        const result = await uploadTransactionDocument(transactionId, formData);
 
-    default:
-      return {
-        label: "Activity",
-        className: "bg-[#E3DCD0]/40 text-[#7C7265] border border-[#E3DCD0]",
-      };
-  }
-}
+        if (result?.success) {
+          setMessage("File uploaded successfully!");
+          setSelectedFile(null);
+          form.reset();
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
 
-function formatActivityDate(date: string) {
-  const now = new Date();
-  const created = new Date(date);
+          // Refresh the page so the document list updates
+          router.refresh();
+        }
+      } catch (error) {
+        console.error(error);
 
-  const diff = Math.floor((now.getTime() - created.getTime()) / 1000);
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Error uploading file. Please try again.",
+        );
+      }
+    });
+  };
 
-  if (diff < 60) return "Just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
-
-  return created.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-export default function TransactionActivity({
-  activity,
-}: TransactionActivityProps) {
-  if (activity.length === 0) {
-    return <p className="text-sm text-[#7C7265]">No activity yet.</p>;
-  }
+  const clearSelection = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setMessage(null);
+  };
 
   return (
-    <div className="relative space-y-4 before:absolute before:bottom-3 before:top-3 before:left-5 before:w-px before:bg-[#EDE7DC]">
-      {activity.map((item) => {
-        const userName = item.user
-          ? `${item.user.first_name ?? ""} ${item.user.last_name ?? ""}`.trim()
-          : "";
-        const badge = getActivityBadge(item.activity_type);
+    <div className="space-y-4">
+      <form ref={formRef} onSubmit={handleUpload} className="space-y-4">
+        <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#EDE7DC] bg-[#FBF7EF]/50 p-6 text-center transition hover:border-[#B7832F]">
+          {/* Always keep the file input in the DOM so FormData picks it up */}
+          <input
+            ref={fileInputRef}
+            id="file-upload"
+            name="file"
+            type="file"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null;
+              setSelectedFile(file);
+              setMessage(null);
+            }}
+          />
 
-        return (
-          <div
-            key={item.id}
-            className="relative flex items-start gap-4 rounded-2xl border border-[#EDE7DC] bg-white/85 p-4 shadow-sm backdrop-blur-sm transition-all hover:bg-white"
-          >
-            <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0D0C0A] text-[#D8B66A] shadow-sm">
-              {getActivityIcon(item.activity_type)}
-            </div>
-
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span
-                  className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${badge.className}`}
-                >
-                  {badge.label}
-                </span>
-
-                <div className="flex items-center gap-1 text-xs text-[#8F8578]">
-                  <Clock className="h-3.5 w-3.5 text-[#B7832F]" />
-                  <span>{formatActivityDate(item.created_at)}</span>
+          {selectedFile ? (
+            <div className="flex w-full items-center justify-between rounded-lg bg-white p-3 shadow-sm border border-[#EDE7DC]">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="rounded-lg bg-[#FBF7EF] p-2 text-[#B7832F]">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="text-left overflow-hidden">
+                  <p className="text-sm font-medium text-[#29231D] truncate">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-[#8F8578]">
+                    {(selectedFile.size / 1024).toFixed(1)} KB
+                  </p>
                 </div>
               </div>
-
-              <h4 className="text-sm font-medium text-[#29231D]">
-                {item.description}
-              </h4>
-
-              {userName && (
-                <p className="text-xs text-[#8F8578]">
-                  <span className="font-medium text-[#29231D]">{userName}</span>
-                </p>
-              )}
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="rounded-lg p-1.5 text-[#8F8578] transition hover:bg-gray-100 hover:text-red-600"
+                title="Remove file"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-</file>
-
-<file path="app/components/transactions/TransactionNotes.tsx">
-import EditTransactionNoteButton from "@/app/components/transactions/EditTransactionNoteButton";
-import DeleteTransactionNoteButton from "@/app/components/transactions/DeleteTransactionNoteButton";
-
-interface TransactionNote {
-  id: string;
-  transaction_id: string;
-  note: string;
-  created_at: string;
-  user?: {
-    first_name: string | null;
-    last_name: string | null;
-  } | null;
-}
-
-interface TransactionNotesProps {
-  notes: TransactionNote[];
-}
-
-export default function TransactionNotes({ notes }: TransactionNotesProps) {
-  if (notes.length === 0) {
-    return <p className="text-sm text-[#7C7265]">No notes yet.</p>;
-  }
-
-  return (
-    <div className="space-y-3">
-      {notes.map((item) => {
-        const userName = item.user
-          ? `${item.user.first_name ?? ""} ${item.user.last_name ?? ""}`.trim()
-          : "";
-
-        return (
-          <div
-            key={item.id}
-            className="rounded-xl border border-[#EDE7DC] bg-[#FBF7EF] p-4"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <p className="flex-1 whitespace-pre-wrap text-sm text-[#29231D]">
-                {item.note}
-              </p>
-
-              <div className="flex items-center gap-1">
-                <EditTransactionNoteButton
-                  noteId={item.id}
-                  transactionId={item.transaction_id}
-                  note={item.note}
-                />
-
-                <DeleteTransactionNoteButton
-                  noteId={item.id}
-                  transactionId={item.transaction_id}
-                />
+          ) : (
+            <>
+              <div className="mb-3 rounded-full bg-[#EDE7DC]/60 p-3 text-[#B7832F]">
+                <Upload className="h-5 w-5" />
               </div>
-            </div>
 
-            <div className="mt-3 flex items-center gap-2 text-xs text-[#8F8578]">
-              {userName && (
-                <>
-                  <span className="font-medium text-[#29231D]">{userName}</span>
-                  <span>•</span>
-                </>
-              )}
-              <span>{new Date(item.created_at).toLocaleString()}</span>
-            </div>
-          </div>
-        );
-      })}
+              <label htmlFor="file-upload" className="cursor-pointer space-y-1">
+                <span className="text-sm font-medium text-[#29231D] hover:underline">
+                  Click to upload a document
+                </span>
+
+                <span className="block text-xs text-[#8F8578]">
+                  PDF, DOC, DOCX, JPG, PNG
+                </span>
+              </label>
+            </>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={isPending || !selectedFile}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D0C0A] px-4 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#29231D] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isPending ? "Uploading..." : "Upload Document"}
+        </button>
+      </form>
+
+      {message && (
+        <p
+          className={`text-center text-xs font-medium ${
+            message.includes("success") ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {message}
+        </p>
+      )}
     </div>
   );
 }
@@ -3376,298 +3060,6 @@ export default function LogoutButton() {
 }
 </file>
 
-<file path="app/components/TransactionForm.tsx">
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, DollarSign, Calendar, Save } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
-
-interface Transaction {
-  id: string;
-  transaction_name?: string | null;
-  transaction_type?: string | null;
-  status?: string | null;
-  purchase_price?: number | null;
-  sale_price?: number | null;
-  assignment_fee?: number | null;
-  closing_date?: string | null;
-}
-
-interface Props {
-  mode: "create" | "edit";
-  transaction?: Transaction;
-}
-
-export default function TransactionForm({
-  mode,
-  transaction,
-}: Props) {
-  const router = useRouter();
-  const supabase = createClient();
-
-  const [isSaving, setIsSaving] = useState(false);
-  const [transactionName, setTransactionName] = useState(
-    transaction?.transaction_name ?? ""
-  );
-  const [transactionType, setTransactionType] = useState(
-    transaction?.transaction_type ?? "purchase"
-  );
-  const [status, setStatus] = useState(transaction?.status ?? "lead");
-  const [purchasePrice, setPurchasePrice] = useState(
-    transaction?.purchase_price?.toString() ?? ""
-  );
-  const [salePrice, setSalePrice] = useState(
-    transaction?.sale_price?.toString() ?? ""
-  );
-  const [assignmentFee, setAssignmentFee] = useState(
-    transaction?.assignment_fee?.toString() ?? ""
-  );
-  const [closingDate, setClosingDate] = useState(
-    transaction?.closing_date ?? ""
-  );
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setIsSaving(true);
-
-    if (mode === "create") {
-      const { error } = await supabase.from("transactions").insert({
-        transaction_type: transactionType,
-        transaction_name: transactionName,
-        status,
-        purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
-        sale_price: salePrice === "" ? null : Number(salePrice),
-        assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
-        closing_date: closingDate || null,
-      });
-
-      setIsSaving(false);
-
-      if (error) {
-        toast.error("Unable to create transaction.");
-        return;
-      }
-
-      toast.success("Transaction created successfully.");
-      router.push("/transactions");
-      router.refresh();
-    } else {
-      if (!transaction) {
-        toast.error("Transaction not found.");
-        setIsSaving(false);
-        return;
-      }
-
-      const { error } = await supabase
-        .from("transactions")
-        .update({
-          transaction_type: transactionType,
-          transaction_name: transactionName,
-          status,
-          purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
-          sale_price: salePrice === "" ? null : Number(salePrice),
-          assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
-          closing_date: closingDate || null,
-        })
-        .eq("id", transaction.id);
-
-      setIsSaving(false);
-
-      if (error) {
-        toast.error("Unable to update transaction.");
-        return;
-      }
-
-      toast.success("Transaction updated successfully.");
-      router.push(`/transactions/${transaction.id}`);
-      router.refresh();
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Basic Details Section */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          General Details
-        </h3>
-
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-              Transaction Name
-            </label>
-            <input
-              type="text"
-              value={transactionName}
-              onChange={(e) => setTransactionName(e.target.value)}
-              placeholder="e.g., Main Street Purchase"
-              required
-              className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-                Transaction Type
-              </label>
-              <select
-                value={transactionType}
-                onChange={(e) => setTransactionType(e.target.value)}
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              >
-                <option value="purchase">Purchase</option>
-                <option value="sale">Sale</option>
-                <option value="wholesale_assignment">Wholesale Assignment</option>
-                <option value="rehab">Rehab</option>
-                <option value="rental">Rental</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              >
-                <option value="lead">Lead</option>
-                <option value="offer_made">Offer Made</option>
-                <option value="under_contract">Under Contract</option>
-                <option value="due_diligence">Due Diligence</option>
-                <option value="clear_to_close">Clear to Close</option>
-                <option value="closed">Closed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="expired">Expired</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <hr className="border-[#EDE7DC]" />
-
-      {/* Financials Section */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Financials
-        </h3>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-              Purchase Price
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
-              <input
-                type="number"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-                placeholder="0"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-              Sale Price
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
-              <input
-                type="number"
-                value={salePrice}
-                onChange={(e) => setSalePrice(e.target.value)}
-                placeholder="0"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-              Assignment Fee
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
-              <input
-                type="number"
-                value={assignmentFee}
-                onChange={(e) => setAssignmentFee(e.target.value)}
-                placeholder="0"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <hr className="border-[#EDE7DC]" />
-
-      {/* Timeline Section */}
-      <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-          Timeline
-        </h3>
-
-        <div className="max-w-xs">
-          <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
-            Closing Date
-          </label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
-            <input
-              type="date"
-              value={closingDate}
-              onChange={(e) => setClosingDate(e.target.value)}
-              className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          disabled={isSaving}
-          className="rounded-xl border border-[#EDE7DC] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] shadow-sm hover:bg-[#FBF7EF] transition-colors focus:outline-none"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-6 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition-all hover:bg-[#29231D] disabled:opacity-50"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              {mode === "create" ? "Create Transaction" : "Save Changes"}
-            </>
-          )}
-        </button>
-      </div>
-    </form>
-  );
-}
-</file>
-
 <file path="app/components/TransactionsTable.old.tsx">
 "use client";
 
@@ -4109,103 +3501,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-}
-</file>
-
-<file path="app/layout.tsx">
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "sonner";
-
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Create Next App",
-  description: "Generated by create next app",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body>
-  {children}
-
-  <Toaster
-    position="top-right"
-    richColors
-    closeButton
-    duration={3000}
-    theme="light"
-  />
-</body>
-    </html>
-  );
-}
-</file>
-
-<file path="lib/activity/getActivity.ts">
-import { createClient } from "@/lib/supabase/server";
-
-export async function getActivity(
-  organizationId: string,
-  entityType: string,
-  entityId: string,
-) {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("activity_log")
-    .select("*")
-    .eq("organization_id", organizationId)
-    .eq("entity_type", entityType)
-    .eq("entity_id", entityId)
-    .order("created_at", { ascending: false })
-    .limit(5);
-    
-
-  if (error) {
-    console.error("Activity Error:");
-    console.error(JSON.stringify(error, null, 2));
-    throw error;
-  }
-
-  const userIds = [...new Set(data.map((item) => item.created_by))];
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name")
-    .in("id", userIds);
-
-  if (profilesError) {
-    console.error("Profiles Error:", profilesError);
-    throw profilesError;
-  }
-
-  const profileMap = new Map(
-  (profiles ?? []).map((profile) => [profile.id, profile]),
-);
-
-return (data ?? []).map((activity) => ({
-  ...activity,
-  user: profileMap.get(activity.created_by) ?? null,
-}));
 }
 </file>
 
@@ -5960,6 +5255,612 @@ function formatPropertyOption(property: PropertyOption): string {
     .join(" ");
 
   return [address, location].filter(Boolean).join(" — ");
+}
+</file>
+
+<file path="app/actions/transactions/updateTransaction.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+interface UpdateTransactionParams {
+  transactionId: string;
+
+  transaction_name: string;
+  transaction_type: string;
+  status: string;
+
+  purchase_price: number | null;
+  sale_price: number | null;
+  assignment_fee: number | null;
+
+  closing_date: string | null;
+}
+
+export async function updateTransaction(params: UpdateTransactionParams) {
+  console.log("updateTransaction() called");
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Get the user's organization
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (membershipError || !membership) {
+    throw new Error("Unauthorized organization access.");
+  }
+
+  const { data: existingTransaction, error: existingError } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("id", params.transactionId)
+    .eq("organization_id", membership.organization_id)
+    .single();
+
+  if (existingError || !existingTransaction) {
+    throw new Error("Transaction not found.");
+  }
+
+  const trackedFields = [
+    {
+      key: "transaction_name",
+      label: "Transaction Name",
+    },
+    {
+      key: "transaction_type",
+      label: "Transaction Type",
+    },
+    {
+      key: "status",
+      label: "Status",
+    },
+    {
+      key: "purchase_price",
+      label: "Purchase Price",
+    },
+    {
+      key: "sale_price",
+      label: "Sale Price",
+    },
+    {
+      key: "assignment_fee",
+      label: "Assignment Fee",
+    },
+    {
+      key: "closing_date",
+      label: "Closing Date",
+    },
+  ] as const;
+
+  const changes = trackedFields.filter(({ key }) => {
+    return existingTransaction[key] !== params[key];
+  });
+
+  console.log("Detected changes:", changes);
+
+  const { error: updateError } = await supabase
+    .from("transactions")
+    .update({
+      transaction_name: params.transaction_name,
+      transaction_type: params.transaction_type,
+      status: params.status,
+      purchase_price: params.purchase_price,
+      sale_price: params.sale_price,
+      assignment_fee: params.assignment_fee,
+      closing_date: params.closing_date,
+    })
+    .eq("id", params.transactionId)
+    .eq("organization_id", membership.organization_id);
+
+  if (updateError) {
+    console.error("Transaction update error:", updateError);
+    throw new Error(updateError.message || JSON.stringify(updateError));
+  }
+
+  for (const change of changes) {
+    console.log("Logging activity for:", change);
+
+    const { error: activityError } = await supabase.from("activity_log").insert({
+      organization_id: membership.organization_id,
+      entity_type: "transaction",
+      entity_id: params.transactionId,
+      activity_type: "field_updated",
+      description: `${change.label} changed`,
+      created_by: user.id,
+      metadata: {
+        field: change.key,
+        oldValue: existingTransaction[change.key],
+        newValue: params[change.key],
+      },
+    });
+
+    if (activityError) {
+      console.error("Activity log insert error:", activityError);
+    }
+  }
+
+  revalidatePath(`/transactions/${params.transactionId}`);
+}
+</file>
+
+<file path="app/actions/transactions/updateTransactionNote.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+interface UpdateTransactionNoteParams {
+  noteId: string;
+  transactionId: string;
+  note: string;
+}
+
+export async function updateTransactionNote({
+  noteId,
+  transactionId,
+  note,
+}: UpdateTransactionNoteParams) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  // Fetch the user's current organization membership for tenant scoping
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (membershipError || !membership) {
+    throw new Error("Unauthorized organization access.");
+  }
+
+  console.log("Updating note:", { noteId, note });
+
+const { data, error } = await supabase
+  .from("transaction_notes")
+  .update({
+    note,
+  })
+  .eq("id", noteId)
+  .select();
+
+  if (error) {
+    console.error(error);
+    throw new Error("Failed to update note.");
+  }
+
+  revalidatePath(`/transactions/${transactionId}`);
+}
+</file>
+
+<file path="app/actions/transactions/uploadTransactionDocument.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+export async function uploadTransactionDocument(
+  transactionId: string,
+  formData: FormData
+) {
+  const supabase = await createClient();
+
+  const file = formData.get("file");
+
+  if (!(file instanceof File)) {
+    throw new Error("No file was uploaded.");
+  }
+
+  const extension = file.name.split(".").pop();
+
+  const fileName = `${crypto.randomUUID()}.${extension}`;
+
+  const storagePath = `${transactionId}/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("transaction-documents")
+    .upload(storagePath, file, {
+      contentType: file.type,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(uploadError.message);
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("You must be signed in.");
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (membershipError || !membership) {
+    throw new Error("Organization membership not found.");
+  }
+
+  const { error: insertError } = await supabase
+    .from("transaction_documents")
+    .insert({
+      organization_id: membership.organization_id,
+      transaction_id: transactionId,
+      file_name: file.name,
+      storage_path: storagePath,
+      mime_type: file.type,
+      file_size: file.size,
+      uploaded_by: user.id,
+    });
+
+  if (insertError) {
+    // Roll back the uploaded file if the database insert fails.
+    await supabase.storage
+      .from("transaction-documents")
+      .remove([storagePath]);
+
+    throw new Error(insertError.message);
+  }
+
+  // 1. Log the Activity
+  await supabase.from("activity_log").insert({
+    organization_id: membership.organization_id,
+    transaction_id: transactionId,
+    activity_type: "document_uploaded",
+    description: `Uploaded document: ${file.name}`,
+    created_by: user.id,
+  });
+
+  // 2. Revalidate the Transaction Page
+  revalidatePath(`/transactions/${transactionId}`);
+
+  // 3. Return Success
+  return {
+    success: true,
+  };
+}
+</file>
+
+<file path="app/components/transactions/AddTransactionNoteButton.tsx">
+"use client";
+
+import { useState, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { createTransactionNote } from "@/app/actions/transactions/createTransactionNote";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+
+interface AddTransactionNoteButtonProps {
+  transactionId: string;
+}
+
+export default function AddTransactionNoteButton({
+  transactionId,
+}: AddTransactionNoteButtonProps) {
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useLayoutEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Handle Escape key press to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+        setNoteText("");
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noteText.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+      await createTransactionNote(transactionId, noteText.trim());
+
+      toast.success("Note saved successfully.");
+
+      setNoteText("");
+      setIsOpen(false);
+
+      router.refresh(); // Forces Next.js to re-fetch Server Component data
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to save note.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const modalContent =
+    isOpen && mounted
+      ? createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+              <h3 className="font-serif text-xl font-normal text-[#29231D]">
+                Add Transaction Note
+              </h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Type your note here..."
+                  rows={4}
+                  className="w-full rounded-xl border border-[#E3DCD0] p-3 text-sm text-[#29231D] focus:border-[#B7832F] focus:outline-none"
+                  required
+                />
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      setNoteText("");
+                    }}
+                    className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium text-[#7C7265] transition hover:bg-[#FBF7EF]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !noteText.trim()}
+                    className="rounded-xl bg-[#0D0C0A] px-4 py-2 text-sm font-semibold text-[#D8B66A] transition hover:bg-[#29231D] disabled:opacity-50"
+                  >
+                    {isSubmitting ? "Saving..." : "Save Note"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Add Note
+      </button>
+
+      {modalContent}
+    </>
+  );
+}
+</file>
+
+<file path="app/components/transactions/EditTransactionNoteButton.tsx">
+"use client";
+
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { updateTransactionNote } from "@/app/actions/transactions/updateTransactionNote";
+import { useRouter } from "next/navigation";
+
+interface EditTransactionNoteButtonProps {
+  noteId: string;
+  transactionId: string;
+  note: string;
+}
+
+export default function EditTransactionNoteButton({
+  noteId,
+  transactionId,
+  note,
+}: EditTransactionNoteButtonProps) {
+  const [open, setOpen] = useState(false);
+  const [noteText, setNoteText] = useState(note);
+  const [mounted, setMounted] = useState(false);
+
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  async function handleSave() {
+    if (!noteText.trim()) {
+      toast.error("Note cannot be empty.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await updateTransactionNote({
+        noteId,
+        transactionId,
+        note: noteText.trim(),
+      });
+
+      toast.success("Note updated.");
+
+      setOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update note.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const modalContent =
+    open && mounted
+      ? createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+              <h2 className="font-serif text-xl text-[#29231D]">Edit Note</h2>
+
+              <div className="mt-6">
+                <label className="mb-2 block text-sm font-medium text-[#29231D]">
+                  Note
+                </label>
+
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  rows={6}
+                  className="w-full rounded-xl border border-[#E3DCD0] bg-white px-4 py-3 text-sm text-[#29231D] outline-none transition focus:border-[#B7832F] focus:ring-2 focus:ring-[#D8B66A]/30"
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl border border-[#E3DCD0] px-4 py-2 text-sm font-medium text-[#29231D] transition hover:bg-[#F5EEDF]"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="rounded-xl bg-[#0D0C0A] px-4 py-2 text-sm font-medium text-[#D8B66A] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-lg p-2 text-[#8F8578] transition hover:bg-[#FBF7EF] hover:text-[#29231D]"
+        title="Edit Note"
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+
+      {modalContent}
+    </>
+  );
+}
+</file>
+
+<file path="app/components/transactions/TransactionNotes.tsx">
+import EditTransactionNoteButton from "@/app/components/transactions/EditTransactionNoteButton";
+import DeleteTransactionNoteButton from "@/app/components/transactions/DeleteTransactionNoteButton";
+
+interface TransactionNote {
+  id: string;
+  transaction_id: string;
+  note: string;
+  created_at: string;
+  user?: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+}
+
+interface TransactionNotesProps {
+  notes: TransactionNote[];
+}
+
+export default function TransactionNotes({ notes }: TransactionNotesProps) {
+  if (notes.length === 0) {
+    return <p className="text-sm text-[#7C7265]">No notes yet.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {notes.map((item) => {
+        const userName = item.user
+          ? `${item.user.first_name ?? ""} ${item.user.last_name ?? ""}`.trim()
+          : "";
+
+        return (
+          <div
+            key={item.id}
+            className="rounded-xl border border-[#EDE7DC] bg-[#FBF7EF] p-4"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <p className="flex-1 whitespace-pre-wrap text-sm text-[#29231D]">
+                {item.note}
+              </p>
+
+              <div className="flex items-center gap-1">
+                <EditTransactionNoteButton
+                  noteId={item.id}
+                  transactionId={item.transaction_id}
+                  note={item.note}
+                />
+
+                <DeleteTransactionNoteButton
+                  noteId={item.id}
+                  transactionId={item.transaction_id}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-2 text-xs text-[#8F8578]">
+              {userName && (
+                <>
+                  <span className="font-medium text-[#29231D]">{userName}</span>
+                  <span>•</span>
+                </>
+              )}
+              <span>{new Date(item.created_at).toLocaleString()}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 </file>
 
@@ -8060,6 +7961,288 @@ export default function PropertyRelationshipActions({
 }
 </file>
 
+<file path="app/components/TransactionForm.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, DollarSign, Calendar, Save } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+import { updateTransaction } from "@/app/actions/transactions/updateTransaction";
+
+interface Transaction {
+  id: string;
+  transaction_name?: string | null;
+  transaction_type?: string | null;
+  status?: string | null;
+  purchase_price?: number | null;
+  sale_price?: number | null;
+  assignment_fee?: number | null;
+  closing_date?: string | null;
+}
+
+interface Props {
+  mode: "create" | "edit";
+  transaction?: Transaction;
+}
+
+export default function TransactionForm({
+  mode,
+  transaction,
+}: Props) {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [transactionName, setTransactionName] = useState(
+    transaction?.transaction_name ?? ""
+  );
+  const [transactionType, setTransactionType] = useState(
+    transaction?.transaction_type ?? "purchase"
+  );
+  const [status, setStatus] = useState(transaction?.status ?? "lead");
+  const [purchasePrice, setPurchasePrice] = useState(
+    transaction?.purchase_price?.toString() ?? ""
+  );
+  const [salePrice, setSalePrice] = useState(
+    transaction?.sale_price?.toString() ?? ""
+  );
+  const [assignmentFee, setAssignmentFee] = useState(
+    transaction?.assignment_fee?.toString() ?? ""
+  );
+  const [closingDate, setClosingDate] = useState(
+    transaction?.closing_date ?? ""
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSaving(true);
+
+    if (mode === "create") {
+      try {
+        // TODO: Implement/call createTransaction server action when ready
+        toast.success("Transaction created successfully.");
+        router.push("/transactions");
+        router.refresh();
+      } catch (error) {
+        console.error(error);
+        toast.error("Unable to create transaction.");
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      if (!transaction) {
+        toast.error("Transaction not found.");
+        setIsSaving(false);
+        return;
+      }
+
+      try {
+        await updateTransaction({
+          transactionId: transaction.id,
+          transaction_name: transactionName,
+          transaction_type: transactionType,
+          status,
+          purchase_price: purchasePrice === "" ? null : Number(purchasePrice),
+          sale_price: salePrice === "" ? null : Number(salePrice),
+          assignment_fee: assignmentFee === "" ? null : Number(assignmentFee),
+          closing_date: closingDate || null,
+        });
+
+        toast.success("Transaction updated successfully.");
+        router.push(`/transactions/${transaction.id}`);
+        router.refresh();
+      } catch (error) {
+        console.error(error);
+        toast.error("Unable to update transaction.");
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Basic Details Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          General Details
+        </h3>
+
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Transaction Name
+            </label>
+            <input
+              type="text"
+              value={transactionName}
+              onChange={(e) => setTransactionName(e.target.value)}
+              placeholder="e.g., Main Street Purchase"
+              required
+              className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+                Transaction Type
+              </label>
+              <select
+                value={transactionType}
+                onChange={(e) => setTransactionType(e.target.value)}
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              >
+                <option value="purchase">Purchase</option>
+                <option value="sale">Sale</option>
+                <option value="wholesale_assignment">Wholesale Assignment</option>
+                <option value="rehab">Rehab</option>
+                <option value="rental">Rental</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+                Status
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              >
+                <option value="lead">Lead</option>
+                <option value="offer_made">Offer Made</option>
+                <option value="under_contract">Under Contract</option>
+                <option value="due_diligence">Due Diligence</option>
+                <option value="clear_to_close">Clear to Close</option>
+                <option value="closed">Closed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Financials Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          Financials
+        </h3>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Purchase Price
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={purchasePrice}
+                onChange={(e) => setPurchasePrice(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Sale Price
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+              Assignment Fee
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+              <input
+                type="number"
+                value={assignmentFee}
+                onChange={(e) => setAssignmentFee(e.target.value)}
+                placeholder="0"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] placeholder-[#8F8578]/60 shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Timeline Section */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+          Timeline
+        </h3>
+
+        <div className="max-w-xs">
+          <label className="mb-1.5 block text-xs font-medium text-[#29231D]">
+            Closing Date
+          </label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8F8578]" />
+            <input
+              type="date"
+              value={closingDate}
+              onChange={(e) => setClosingDate(e.target.value)}
+              className="w-full rounded-xl border border-[#EDE7DC] bg-white pl-9 pr-4 py-2.5 text-sm text-[#29231D] shadow-sm transition-all focus:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/20"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end gap-3 pt-4">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          disabled={isSaving}
+          className="rounded-xl border border-[#EDE7DC] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] shadow-sm hover:bg-[#FBF7EF] transition-colors focus:outline-none"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-6 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition-all hover:bg-[#29231D] disabled:opacity-50"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              {mode === "create" ? "Create Transaction" : "Save Changes"}
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
+</file>
+
 <file path="app/components/TransactionsTable.tsx">
 "use client";
 
@@ -8375,371 +8558,100 @@ function formatDate(value: string | null) {
 }
 </file>
 
-<file path="app/login/page.tsx">
-"use client";
+<file path="app/layout.tsx">
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { Toaster } from "sonner";
 
-import { FormEvent, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import Image from "next/image";
-import Link from "next/link";
 
-export default function LoginPage() {
-  const supabase = createClient();
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
-  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
-    setIsLoading(true);
+export const metadata: Metadata = {
+  title: "Create Next App",
+  description: "Generated by create next app",
+};
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setMessage(error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    window.location.href = "/";
-  }
-
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
-      <div className="w-full max-w-md">
-        {/* Header & Branding */}
-        <div className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <Image
-              src="/rosevaultlogo.png"
-              alt="Rose Key Realty Co. logo"
-              width={450}
-              height={450}
-              priority
-              className="h-auto max-w-[240px] object-contain"
-            />
-          </div>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body>
+  {children}
 
-          <h1 className="font-serif text-2xl font-normal tracking-wide text-[#29231D]">
-            Real Estate Command Center
-          </h1>
-
-          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
-            &ldquo;Where Every Home Blooms with Possibility&rdquo;
-          </p>
-        </div>
-
-        {/* Card Container */}
-        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
-          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
-            Welcome back
-          </h2>
-
-          <p className="mt-2 text-sm text-[#7C7265]">
-            Sign in to manage your real estate business.
-          </p>
-
-          <form onSubmit={handleSignIn} className="mt-8 space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Email address
-              </label>
-
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Password
-              </label>
-
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter your password"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            {message && (
-              <div className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-sm text-rose-800">
-                {message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-[#7C7265]">
-            Don&apos;t have an account yet?{" "}
-            <Link
-              href="/signup"
-              className="font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
-            >
-              Create account
-            </Link>
-          </div>
-        </div>
-
-        <p className="mt-6 text-center text-xs tracking-wide text-[#8F8578]">
-          Secure access to your real estate command center.
-        </p>
-      </div>
-    </main>
+  <Toaster
+    position="top-right"
+    richColors
+    closeButton
+    duration={3000}
+    theme="light"
+  />
+</body>
+    </html>
   );
 }
 </file>
 
-<file path="app/signup/page.tsx">
-"use client";
+<file path="lib/activity/getActivity.ts">
+import { createClient } from "@/lib/supabase/server";
 
-import { FormEvent, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import Image from "next/image";
-import Link from "next/link";
+export async function getActivity(
+  organizationId: string,
+  entityType: string,
+  entityId: string,
+) {
+  const supabase = await createClient();
 
-export default function SignupPage() {
-  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("activity_log")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("entity_type", entityType)
+    .eq("entity_id", entityId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+    
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  async function handleSignUp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMessage("");
-    setIsLoading(true);
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          organization_name: organizationName,
-        },
-      },
-    });
-
-    if (error) {
-      setMessage(error.message);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!data.session) {
-      setMessage(
-        "Account created. Check your email to confirm your account, then sign in."
-      );
-      setIsLoading(false);
-      return;
-    }
-
-    window.location.href = "/onboarding";
+  if (error) {
+    console.error("Activity Error:");
+    console.error(JSON.stringify(error, null, 2));
+    throw error;
   }
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
-      <div className="w-full max-w-md">
-        {/* Header & Branding */}
-        <div className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <Image
-              src="/rosevaultlogo.png"
-              alt="Rose Key Realty Co. logo"
-              width={450}
-              height={450}
-              priority
-              className="h-auto max-w-[240px] object-contain"
-            />
-          </div>
+  const userIds = [...new Set(data.map((item) => item.created_by))];
 
-          <h1 className="font-serif text-2xl font-normal tracking-wide text-[#29231D]">
-            ROSE KEY OS
-          </h1>
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name")
+    .in("id", userIds);
 
-          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
-            &ldquo;Where Every Home Blooms with Possibility&rdquo;
-          </p>
-        </div>
+  if (profilesError) {
+    console.error("Profiles Error:", profilesError);
+    throw profilesError;
+  }
 
-        {/* Card Container */}
-        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
-          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
-            Create your account
-          </h2>
+  const profileMap = new Map(
+  (profiles ?? []).map((profile) => [profile.id, profile]),
+);
 
-          <p className="mt-2 text-sm text-[#7C7265]">
-            Start building your real estate command center.
-          </p>
-
-          <form onSubmit={handleSignUp} className="mt-8 space-y-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="firstName"
-                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-                >
-                  First name
-                </label>
-
-                <input
-                  id="firstName"
-                  type="text"
-                  required
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="lastName"
-                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-                >
-                  Last name
-                </label>
-
-                <input
-                  id="lastName"
-                  type="text"
-                  required
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="organizationName"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Company or organization name
-              </label>
-
-              <input
-                id="organizationName"
-                type="text"
-                required
-                value={organizationName}
-                onChange={(event) => setOrganizationName(event.target.value)}
-                placeholder="Rose Key Realty Co."
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Email address
-              </label>
-
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Password
-              </label>
-
-              <input
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="At least 8 characters"
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            {message && (
-              <div className="rounded-xl border border-[#B7832F]/30 bg-[#FBF7EF] px-4 py-3 text-sm text-[#966822]">
-                {message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading ? "Creating account..." : "Create account"}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-[#7C7265]">
-            Already have an account?{" "}
-            <Link
-              href="/login"
-              className="font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
-            >
-              Sign in
-            </Link>
-          </div>
-        </div>
-
-        <p className="mt-6 text-center text-xs tracking-wide text-[#8F8578]">
-          Secure access to your real estate command center.
-        </p>
-      </div>
-    </main>
-  );
+return (data ?? []).map((activity) => ({
+  ...activity,
+  user: profileMap.get(activity.created_by) ?? null,
+}));
 }
 </file>
 
@@ -13649,211 +13561,6 @@ export default function PropertyContactManager({
 }
 </file>
 
-<file path="app/onboarding/page.tsx">
-"use client";
-
-import { FormEvent, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-
-export default function OnboardingPage() {
-  const supabase = createClient();
-
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
-
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    async function loadUser() {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error || !user) {
-        window.location.href = "/login";
-        return;
-      }
-
-      const metadata = user.user_metadata;
-
-      setFirstName(metadata?.first_name ?? "");
-      setLastName(metadata?.last_name ?? "");
-      setOrganizationName(metadata?.organization_name ?? "");
-
-      setIsLoadingUser(false);
-    }
-
-    loadUser();
-  }, [supabase]);
-
-  function createSlug(name: string) {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  }
-
-  async function handleOnboarding(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    setMessage("");
-    setIsSubmitting(true);
-
-    const baseSlug = createSlug(organizationName);
-
-    if (!baseSlug) {
-      setMessage("Please enter a valid organization name.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const uniqueSlug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
-
-    const { error } = await supabase.rpc(
-      "create_organization_for_current_user",
-      {
-        organization_name: organizationName,
-        organization_slug: uniqueSlug,
-        first_name: firstName,
-        last_name: lastName,
-      }
-    );
-
-    if (error) {
-      setMessage(error.message);
-      setIsSubmitting(false);
-      return;
-    }
-
-    window.location.href = "/";
-  }
-
-  if (isLoadingUser) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] text-[#29231D]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#B7832F] border-t-transparent" />
-          <p className="text-sm tracking-wide text-[#8F8578]">
-            Loading your workspace...
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
-      <div className="w-full max-w-lg">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="mb-3 text-3xl">🌹🔑</div>
-
-          <h1 className="font-serif text-3xl tracking-wide text-[#29231D]">
-            ROSE KEY OS
-          </h1>
-
-          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
-            &ldquo;Where Every Home Blooms with Possibility&rdquo;
-          </p>
-        </div>
-
-        {/* Form Container */}
-        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
-          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
-            Create your command center
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-[#7C7265]">
-            Confirm your information below. Your organization will have its own
-            secure workspace inside Rose Key OS.
-          </p>
-
-          <form onSubmit={handleOnboarding} className="mt-8 space-y-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="firstName"
-                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-                >
-                  First name
-                </label>
-
-                <input
-                  id="firstName"
-                  type="text"
-                  required
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="lastName"
-                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-                >
-                  Last name
-                </label>
-
-                <input
-                  id="lastName"
-                  type="text"
-                  required
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="organizationName"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Company or organization name
-              </label>
-
-              <input
-                id="organizationName"
-                type="text"
-                required
-                value={organizationName}
-                onChange={(event) => setOrganizationName(event.target.value)}
-                placeholder="Rose Key Realty Co."
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
-            </div>
-
-            {message && (
-              <div className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-sm text-rose-800">
-                {message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting
-                ? "Creating your workspace..."
-                : "Create my workspace"}
-            </button>
-          </form>
-        </div>
-      </div>
-    </main>
-  );
-}
-</file>
-
 <file path="app/(dashboard)/contacts/new/page.tsx">
 "use client";
 
@@ -15845,6 +15552,230 @@ hover:border-[#D8B66A]"
 }
 </file>
 
+<file path="app/components/transactions/TransactionActivity.tsx">
+import { Clock, FileText, Pencil, Trash2 } from "lucide-react";
+
+interface ActivityItem {
+  id: string;
+  activity_type: string;
+  description: string;
+  created_at: string;
+  metadata?: {
+    field?: string;
+    oldValue?: unknown;
+    newValue?: unknown;
+  } | null;
+  user?: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+}
+
+interface TransactionActivityProps {
+  activity: ActivityItem[];
+}
+
+function getActivityIcon(activityType: string) {
+  switch (activityType) {
+    case "note_added":
+      return <FileText className="h-4 w-4" />;
+
+    case "note_updated":
+      return <Pencil className="h-4 w-4" />;
+
+    case "note_deleted":
+      return <Trash2 className="h-4 w-4" />;
+
+    case "field_updated":
+      return <Pencil className="h-4 w-4" />;
+
+    default:
+      return <FileText className="h-4 w-4" />;
+  }
+}
+
+function getActivityBadge(activityType: string) {
+  switch (activityType) {
+    case "note_added":
+      return {
+        label: "Note Added",
+        className: "bg-[#D8B66A]/15 text-[#B7832F] border border-[#D8B66A]/30",
+      };
+
+    case "note_updated":
+      return {
+        label: "Note Edited",
+        className: "bg-blue-50 text-blue-700 border border-blue-200",
+      };
+
+    case "note_deleted":
+      return {
+        label: "Note Deleted",
+        className: "bg-red-50 text-red-700 border border-red-200",
+      };
+
+    case "field_updated":
+      return {
+        label: "Field Updated",
+        className: "bg-[#D8B66A]/15 text-[#B7832F] border border-[#D8B66A]/30",
+      };
+
+    default:
+      return {
+        label: "Activity",
+        className: "bg-[#E3DCD0]/40 text-[#7C7265] border border-[#E3DCD0]",
+      };
+  }
+}
+
+function formatActivityDate(date: string) {
+  const now = new Date();
+  const created = new Date(date);
+
+  const diff = Math.floor((now.getTime() - created.getTime()) / 1000);
+
+  if (diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+
+  return created.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatMetadataValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
+
+  if (typeof value === "number") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+
+  if (typeof value === "string") {
+    // ISO date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(value).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+
+    function formatFieldName(field?: string) {
+      switch (field) {
+        case "transaction_name":
+          return "Transaction Name";
+
+        case "transaction_type":
+          return "Transaction Type";
+
+        case "status":
+          return "Status";
+
+        case "purchase_price":
+          return "Purchase Price";
+
+        case "sale_price":
+          return "Sale Price";
+
+        case "assignment_fee":
+          return "Assignment Fee";
+
+        case "closing_date":
+          return "Closing Date";
+
+        default:
+          return field ?? "";
+      }
+    }
+
+    // under_contract -> Under Contract
+    return value
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  }
+
+  return String(value);
+}
+
+export default function TransactionActivity({
+  activity,
+}: TransactionActivityProps) {
+  if (activity.length === 0) {
+    return <p className="text-sm text-[#7C7265]">No activity yet.</p>;
+  }
+
+  return (
+    <div className="relative space-y-4 before:absolute before:bottom-3 before:top-3 before:left-5 before:w-px before:bg-[#EDE7DC]">
+      {activity.map((item) => {
+        const userName = item.user
+          ? `${item.user.first_name ?? ""} ${item.user.last_name ?? ""}`.trim()
+          : "";
+        const badge = getActivityBadge(item.activity_type);
+
+        return (
+          <div
+            key={item.id}
+            className="relative flex items-start gap-4 rounded-2xl border border-[#EDE7DC] bg-white/85 p-4 shadow-sm backdrop-blur-sm transition-all hover:bg-white"
+          >
+            <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0D0C0A] text-[#D8B66A] shadow-sm">
+              {getActivityIcon(item.activity_type)}
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${badge.className}`}
+                >
+                  {badge.label}
+                </span>
+
+                <div className="flex items-center gap-1 text-xs text-[#8F8578]">
+                  <Clock className="h-3.5 w-3.5 text-[#B7832F]" />
+                  <span>{formatActivityDate(item.created_at)}</span>
+                </div>
+              </div>
+
+              <h4 className="text-sm font-medium text-[#29231D]">
+                {item.description}
+              </h4>
+              {item.activity_type === "field_updated" && item.metadata && (
+                <p className="flex items-center gap-2 text-sm">
+                  <span className="text-[#8F8578] line-through">
+                    {formatMetadataValue(item.metadata.oldValue)}
+                  </span>
+
+                  <span className="text-[#B7832F]">→</span>
+
+                  <span className="font-semibold text-[#29231D]">
+                    {formatMetadataValue(item.metadata.newValue)}
+                  </span>
+                </p>
+              )}
+
+              {userName && (
+                <p className="text-xs text-[#8F8578]">
+                  <span className="font-medium text-[#29231D]">{userName}</span>
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+</file>
+
 <file path="app/components/BulkEmailComposer.tsx">
 "use client";
 
@@ -17723,368 +17654,309 @@ export default function ContactsTable({
 }
 </file>
 
-<file path="app/(dashboard)/transactions/[id]/page.tsx">
-import { notFound } from "next/navigation";
+<file path="app/login/page.tsx">
+"use client";
+
+import { FormEvent, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
 import Link from "next/link";
-import TransactionActivity from "@/app/components/transactions/TransactionActivity";
-import { createClient } from "@/lib/supabase/server";
-import { getActivity } from "@/lib/activity/getActivity";
-import { getTransactionNotes } from "@/lib/transactions/getTransactionNotes";
-import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
-import TransactionNotes from "@/app/components/transactions/TransactionNotes";
-import StatusBadge from "@/app/components/ui/StatusBadge";
-import SectionCard from "@/app/components/ui/SectionCard";
-import {
-  ArrowLeft,
-  Building2,
-  Calendar,
-  DollarSign,
-  Edit,
-  FileText,
-  CheckCircle2,
-  Circle,
-  Upload,
-} from "lucide-react";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+export default function LoginPage() {
+  const supabase = createClient();
 
-export default async function TransactionDetailPage({ params }: PageProps) {
-  const { id } = await params;
-  const supabase = await createClient();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 1. Fetch active membership/organization details for tenant safety
-  const { data: membership, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-    .maybeSingle();
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setIsLoading(true);
 
-  if (membershipError || !membership) {
-    if (membershipError) console.error("Membership error:", membershipError);
-    notFound();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      setIsLoading(false);
+      return;
+    }
+
+    window.location.href = "/";
   }
-
-  // 2. Fetch the transaction scoped to the organization along with its related property data
-  const { data: transaction, error } = await supabase
-    .from("transactions")
-    .select("*, property:properties(*)")
-    .eq("id", id)
-    .eq("organization_id", membership.organization_id)
-    .single();
-
-  if (error || !transaction) {
-    notFound();
-  }
-
-  const notes = await getTransactionNotes(
-    membership.organization_id,
-    transaction.id,
-  );
-
-  const activity = await getActivity(
-    membership.organization_id,
-    "transaction",
-    transaction.id,
-  );
-
-  console.log("Activity:", activity);
-
-  const timelineSteps = [
-    {
-      label: "Created",
-      statuses: [
-        "lead",
-        "offer_made",
-        "under_contract",
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Offer Made",
-      statuses: [
-        "offer_made",
-        "under_contract",
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Under Contract",
-      statuses: ["under_contract", "due_diligence", "clear_to_close", "closed"],
-    },
-    {
-      label: "Due Diligence",
-      statuses: ["due_diligence", "clear_to_close", "closed"],
-    },
-    {
-      label: "Clear To Close",
-      statuses: ["clear_to_close", "closed"],
-    },
-    {
-      label: "Closed",
-      statuses: ["closed"],
-    },
-  ];
-
-  console.log("Transaction Notes:", notes);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-      {/* Navigation & Header */}
-      <div className="space-y-4">
-        <Link
-          href="/transactions"
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Transactions
-        </Link>
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-serif text-3xl font-normal text-[#29231D]">
-                {transaction.transaction_name}
-              </h1>
-              <StatusBadge status={transaction.status} />
-            </div>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-              {transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
-            </p>
+    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
+      <div className="w-full max-w-md">
+        {/* Header & Branding */}
+        <div className="mb-8 text-center">
+          <div className="mb-0 flex justify-center">
+            <Image
+              src="/RoseVaultLogo.png"
+              alt="Rose Key Realty Co. logo"
+              width={450}
+              height={450}
+              priority
+              className="h-auto max-w-[240px] object-contain"
+            />
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/transactions/${transaction.id}/edit`}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-5 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#29231D]"
-            >
-              <Edit className="h-4 w-4" />
-              Edit
-            </Link>
+          <h1 className="font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+            Real Estate Command Center
+          </h1>
 
-            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
-              Documents
-            </button>
-
-            <AddTransactionNoteButton transactionId={transaction.id} />
-          </div>
+          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
+            &ldquo;Where Every Home Blooms with Possibility&rdquo;
+          </p>
         </div>
-      </div>
 
-      <hr className="border-[#EDE7DC]" />
+        {/* Card Container */}
+        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
+          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
+            Welcome back
+          </h2>
 
-      {/* Two-Column Layout Grid */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Left Column */}
-        <div className="space-y-8">
-          {/* Financial Summary */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Financial Summary
-              </h2>
-            </div>
+          <p className="mt-2 text-sm text-[#7C7265]">
+            Sign in to manage your real estate business.
+          </p>
+
+          <form onSubmit={handleSignIn} className="mt-8 space-y-5">
             <div>
-              <SummaryRow
-                label="Purchase Price"
-                value={formatCurrency(transaction.purchase_price)}
-              />
-              <SummaryRow
-                label="Sale Price"
-                value={formatCurrency(transaction.sale_price)}
-              />
-              <SummaryRow
-                label="Assignment Fee"
-                value={formatCurrency(transaction.assignment_fee)}
-              />
-              <SummaryRow
-                label="Earnest Money"
-                value={formatCurrency(transaction.earnest_money)}
+              <label
+                htmlFor="email"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+              >
+                Email address
+              </label>
+
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
               />
             </div>
-          </div>
 
-          {/* Property Information Section */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Property Details
-              </h2>
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+              >
+                Password
+              </label>
+
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
             </div>
 
-            {transaction.property ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                      Address
-                    </p>
-                    <p className="mt-1 text-[#29231D] font-medium">
-                      {transaction.property.property_address_line_1}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                      Location
-                    </p>
-                    <p className="mt-1 text-[#29231D] font-medium">
-                      {transaction.property.property_city},{" "}
-                      {transaction.property.property_state}{" "}
-                      {transaction.property.property_postal_code}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Link
-                    href={`/properties/${transaction.property.id}`}
-                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
-                  >
-                    View Property →
-                  </Link>
-                </div>
+            {message && (
+              <div className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-sm text-rose-800">
+                {message}
               </div>
-            ) : (
-              <p className="text-sm text-[#7C7265]">No property linked.</p>
             )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-[#7C7265]">
+            Don&apos;t have an account yet?{" "}
+            <Link
+              href="/signup"
+              className="font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
+            >
+              Create account
+            </Link>
           </div>
-
-          {/* Notes Section */}
-          <SectionCard
-            title="Notes"
-            actions={
-              <AddTransactionNoteButton transactionId={transaction.id} />
-            }
-          >
-            <TransactionNotes notes={notes} />
-          </SectionCard>
-
-          {/* Activity Section */}
-          <SectionCard
-            title="Activity"
-            description="Everything that has happened on this transaction."
-          >
-            <TransactionActivity activity={activity} />
-          </SectionCard>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-8">
-          {/* Deal Timeline */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Deal Timeline
-              </h2>
-            </div>
-            <div className="space-y-3 pt-2">
-              {timelineSteps.map((step) => {
-                const isCompleted = step.statuses.includes(transaction.status);
-                return (
-                  <div key={step.label} className="flex items-center gap-3">
-                    {isCompleted ? (
-                      <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-[#D1C7B7]" />
-                    )}
-                    <span
-                      className={`text-sm font-medium ${
-                        isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
-                      }`}
-                    >
-                      {step.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        <p className="mt-6 text-center text-xs tracking-wide text-[#8F8578]">
+          Secure access to your real estate command center.
+        </p>
+      </div>
+    </main>
+  );
+}
+</file>
 
-          {/* Deal Metadata */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Deal Information
-              </h2>
-            </div>
-            <div>
-              <SummaryRow
-                label="Transaction Type"
-                value={transaction.transaction_type
-                  .replaceAll("_", " ")
-                  .toUpperCase()}
-              />
-              <SummaryRow
-                label="Created"
-                value={formatDate(transaction.created_at?.split("T")[0])}
-              />
-              <SummaryRow
-                label="Updated"
-                value={formatDate(transaction.updated_at?.split("T")[0])}
-              />
-              <SummaryRow
-                label="Closing Attorney"
-                value={transaction.closing_attorney ?? "—"}
-              />
-              <SummaryRow
-                label="Title Company"
-                value={transaction.title_company ?? "—"}
-              />
-            </div>
-          </div>
+<file path="app/onboarding/page.tsx">
+"use client";
 
-          {/* Documents Section */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Documents
-              </h2>
-              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
-                <Upload className="h-3.5 w-3.5" />
-                Upload Document
-              </button>
+import { FormEvent, useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+export default function OnboardingPage() {
+  const supabase = createClient();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      const metadata = user.user_metadata;
+
+      setFirstName(metadata?.first_name ?? "");
+      setLastName(metadata?.last_name ?? "");
+      setOrganizationName(metadata?.organization_name ?? "");
+
+      setIsLoadingUser(false);
+    }
+
+    loadUser();
+  }, [supabase]);
+
+  function createSlug(name: string) {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  async function handleOnboarding(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setMessage("");
+    setIsSubmitting(true);
+
+    const baseSlug = createSlug(organizationName);
+
+    if (!baseSlug) {
+      setMessage("Organization name is required.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const uniqueSlug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
+
+    const { error } = await supabase.rpc(
+      "create_organization_for_current_user",
+      {
+        organization_name: organizationName,
+        organization_slug: uniqueSlug,
+        first_name: firstName,
+        last_name: lastName,
+      }
+    );
+
+    if (error) {
+      setMessage(error.message);
+      setIsSubmitting(false);
+      return;
+    }
+
+    window.location.href = "/";
+  }
+
+  if (isLoadingUser) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] text-[#29231D]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#B7832F] border-t-transparent" />
+          <p className="text-sm tracking-wide text-[#8F8578]">
+            Loading your workspace...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
+      <div className="w-full max-w-lg">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <div className="mb-3 text-3xl">🌹🔑</div>
+
+          <h1 className="font-serif text-3xl tracking-wide text-[#29231D]">
+            ROSE KEY OS
+          </h1>
+
+          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
+            &ldquo;Where Every Home Blooms with Possibility&rdquo;
+          </p>
+        </div>
+
+        {/* Card Container */}
+        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
+          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
+            Confirm your workspace details
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-[#7C7265]">
+            Review your information below. Your organization will have its own
+            secure workspace inside Rose Key OS.
+          </p>
+
+          <form onSubmit={handleOnboarding} className="mt-8 space-y-5">
+            <div className="rounded-xl border border-[#EDE7DC] bg-[#FBF7EF]/50 p-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-[#8F8578] font-medium uppercase tracking-wider text-xs">Name</span>
+                <span className="text-[#29231D] font-medium">{firstName} {lastName}</span>
+              </div>
+              <hr className="border-[#EDE7DC]" />
+              <div className="flex justify-between text-sm">
+                <span className="text-[#8F8578] font-medium uppercase tracking-wider text-xs">Organization</span>
+                <span className="text-[#29231D] font-medium">{organizationName || "Not provided"}</span>
+              </div>
             </div>
-            <p className="text-sm text-[#7C7265]">No documents uploaded yet.</p>
-          </div>
+
+            {message && (
+              <div className="rounded-xl border border-rose-200/80 bg-rose-50/70 px-4 py-3 text-sm text-rose-800">
+                {message}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting
+                ? "Creating your workspace..."
+                : "Create my workspace"}
+            </button>
+          </form>
         </div>
       </div>
-    </div>
+    </main>
   );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between border-b border-[#F1ECE3] py-3 last:border-b-0">
-      <span className="text-sm text-[#7C7265]">{label}</span>
-      <span className="font-medium text-[#29231D]">{value}</span>
-    </div>
-  );
-}
-
-function formatCurrency(value: number | null) {
-  if (value === null) return "—";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 </file>
 
@@ -19866,6 +19738,590 @@ export default async function ContactsPage() {
         </div>
       )}
     </WorkspaceLayout>
+  );
+}
+</file>
+
+<file path="app/(dashboard)/transactions/[id]/page.tsx">
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import TransactionActivity from "@/app/components/transactions/TransactionActivity";
+import { createClient } from "@/lib/supabase/server";
+import { getActivity } from "@/lib/activity/getActivity";
+import { getTransactionNotes } from "@/lib/transactions/getTransactionNotes";
+import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
+import TransactionNotes from "@/app/components/transactions/TransactionNotes";
+import StatusBadge from "@/app/components/ui/StatusBadge";
+import SectionCard from "@/app/components/ui/SectionCard";
+import { TransactionDocuments } from "@/app/components/transactions/TransactionDocuments";
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  DollarSign,
+  Edit,
+  FileText,
+  CheckCircle2,
+  Circle,
+} from "lucide-react";
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function TransactionDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  // 1. Fetch active membership/organization details for tenant safety
+  const { data: membership, error: membershipError } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    if (membershipError) console.error("Membership error:", membershipError);
+    notFound();
+  }
+
+  // 2. Fetch the transaction scoped to the organization along with its related property data
+  const { data: transaction, error } = await supabase
+    .from("transactions")
+    .select("*, property:properties(*)")
+    .eq("id", id)
+    .eq("organization_id", membership.organization_id)
+    .single();
+
+  if (error || !transaction) {
+    notFound();
+  }
+
+  const notes = await getTransactionNotes(
+    membership.organization_id,
+    transaction.id,
+  );
+
+  const activity = await getActivity(
+    membership.organization_id,
+    "transaction",
+    transaction.id,
+  );
+
+  const timelineSteps = [
+    {
+      label: "Created",
+      statuses: [
+        "lead",
+        "offer_made",
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Offer Made",
+      statuses: [
+        "offer_made",
+        "under_contract",
+        "due_diligence",
+        "clear_to_close",
+        "closed",
+      ],
+    },
+    {
+      label: "Under Contract",
+      statuses: ["under_contract", "due_diligence", "clear_to_close", "closed"],
+    },
+    {
+      label: "Due Diligence",
+      statuses: ["due_diligence", "clear_to_close", "closed"],
+    },
+    {
+      label: "Clear To Close",
+      statuses: ["clear_to_close", "closed"],
+    },
+    {
+      label: "Closed",
+      statuses: ["closed"],
+    },
+  ];
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
+      {/* Navigation & Header */}
+      <div className="space-y-4">
+        <Link
+          href="/transactions"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#8F8578] transition-colors hover:text-[#29231D]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Transactions
+        </Link>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+                {transaction.transaction_name}
+              </h1>
+              <StatusBadge status={transaction.status} />
+            </div>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+              {transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/transactions/${transaction.id}/edit`}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0D0C0A] px-5 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#29231D]"
+            >
+              <Edit className="h-4 w-4" />
+              Edit
+            </Link>
+
+            <AddTransactionNoteButton transactionId={transaction.id} />
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-[#EDE7DC]" />
+
+      {/* Two-Column Layout Grid */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        {/* Left Column */}
+        <div className="space-y-8">
+          {/* Financial Summary */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Financial Summary
+              </h2>
+            </div>
+            <div>
+              <SummaryRow
+                label="Purchase Price"
+                value={formatCurrency(transaction.purchase_price)}
+              />
+              <SummaryRow
+                label="Sale Price"
+                value={formatCurrency(transaction.sale_price)}
+              />
+              <SummaryRow
+                label="Assignment Fee"
+                value={formatCurrency(transaction.assignment_fee)}
+              />
+              <SummaryRow
+                label="Earnest Money"
+                value={formatCurrency(transaction.earnest_money)}
+              />
+            </div>
+          </div>
+
+          {/* Property Information Section */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Property Details
+              </h2>
+            </div>
+
+            {transaction.property ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Address
+                    </p>
+                    <p className="mt-1 text-[#29231D] font-medium">
+                      {transaction.property.property_address_line_1}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Location
+                    </p>
+                    <p className="mt-1 text-[#29231D] font-medium">
+                      {transaction.property.property_city},{" "}
+                      {transaction.property.property_state}{" "}
+                      {transaction.property.property_postal_code}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Link
+                    href={`/properties/${transaction.property.id}`}
+                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
+                  >
+                    View Property →
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#7C7265]">No property linked.</p>
+            )}
+          </div>
+
+          {/* Notes Section */}
+          <SectionCard
+            title="Notes"
+            actions={
+              <AddTransactionNoteButton transactionId={transaction.id} />
+            }
+          >
+            <TransactionNotes notes={notes} />
+          </SectionCard>
+
+          {/* Activity Section */}
+          <SectionCard
+            title="Activity"
+            description="Everything that has happened on this transaction."
+          >
+            <TransactionActivity activity={activity} />
+          </SectionCard>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-8">
+          {/* Deal Timeline */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Deal Timeline
+              </h2>
+            </div>
+            <div className="space-y-3 pt-2">
+              {timelineSteps.map((step) => {
+                const isCompleted = step.statuses.includes(transaction.status);
+                return (
+                  <div key={step.label} className="flex items-center gap-3">
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-[#D1C7B7]" />
+                    )}
+                    <span
+                      className={`text-sm font-medium ${
+                        isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Deal Metadata */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Deal Information
+              </h2>
+            </div>
+            <div>
+              <SummaryRow
+                label="Transaction Type"
+                value={transaction.transaction_type
+                  .replaceAll("_", " ")
+                  .toUpperCase()}
+              />
+              <SummaryRow
+                label="Created"
+                value={formatDate(transaction.created_at?.split("T")[0])}
+              />
+              <SummaryRow
+                label="Updated"
+                value={formatDate(transaction.updated_at?.split("T")[0])}
+              />
+              <SummaryRow
+                label="Closing Attorney"
+                value={transaction.closing_attorney ?? "—"}
+              />
+              <SummaryRow
+                label="Title Company"
+                value={transaction.title_company ?? "—"}
+              />
+            </div>
+          </div>
+
+          {/* Documents Section styled consistently */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Documents & Files
+              </h2>
+            </div>
+            <div className="pt-2">
+              <TransactionDocuments transactionId={transaction.id} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-[#F1ECE3] py-3 last:border-b-0">
+      <span className="text-sm text-[#7C7265]">{label}</span>
+      <span className="font-medium text-[#29231D]">{value}</span>
+    </div>
+  );
+}
+
+function formatCurrency(value: number | null) {
+  if (value === null) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+</file>
+
+<file path="app/signup/page.tsx">
+"use client";
+
+import { FormEvent, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
+import Link from "next/link";
+
+export default function SignupPage() {
+  const supabase = createClient();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleSignUp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            organization_name: organizationName,
+          },
+        },
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      if (!data?.session) {
+        setMessage(
+          "Account created. Check your email to confirm your account, then sign in."
+        );
+        return;
+      }
+
+      window.location.href = "/onboarding";
+    } catch (err) {
+      console.error("Unexpected signup error:", err);
+      setMessage(err instanceof Error ? err.message : "Unexpected error");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
+      <div className="w-full max-w-md">
+        {/* Header & Branding */}
+        <div className="mb-8 text-center">
+          <div className="mb-4 flex justify-center">
+            <Image
+              src="/RoseVaultLogo.png"
+              alt="Rose Key Realty Co. logo"
+              width={450}
+              height={450}
+              priority
+              className="h-auto max-w-[240px] object-contain"
+            />
+          </div>
+
+          <h1 className="font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+            ROSE KEY OS
+          </h1>
+
+          <p className="mt-1.5 font-serif text-sm italic tracking-wide text-[#8F8578]">
+            &ldquo;Where Every Home Blooms with Possibility&rdquo;
+          </p>
+        </div>
+
+        {/* Card Container */}
+        <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
+          <h2 className="font-serif text-2xl font-normal text-[#29231D]">
+            Create your account
+          </h2>
+
+          <p className="mt-2 text-sm text-[#7C7265]">
+            Start building your real estate command center.
+          </p>
+
+          <form onSubmit={handleSignUp} className="mt-8 space-y-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="firstName"
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+                >
+                  First name
+                </label>
+
+                <input
+                  id="firstName"
+                  type="text"
+                  required
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="lastName"
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+                >
+                  Last name
+                </label>
+
+                <input
+                  id="lastName"
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="organizationName"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+              >
+                Company or organization name
+              </label>
+
+              <input
+                id="organizationName"
+                type="text"
+                required
+                value={organizationName}
+                onChange={(event) => setOrganizationName(event.target.value)}
+                placeholder="Rose Key Realty Co."
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="email"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+              >
+                Email address
+              </label>
+
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
+              >
+                Password
+              </label>
+
+              <input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="At least 8 characters"
+                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
+              />
+            </div>
+
+            {message && (
+              <div className="rounded-xl border border-[#B7832F]/30 bg-[#FBF7EF] px-4 py-3 text-sm text-[#966822]">
+                {message}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading ? "Creating account..." : "Create account"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-[#7C7265]">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
+            >
+              Sign in
+            </Link>
+          </div>
+        </div>
+
+        <p className="mt-6 text-center text-xs tracking-wide text-[#8F8578]">
+          Secure access to your real estate command center.
+        </p>
+      </div>
+    </main>
   );
 }
 </file>

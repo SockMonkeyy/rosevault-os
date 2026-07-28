@@ -63,6 +63,25 @@ export default async function TransactionDetailPage({ params }: PageProps) {
     transaction.id,
   );
 
+  const { data: documents, error: documentsError } = await supabase
+    .from("transaction_documents")
+    .select(`
+      id,
+      file_name,
+      storage_path,
+      mime_type,
+      file_size,
+      uploaded_by,
+      created_at
+    `)
+    .eq("transaction_id", transaction.id)
+    .eq("organization_id", membership.organization_id)
+    .order("created_at", { ascending: false });
+
+  if (documentsError) {
+    console.error("Error loading documents:", documentsError);
+  }
+
   const timelineSteps = [
     {
       label: "Created",
@@ -316,7 +335,11 @@ export default async function TransactionDetailPage({ params }: PageProps) {
               </h2>
             </div>
             <div className="pt-2">
-              <TransactionDocuments transactionId={transaction.id} />
+              <TransactionDocuments
+                transactionId={transaction.id}
+                organizationId={membership.organization_id}
+                documents={documents || []}
+              />
             </div>
           </div>
         </div>
