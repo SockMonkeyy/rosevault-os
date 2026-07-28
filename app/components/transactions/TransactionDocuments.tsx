@@ -276,8 +276,18 @@ export function TransactionDocuments({
                   </div>
                 </div>
 
-                <div className="text-xs font-medium text-[#8F8578] shrink-0 bg-[#FBF7EF] px-2.5 py-1 rounded-md border border-[#EDE7DC]">
-                  Ready
+                <div className="flex items-center gap-2">
+                  <button className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#B7832F] hover:bg-[#FBF7EF]">
+                    View
+                  </button>
+
+                  <button className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#29231D] hover:bg-[#FBF7EF]">
+                    Download
+                  </button>
+
+                  <button className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
