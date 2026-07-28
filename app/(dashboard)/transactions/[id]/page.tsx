@@ -8,6 +8,7 @@ import AddTransactionNoteButton from "@/app/components/transactions/AddTransacti
 import TransactionNotes from "@/app/components/transactions/TransactionNotes";
 import StatusBadge from "@/app/components/ui/StatusBadge";
 import SectionCard from "@/app/components/ui/SectionCard";
+import { TransactionDocuments } from "@/app/components/transactions/TransactionDocuments";
 import {
   ArrowLeft,
   Building2,
@@ -17,7 +18,6 @@ import {
   FileText,
   CheckCircle2,
   Circle,
-  Upload,
 } from "lucide-react";
 
 interface PageProps {
@@ -63,8 +63,6 @@ export default async function TransactionDetailPage({ params }: PageProps) {
     transaction.id,
   );
 
-  console.log("Activity:", activity);
-
   const timelineSteps = [
     {
       label: "Created",
@@ -105,8 +103,6 @@ export default async function TransactionDetailPage({ params }: PageProps) {
     },
   ];
 
-  console.log("Transaction Notes:", notes);
-
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
       {/* Navigation & Header */}
@@ -140,10 +136,6 @@ export default async function TransactionDetailPage({ params }: PageProps) {
               <Edit className="h-4 w-4" />
               Edit
             </Link>
-
-            <button className="rounded-xl border border-[#E3DCD0] bg-white px-5 py-2.5 text-sm font-medium text-[#29231D] transition hover:bg-[#FBF7EF]">
-              Documents
-            </button>
 
             <AddTransactionNoteButton transactionId={transaction.id} />
           </div>
@@ -315,18 +307,17 @@ export default async function TransactionDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Documents Section */}
+          {/* Documents Section styled consistently */}
           <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-[#B7832F]" />
               <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Documents
+                Documents & Files
               </h2>
-              <button className="inline-flex items-center gap-1.5 rounded-xl border border-[#E3DCD0] bg-white px-3 py-1.5 text-xs font-semibold text-[#29231D] transition hover:bg-[#FBF7EF]">
-                <Upload className="h-3.5 w-3.5" />
-                Upload Document
-              </button>
             </div>
-            <p className="text-sm text-[#7C7265]">No documents uploaded yet.</p>
+            <div className="pt-2">
+              <TransactionDocuments transactionId={transaction.id} />
+            </div>
           </div>
         </div>
       </div>

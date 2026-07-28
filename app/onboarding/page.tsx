@@ -55,7 +55,7 @@ export default function OnboardingPage() {
     const baseSlug = createSlug(organizationName);
 
     if (!baseSlug) {
-      setMessage("Please enter a valid organization name.");
+      setMessage("Organization name is required.");
       setIsSubmitting(false);
       return;
     }
@@ -110,73 +110,28 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        {/* Form Container */}
+        {/* Card Container */}
         <div className="rounded-2xl border border-[#EDE7DC] bg-white/80 p-8 shadow-xl shadow-[#29231D]/5 backdrop-blur-sm">
           <h2 className="font-serif text-2xl font-normal text-[#29231D]">
-            Create your command center
+            Confirm your workspace details
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-[#7C7265]">
-            Confirm your information below. Your organization will have its own
+            Review your information below. Your organization will have its own
             secure workspace inside Rose Key OS.
           </p>
 
           <form onSubmit={handleOnboarding} className="mt-8 space-y-5">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="firstName"
-                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-                >
-                  First name
-                </label>
-
-                <input
-                  id="firstName"
-                  type="text"
-                  required
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-                />
+            <div className="rounded-xl border border-[#EDE7DC] bg-[#FBF7EF]/50 p-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-[#8F8578] font-medium uppercase tracking-wider text-xs">Name</span>
+                <span className="text-[#29231D] font-medium">{firstName} {lastName}</span>
               </div>
-
-              <div>
-                <label
-                  htmlFor="lastName"
-                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-                >
-                  Last name
-                </label>
-
-                <input
-                  id="lastName"
-                  type="text"
-                  required
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-                />
+              <hr className="border-[#EDE7DC]" />
+              <div className="flex justify-between text-sm">
+                <span className="text-[#8F8578] font-medium uppercase tracking-wider text-xs">Organization</span>
+                <span className="text-[#29231D] font-medium">{organizationName || "Not provided"}</span>
               </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="organizationName"
-                className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]"
-              >
-                Company or organization name
-              </label>
-
-              <input
-                id="organizationName"
-                type="text"
-                required
-                value={organizationName}
-                onChange={(event) => setOrganizationName(event.target.value)}
-                placeholder="Rose Key Realty Co."
-                className="w-full rounded-xl border border-[#EDE7DC] bg-white px-4 py-3 text-sm text-[#29231D] placeholder-[#8F8578] outline-none shadow-sm transition focus:border-[#D8B66A] focus:ring-2 focus:ring-[#D8B66A]/20"
-              />
             </div>
 
             {message && (
