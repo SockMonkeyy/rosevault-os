@@ -73,6 +73,23 @@ export function TransactionDocuments({
     setMessage(null);
   };
 
+  const handleDownload = async (storagePath: string, fileName: string) => {
+    try {
+      const signedUrl = await getTransactionDocumentUrl(storagePath);
+
+      const link = document.createElement("a");
+      link.href = signedUrl;
+      link.download = fileName;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error(error);
+      setMessage("Unable to download document.");
+    }
+  };
+
   const handleDelete = async () => {
     if (!documentToDelete) return;
 
@@ -329,10 +346,16 @@ export function TransactionDocuments({
                     View
                   </button>
 
-                  <button className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#29231D] hover:bg-[#FBF7EF]">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDownload(document.storage_path, document.file_name)
+                    }
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#29231D] transition hover:bg-[#FBF7EF]"
+                  >
                     Download
                   </button>
-
+                  
                   <button
                     type="button"
                     onClick={() => {

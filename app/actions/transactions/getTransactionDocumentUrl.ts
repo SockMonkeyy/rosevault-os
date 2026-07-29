@@ -17,7 +17,7 @@ export async function getTransactionDocumentUrl(
 
   const { data, error } = await supabase.storage
     .from("transaction-documents")
-    .createSignedUrl(storagePath, 60);
+    .createSignedUrl(storagePath, 300);
 
   if (error) {
     throw new Error(error.message);
