@@ -62,6 +62,7 @@ export async function uploadTransactionDocument(
       mime_type: file.type,
       file_size: file.size,
       uploaded_by: user.id,
+      category,
     });
 
   if (insertError) {

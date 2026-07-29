@@ -72,7 +72,8 @@ export default async function TransactionDetailPage({ params }: PageProps) {
       mime_type,
       file_size,
       uploaded_by,
-      created_at
+      created_at,
+      category
     `)
     .eq("transaction_id", transaction.id)
     .eq("organization_id", membership.organization_id)
