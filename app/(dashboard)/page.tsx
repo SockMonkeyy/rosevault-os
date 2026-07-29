@@ -163,9 +163,7 @@ export default async function Home() {
                   return (
                     <div
                       key={`${activity.type}-${activity.id}`}
-                      className="flex items-center justify-between px-6 py-4 transition-colors duration-200 hover:bg-[#FBF7EF]
-hover:border-l-4
-hover:border-[#D8B66A]"
+                      className="flex items-center justify-between px-6 py-4 transition-colors duration-200 hover:bg-[#FBF7EF] hover:border-l-4 hover:border-[#D8B66A]"
                     >
                       <div>
                         <p className="text-sm font-medium text-[#29231D]">
@@ -191,7 +189,7 @@ hover:border-[#D8B66A]"
         </div>
 
         {/* Right Side: Contextual Assistant Card (Rosie AI) */}
-        <div className="flex flex-col justify-between rounded-xl border border-[#D8B66A]/25 bg-[#12110F]/[0.02] p-8 transition-all duration-300 hover:border-[#D8B66A]/40 hover:bg-[#12110F]/[0.04]">
+        <div className="self-start rounded-xl border border-[#D8B66A]/25 bg-[#12110F]/[0.02] p-8 transition-all duration-300 hover:border-[#D8B66A]/40 hover:bg-[#12110F]/[0.04]">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
               Rosie AI

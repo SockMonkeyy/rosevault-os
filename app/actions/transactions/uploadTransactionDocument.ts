@@ -9,6 +9,8 @@ export async function uploadTransactionDocument(
 ) {
   const supabase = await createClient();
 
+  const category = formData.get("category")?.toString() ?? "Other";
+
   const file = formData.get("file");
 
   if (!(file instanceof File)) {

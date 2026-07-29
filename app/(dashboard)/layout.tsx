@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AppSidebar from "@/app/components/AppSidebar";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next"
 
 export default async function DashboardLayout({
   children,
