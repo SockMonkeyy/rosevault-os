@@ -1,5 +1,5 @@
 import { Clock, FileText, Pencil, Trash2 } from "lucide-react";
-import { getTransactionDocumentUrl } from "@/app/actions/transactions/getTransactionDocumentUrl";
+
 
 interface ActivityItem {
   id: string;
@@ -73,17 +73,6 @@ function getActivityBadge(activityType: string) {
       };
   }
 }
-
-const handleView = async (storagePath: string) => {
-  try {
-    const signedUrl = await getTransactionDocumentUrl(storagePath);
-
-    window.open(signedUrl, "_blank", "noopener,noreferrer");
-  } catch (error) {
-    console.error(error);
-    setMessage("Unable to open document.");
-  }
-};
 
 function formatActivityDate(date: string) {
   const now = new Date();
