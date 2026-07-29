@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Upload, FileText, X, ChevronDown } from "lucide-react";
+import { Upload, X, ChevronDown, FolderOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { uploadTransactionDocument } from "@/app/actions/transactions/uploadTransactionDocument";
 import { getTransactionDocumentUrl } from "@/app/actions/transactions/getTransactionDocumentUrl";
 import { deleteTransactionDocument } from "@/app/actions/transactions/deleteTransactionDocument";
 import ConfirmationDialog from "@/app/components/ui/ConfirmationDialog";
+import { getFileIcon } from "@/app/lib/getFileIcon";
 
 type TransactionDocument = {
   id: string;
@@ -14,6 +15,7 @@ type TransactionDocument = {
   storage_path: string;
   mime_type: string | null;
   file_size: number | null;
+  category?: string | null;
   uploaded_by: string | null;
   created_at: string;
 };
@@ -73,40 +75,18 @@ export function TransactionDocuments({
     setMessage(null);
   };
 
-  const handleDownload = async (storagePath: string, fileName: string) => {
-    try {
-      const signedUrl = await getTransactionDocumentUrl(storagePath);
-
-      const link = document.createElement("a");
-      link.href = signedUrl;
-      link.download = fileName;
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error(error);
-      setMessage("Unable to download document.");
-    }
-  };
-
   const handleDelete = async () => {
     if (!documentToDelete) return;
 
     try {
       setIsDeleting(true);
-
       await deleteTransactionDocument(documentToDelete.id, transactionId);
-
       setMessage("Document deleted successfully.");
-
       setDialogOpen(false);
       setDocumentToDelete(null);
-
       router.refresh();
     } catch (error) {
       console.error(error);
-
       setMessage(
         error instanceof Error ? error.message : "Unable to delete document.",
       );
@@ -117,7 +97,6 @@ export function TransactionDocuments({
 
   const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (isPending) return;
 
     const form = formRef.current;
@@ -145,12 +124,10 @@ export function TransactionDocuments({
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
           }
-
           router.refresh();
         }
       } catch (error) {
         console.error(error);
-
         setMessage(
           error instanceof Error
             ? error.message
@@ -163,7 +140,6 @@ export function TransactionDocuments({
   const handleView = async (storagePath: string) => {
     try {
       const signedUrl = await getTransactionDocumentUrl(storagePath);
-
       window.open(signedUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error(error);
@@ -180,9 +156,9 @@ export function TransactionDocuments({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <form ref={formRef} onSubmit={handleUpload} className="space-y-4">
-        {/* Styled Custom-Looking Dropdown Menu */}
+        {/* Document Category Selector */}
         <div className="space-y-1.5 text-left">
           <label className="block text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
             Document Category
@@ -236,7 +212,7 @@ export function TransactionDocuments({
             id="file-upload"
             name="file"
             type="file"
-            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.csv"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.csv,.zip"
             className="sr-only"
             onChange={handleFileChange}
           />
@@ -245,7 +221,7 @@ export function TransactionDocuments({
             <div className="flex w-full items-center justify-between rounded-lg bg-white p-3 shadow-sm border border-[#EDE7DC]">
               <div className="flex items-center gap-3 overflow-hidden">
                 <div className="rounded-lg bg-[#FBF7EF] p-2 text-[#B7832F] shrink-0">
-                  <FileText className="h-5 w-5" />
+                  {getFileIcon(selectedFile.type)}
                 </div>
                 <div className="text-left overflow-hidden">
                   <p className="text-sm font-medium text-[#29231D] truncate">
@@ -288,7 +264,7 @@ export function TransactionDocuments({
         <button
           type="submit"
           disabled={isPending || !selectedFile}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D0C0A] px-4 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#29231D] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D0C0A] px-4 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-md transition hover:bg-[#211E1A] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Uploading Document..." : "Confirm & Upload Document"}
         </button>
@@ -304,40 +280,61 @@ export function TransactionDocuments({
         </p>
       )}
 
-      {documents.length > 0 && (
-        <div className="space-y-3 border-t border-[#EDE7DC] pt-6">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-            Uploaded Documents
-          </h3>
+      {/* Uploaded Documents List or Polished Empty State */}
+      <div className="space-y-3 border-t border-[#EDE7DC] pt-6">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+          Uploaded Documents
+        </h3>
 
+        {documents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#EDE7DC] bg-[#FBF7EF]/30 p-8 text-center">
+            <div className="rounded-full bg-[#EDE7DC]/60 p-3 text-[#B7832F] mb-3">
+              <FolderOpen className="h-6 w-6" />
+            </div>
+            <h4 className="font-serif text-lg text-[#29231D]">
+              No Documents Yet
+            </h4>
+            <p className="mt-1 max-w-xs text-xs text-[#7C7265] leading-relaxed">
+              Upload contracts, disclosures, photos, invoices, and other transaction files here.
+            </p>
+          </div>
+        ) : (
           <div className="space-y-3">
             {documents.map((document) => (
               <div
                 key={document.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[#EDE7DC] bg-white p-4 shadow-sm transition hover:border-[#B7832F]"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#EDE7DC] bg-white p-4 shadow-sm transition hover:border-[#B7832F]"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="rounded-lg bg-[#FBF7EF] p-3 text-[#B7832F] shrink-0">
-                    <FileText className="h-5 w-5" />
+                  <div className="rounded-lg bg-[#FBF7EF] p-2.5 text-[#B7832F] shrink-0">
+                    {getFileIcon(document.mime_type)}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-[#29231D] truncate text-sm">
-                      {document.file_name}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-[#29231D] truncate text-sm">
+                        {document.file_name}
+                      </p>
+                      {document.category && (
+                        <span className="inline-flex items-center rounded-md bg-[#FBF7EF] px-2 py-0.5 text-[10px] font-medium text-[#B7832F] border border-[#EDE7DC]">
+                          {document.category}
+                        </span>
+                      )}
+                    </div>
 
-                    <p className="text-xs text-[#8F8578]">
-                      {formatFileSize(document.file_size)}
-                    </p>
-
-                    <p className="text-xs text-[#8F8578]">
+                    <p className="mt-0.5 text-xs text-[#8F8578]">
                       Uploaded{" "}
-                      {new Date(document.created_at).toLocaleDateString()}
+                      {new Date(document.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}{" "}
+                      • {formatFileSize(document.file_size)}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#EDE7DC]">
                   <button
                     type="button"
                     onClick={() => handleView(document.storage_path)}
@@ -348,14 +345,12 @@ export function TransactionDocuments({
 
                   <button
                     type="button"
-                    onClick={() =>
-                      handleDownload(document.storage_path, document.file_name)
-                    }
+                    onClick={() => handleView(document.storage_path)}
                     className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#29231D] transition hover:bg-[#FBF7EF]"
                   >
                     Download
                   </button>
-                  
+
                   <button
                     type="button"
                     onClick={() => {
@@ -370,8 +365,8 @@ export function TransactionDocuments({
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <ConfirmationDialog
         open={dialogOpen}
@@ -393,7 +388,6 @@ export function TransactionDocuments({
         loading={isDeleting}
         onCancel={() => {
           if (isDeleting) return;
-
           setDialogOpen(false);
           setDocumentToDelete(null);
         }}
@@ -405,14 +399,7 @@ export function TransactionDocuments({
 
 function formatFileSize(bytes: number | null) {
   if (!bytes) return "Unknown size";
-
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
