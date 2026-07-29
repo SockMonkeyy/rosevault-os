@@ -12,13 +12,16 @@ import { TransactionDocuments } from "@/app/components/transactions/TransactionD
 import {
   ArrowLeft,
   Building2,
-  Calendar,
   DollarSign,
   Edit,
   FileText,
-  CheckCircle2,
-  Circle,
+  CheckSquare,
+  MessageSquare,
+  Clock,
 } from "lucide-react";
+import TransactionChecklist from "@/app/components/transactions/TransactionChecklist";
+import { getTransactionChecklist } from "@/lib/transactions/getTransactionChecklist";
+import { seedTransactionChecklist } from "@/lib/transactions/seedTransactionChecklist";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -65,7 +68,8 @@ export default async function TransactionDetailPage({ params }: PageProps) {
 
   const { data: documents, error: documentsError } = await supabase
     .from("transaction_documents")
-    .select(`
+    .select(
+      `
       id,
       file_name,
       storage_path,
@@ -74,7 +78,8 @@ export default async function TransactionDetailPage({ params }: PageProps) {
       uploaded_by,
       created_at,
       category
-    `)
+    `,
+    )
     .eq("transaction_id", transaction.id)
     .eq("organization_id", membership.organization_id)
     .order("created_at", { ascending: false });
@@ -83,49 +88,25 @@ export default async function TransactionDetailPage({ params }: PageProps) {
     console.error("Error loading documents:", documentsError);
   }
 
-  const timelineSteps = [
-    {
-      label: "Created",
-      statuses: [
-        "lead",
-        "offer_made",
-        "under_contract",
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Offer Made",
-      statuses: [
-        "offer_made",
-        "under_contract",
-        "due_diligence",
-        "clear_to_close",
-        "closed",
-      ],
-    },
-    {
-      label: "Under Contract",
-      statuses: ["under_contract", "due_diligence", "clear_to_close", "closed"],
-    },
-    {
-      label: "Due Diligence",
-      statuses: ["due_diligence", "clear_to_close", "closed"],
-    },
-    {
-      label: "Clear To Close",
-      statuses: ["clear_to_close", "closed"],
-    },
-    {
-      label: "Closed",
-      statuses: ["closed"],
-    },
-  ];
+  // Seed and load the dynamic transaction checklist
+  await seedTransactionChecklist(
+    membership.organization_id,
+    transaction.id,
+    transaction.status,
+  );
+
+  const checklist = await getTransactionChecklist(
+    membership.organization_id,
+    transaction.id,
+  );
+
+  const docCount = documents?.length ?? 0;
+  const noteCount = notes?.length ?? 0;
+  const activityCount = activity?.length ?? 0;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 lg:px-8">
-      {/* Navigation & Header */}
+    <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      {/* 1. Header Section */}
       <div className="space-y-4">
         <Link
           href="/transactions"
@@ -135,17 +116,28 @@ export default async function TransactionDetailPage({ params }: PageProps) {
           Back to Transactions
         </Link>
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-serif text-3xl font-normal text-[#29231D] sm:text-4xl">
                 {transaction.transaction_name}
               </h1>
               <StatusBadge status={transaction.status} />
             </div>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-              {transaction.transaction_type.replaceAll("_", " ").toUpperCase()}
-            </p>
+
+            <div className="flex flex-wrap items-center gap-2 text-sm text-[#7C7265]">
+              <span className="font-medium text-[#29231D]">
+                {transaction.transaction_type
+                  .replaceAll("_", " ")
+                  .toUpperCase()}
+              </span>
+              {transaction.property && (
+                <>
+                  <span className="text-[#8F8578]">•</span>
+                  <span>{transaction.property.property_address_line_1}</span>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -162,12 +154,106 @@ export default async function TransactionDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      <hr className="border-[#EDE7DC]" />
+      {/* 2. Quick Stats Overview Row */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#EDE7DC] bg-white/60 p-4 shadow-sm backdrop-blur-sm">
+          <div className="rounded-xl bg-[#F7F4EF] p-2.5 text-[#B7832F]">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+              Documents
+            </p>
+            <p className="text-lg font-serif text-[#29231D]">{docCount}</p>
+          </div>
+        </div>
 
-      {/* Two-Column Layout Grid */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* Left Column */}
-        <div className="space-y-8">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#EDE7DC] bg-white/60 p-4 shadow-sm backdrop-blur-sm">
+          <div className="rounded-xl bg-[#F7F4EF] p-2.5 text-[#B7832F]">
+            <MessageSquare className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+              Notes
+            </p>
+            <p className="text-lg font-serif text-[#29231D]">{noteCount}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-2xl border border-[#EDE7DC] bg-white/60 p-4 shadow-sm backdrop-blur-sm">
+          <div className="rounded-xl bg-[#F7F4EF] p-2.5 text-[#B7832F]">
+            <CheckSquare className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+              Tasks
+            </p>
+            <p className="text-lg font-serif text-[#29231D]">0</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-2xl border border-[#EDE7DC] bg-white/60 p-4 shadow-sm backdrop-blur-sm">
+          <div className="rounded-xl bg-[#F7F4EF] p-2.5 text-[#B7832F]">
+            <Clock className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+              Activity
+            </p>
+            <p className="text-lg font-serif text-[#29231D]">{activityCount}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Asymmetric Layout (70% Left Core Workspace vs 30% Right Sidebar) */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        {/* Left Column (70% / 8 spans): Property, Financials, Documents, & Notes */}
+        <div className="space-y-8 lg:col-span-8">
+          {/* Property Details */}
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#B7832F]" />
+              <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                Property Details
+              </h2>
+            </div>
+
+            {transaction.property ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Address
+                    </p>
+                    <p className="mt-1 font-medium text-[#29231D]">
+                      {transaction.property.property_address_line_1}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
+                      Location
+                    </p>
+                    <p className="mt-1 font-medium text-[#29231D]">
+                      {transaction.property.property_city},{" "}
+                      {transaction.property.property_state}{" "}
+                      {transaction.property.property_postal_code}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Link
+                    href={`/properties/${transaction.property.id}`}
+                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
+                  >
+                    View Property Record →
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#7C7265]">No property linked.</p>
+            )}
+          </div>
+
           {/* Financial Summary */}
           <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
             <div className="flex items-center gap-2">
@@ -196,49 +282,21 @@ export default async function TransactionDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Property Information Section */}
+          {/* Documents & Files */}
           <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
             <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-[#B7832F]" />
+              <FileText className="h-5 w-5 text-[#B7832F]" />
               <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Property Details
+                Documents & Files
               </h2>
             </div>
-
-            {transaction.property ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                      Address
-                    </p>
-                    <p className="mt-1 text-[#29231D] font-medium">
-                      {transaction.property.property_address_line_1}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                      Location
-                    </p>
-                    <p className="mt-1 text-[#29231D] font-medium">
-                      {transaction.property.property_city},{" "}
-                      {transaction.property.property_state}{" "}
-                      {transaction.property.property_postal_code}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Link
-                    href={`/properties/${transaction.property.id}`}
-                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
-                  >
-                    View Property →
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-[#7C7265]">No property linked.</p>
-            )}
+            <div className="pt-2">
+              <TransactionDocuments
+                transactionId={transaction.id}
+                organizationId={membership.organization_id}
+                documents={documents || []}
+              />
+            </div>
           </div>
 
           {/* Notes Section */}
@@ -250,64 +308,19 @@ export default async function TransactionDetailPage({ params }: PageProps) {
           >
             <TransactionNotes notes={notes} />
           </SectionCard>
-
-          {/* Activity Section */}
-          <SectionCard
-            title="Activity"
-            description="Everything that has happened on this transaction."
-          >
-            <TransactionActivity activity={activity} />
-          </SectionCard>
         </div>
 
-        {/* Right Column */}
-        <div className="space-y-8">
-          {/* Deal Timeline */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Deal Timeline
-              </h2>
-            </div>
-            <div className="space-y-3 pt-2">
-              {timelineSteps.map((step) => {
-                const isCompleted = step.statuses.includes(transaction.status);
-                return (
-                  <div key={step.label} className="flex items-center gap-3">
-                    {isCompleted ? (
-                      <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-[#D1C7B7]" />
-                    )}
-                    <span
-                      className={`text-sm font-medium ${
-                        isCompleted ? "text-[#29231D]" : "text-[#8F8578]"
-                      }`}
-                    >
-                      {step.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        {/* Right Column (30% / 4 spans): Transaction Checklist, Details, & Activity */}
+        <div className="space-y-8 lg:col-span-4">
+          {/* Dynamic Transaction Checklist Component */}
+          <TransactionChecklist items={checklist} />
 
-          {/* Deal Metadata */}
+          {/* Transaction Details Metadata Card */}
           <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Deal Information
-              </h2>
-            </div>
-            <div>
-              <SummaryRow
-                label="Transaction Type"
-                value={transaction.transaction_type
-                  .replaceAll("_", " ")
-                  .toUpperCase()}
-              />
+            <h2 className="font-serif text-lg font-normal text-[#29231D]">
+              Transaction Details
+            </h2>
+            <div className="space-y-1">
               <SummaryRow
                 label="Created"
                 value={formatDate(transaction.created_at?.split("T")[0])}
@@ -327,22 +340,10 @@ export default async function TransactionDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Documents Section styled consistently */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Documents & Files
-              </h2>
-            </div>
-            <div className="pt-2">
-              <TransactionDocuments
-                transactionId={transaction.id}
-                organizationId={membership.organization_id}
-                documents={documents || []}
-              />
-            </div>
-          </div>
+          {/* Activity Stream */}
+          <SectionCard title="Activity" description="Recent log entries.">
+            <TransactionActivity activity={activity} />
+          </SectionCard>
         </div>
       </div>
     </div>
@@ -351,8 +352,8 @@ export default async function TransactionDetailPage({ params }: PageProps) {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between border-b border-[#F1ECE3] py-3 last:border-b-0">
-      <span className="text-sm text-[#7C7265]">{label}</span>
+    <div className="flex items-center justify-between border-b border-[#F1ECE3] py-3 text-sm last:border-b-0">
+      <span className="text-[#7C7265]">{label}</span>
       <span className="font-medium text-[#29231D]">{value}</span>
     </div>
   );
@@ -370,7 +371,7 @@ function formatCurrency(value: number | null) {
 function formatDate(value: string | null) {
   if (!value) return "—";
   return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
-    month: "long",
+    month: "short",
     day: "numeric",
     year: "numeric",
   });
