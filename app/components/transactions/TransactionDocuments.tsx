@@ -4,6 +4,9 @@ import { useRef, useState, useTransition } from "react";
 import { Upload, FileText, X, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { uploadTransactionDocument } from "@/app/actions/transactions/uploadTransactionDocument";
+import { getTransactionDocumentUrl } from "@/app/actions/transactions/getTransactionDocumentUrl";
+import { deleteTransactionDocument } from "@/app/actions/transactions/deleteTransactionDocument";
+import ConfirmationDialog from "@/app/components/ui/ConfirmationDialog";
 
 type TransactionDocument = {
   id: string;
@@ -50,6 +53,11 @@ export function TransactionDocuments({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [category, setCategory] = useState<string>("Purchase Agreement");
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] =
+    useState<TransactionDocument | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
@@ -63,6 +71,31 @@ export function TransactionDocuments({
 
     setSelectedFile(file);
     setMessage(null);
+  };
+
+  const handleDelete = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      setIsDeleting(true);
+
+      await deleteTransactionDocument(documentToDelete.id, transactionId);
+
+      setMessage("Document deleted successfully.");
+
+      setDialogOpen(false);
+      setDocumentToDelete(null);
+
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+
+      setMessage(
+        error instanceof Error ? error.message : "Unable to delete document.",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleUpload = (e: React.FormEvent<HTMLFormElement>) => {
@@ -108,6 +141,17 @@ export function TransactionDocuments({
         );
       }
     });
+  };
+
+  const handleView = async (storagePath: string) => {
+    try {
+      const signedUrl = await getTransactionDocumentUrl(storagePath);
+
+      window.open(signedUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error(error);
+      setMessage("Unable to open document.");
+    }
   };
 
   const clearSelection = () => {
@@ -277,7 +321,11 @@ export function TransactionDocuments({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#B7832F] hover:bg-[#FBF7EF]">
+                  <button
+                    type="button"
+                    onClick={() => handleView(document.storage_path)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#B7832F] transition hover:bg-[#FBF7EF]"
+                  >
                     View
                   </button>
 
@@ -285,7 +333,14 @@ export function TransactionDocuments({
                     Download
                   </button>
 
-                  <button className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocumentToDelete(document);
+                      setDialogOpen(true);
+                    }}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                  >
                     Delete
                   </button>
                 </div>
@@ -294,6 +349,33 @@ export function TransactionDocuments({
           </div>
         </div>
       )}
+
+      <ConfirmationDialog
+        open={dialogOpen}
+        title="Delete Document"
+        description={
+          <>
+            Are you sure you want to permanently delete{" "}
+            <span className="font-semibold text-[#29231D]">
+              {documentToDelete?.file_name}
+            </span>
+            ?
+            <br />
+            <br />
+            This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete Document"
+        loadingLabel="Deleting..."
+        loading={isDeleting}
+        onCancel={() => {
+          if (isDeleting) return;
+
+          setDialogOpen(false);
+          setDocumentToDelete(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
@@ -309,9 +391,5 @@ function formatFileSize(bytes: number | null) {
     return `${(bytes / 1024).toFixed(1)} KB`;
   }
 
-  if (bytes < 1024 * 1024 * 1024) {
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  }
-
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
