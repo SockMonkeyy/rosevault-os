@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import TransactionActivity from "@/app/components/transactions/TransactionActivity";
 import { createClient } from "@/lib/supabase/server";
+import WorkflowProgressCard from "@/app/components/transactions/WorkflowProgressCard";
+import { getWorkflowSummary } from "@/lib/transactions/getWorkflowSummary";
 import { getActivity } from "@/lib/activity/getActivity";
 import { getTransactionNotes } from "@/lib/transactions/getTransactionNotes";
 import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
@@ -98,6 +100,11 @@ export default async function TransactionDetailPage({ params }: PageProps) {
   const checklist = await getTransactionChecklist(
     membership.organization_id,
     transaction.id,
+  );
+
+  const workflowSummary = await getWorkflowSummary(
+    transaction.id,
+    transaction.status,
   );
 
   const docCount = documents?.length ?? 0;
@@ -313,7 +320,23 @@ export default async function TransactionDetailPage({ params }: PageProps) {
         {/* Right Column (30% / 4 spans): Transaction Checklist, Details, & Activity */}
         <div className="space-y-8 lg:col-span-4">
           {/* Dynamic Transaction Checklist Component */}
-          <TransactionChecklist items={checklist} />
+          <div className="space-y-6">
+            <WorkflowProgressCard
+              transactionId={transaction.id}
+              stageTitle={workflowSummary.stageTitle}
+              nextStage={workflowSummary.nextStage}
+              completedTasks={workflowSummary.completedTasks}
+              totalTasks={workflowSummary.totalTasks}
+              uploadedDocuments={workflowSummary.uploadedDocuments}
+              requiredDocuments={workflowSummary.requiredDocuments}
+              remainingTasks={workflowSummary.remainingTasks}
+            />
+
+            <TransactionChecklist
+              transactionId={transaction.id}
+              items={checklist}
+            />
+          </div>
 
           {/* Transaction Details Metadata Card */}
           <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">

@@ -14,7 +14,7 @@ export async function getActivity(
     .eq("entity_type", entityType)
     .eq("entity_id", entityId)
     .order("created_at", { ascending: false })
-    .limit(5);
+    .limit(3);
     
 
   if (error) {
