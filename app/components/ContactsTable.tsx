@@ -67,7 +67,8 @@ type Props = {
   organizationId: string;
 };
 
-type SortField = "display_name" | "contact_type" | "status" | "email" | "created_at";
+type SortField =
+  "display_name" | "contact_type" | "status" | "email" | "created_at";
 type SortOrder = "asc" | "desc";
 
 export default function ContactsTable({
@@ -262,6 +263,18 @@ export default function ContactsTable({
     pageSize === "all"
       ? 1
       : Math.ceil(filteredContacts.length / Number(pageSize)) || 1;
+
+  const startIndex = filteredContacts.length === 0
+    ? 0
+    : pageSize === "all"
+    ? 1
+    : (currentPage - 1) * Number(pageSize) + 1;
+
+  const endIndex = filteredContacts.length === 0
+    ? 0
+    : pageSize === "all"
+    ? filteredContacts.length
+    : Math.min(currentPage * Number(pageSize), filteredContacts.length);
 
   const paginatedContacts = useMemo(() => {
     let sliceTarget = filteredContacts;
@@ -780,7 +793,8 @@ export default function ContactsTable({
             </h2>
 
             <p className="mt-1.5 text-xs text-[#7C7265]">
-              Showing {filteredContacts.length} of {totalCount} contacts
+              Showing {filteredContacts.length > 0 ? startIndex : 0}–{endIndex}{" "}
+              of {totalCount} contacts
               {isSearching && " (Searching...)"}
             </p>
           </div>
@@ -1096,8 +1110,24 @@ export default function ContactsTable({
                   >
                     Display Name
                     <span className="flex flex-col text-[8px] leading-none text-[#B7AEA2] group-hover:text-[#B7832F]">
-                      <span className={sortField === "display_name" && sortOrder === "asc" ? "text-[#B7832F] font-bold" : ""}>▲</span>
-                      <span className={sortField === "display_name" && sortOrder === "desc" ? "text-[#B7832F] font-bold" : ""}>▼</span>
+                      <span
+                        className={
+                          sortField === "display_name" && sortOrder === "asc"
+                            ? "text-[#B7832F] font-bold"
+                            : ""
+                        }
+                      >
+                        ▲
+                      </span>
+                      <span
+                        className={
+                          sortField === "display_name" && sortOrder === "desc"
+                            ? "text-[#B7832F] font-bold"
+                            : ""
+                        }
+                      >
+                        ▼
+                      </span>
                     </span>
                   </button>
                 </th>
@@ -1109,8 +1139,24 @@ export default function ContactsTable({
                   >
                     Type & Status
                     <span className="flex flex-col text-[8px] leading-none text-[#B7AEA2] group-hover:text-[#B7832F]">
-                      <span className={sortField === "contact_type" && sortOrder === "asc" ? "text-[#B7832F] font-bold" : ""}>▲</span>
-                      <span className={sortField === "contact_type" && sortOrder === "desc" ? "text-[#B7832F] font-bold" : ""}>▼</span>
+                      <span
+                        className={
+                          sortField === "contact_type" && sortOrder === "asc"
+                            ? "text-[#B7832F] font-bold"
+                            : ""
+                        }
+                      >
+                        ▲
+                      </span>
+                      <span
+                        className={
+                          sortField === "contact_type" && sortOrder === "desc"
+                            ? "text-[#B7832F] font-bold"
+                            : ""
+                        }
+                      >
+                        ▼
+                      </span>
                     </span>
                   </button>
                 </th>
@@ -1122,8 +1168,24 @@ export default function ContactsTable({
                   >
                     Contact Info
                     <span className="flex flex-col text-[8px] leading-none text-[#B7AEA2] group-hover:text-[#B7832F]">
-                      <span className={sortField === "email" && sortOrder === "asc" ? "text-[#B7832F] font-bold" : ""}>▲</span>
-                      <span className={sortField === "email" && sortOrder === "desc" ? "text-[#B7832F] font-bold" : ""}>▼</span>
+                      <span
+                        className={
+                          sortField === "email" && sortOrder === "asc"
+                            ? "text-[#B7832F] font-bold"
+                            : ""
+                        }
+                      >
+                        ▲
+                      </span>
+                      <span
+                        className={
+                          sortField === "email" && sortOrder === "desc"
+                            ? "text-[#B7832F] font-bold"
+                            : ""
+                        }
+                      >
+                        ▼
+                      </span>
                     </span>
                   </button>
                 </th>
@@ -1272,7 +1334,9 @@ export default function ContactsTable({
               <button
                 type="button"
                 disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
                 className="rounded border border-[#E3DCD0] bg-white px-3 py-1 text-xs font-medium text-[#7C7265] hover:bg-[#FAF7F2] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next
@@ -1292,8 +1356,9 @@ export default function ContactsTable({
             <p className="mt-2 text-xs text-[#7C7265]">
               You are about to delete {selectedContactIds.length} contact
               {selectedContactIds.length === 1 ? "" : "s"}. This action cannot
-              be undone. Type <span className="font-bold text-red-600">DELETE</span>{" "}
-              below to confirm.
+              be undone. Type{" "}
+              <span className="font-bold text-red-600">DELETE</span> below to
+              confirm.
             </p>
 
             <input
