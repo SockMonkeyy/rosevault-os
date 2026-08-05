@@ -244,35 +244,6 @@ export default async function ContactsPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <div className="mt-8 space-y-4">
-          {/* Controls Bar: Per Page & Alphabetical Sort Order */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#EDE7DC] bg-white/40 p-4 backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-medium text-[#7C7265]">Sort:</span>
-              <div className="flex items-center gap-1.5">
-                {(["asc", "desc"] as const).map((dir) => {
-                  const isActive = sortDirection === dir;
-                  const queryParams = new URLSearchParams();
-                  queryParams.set("per_page", perPage.toString());
-                  queryParams.set("page", "1");
-                  if (dir !== "asc") queryParams.set("sort", dir);
-
-                  return (
-                    <Link
-                      key={dir}
-                      href={`/contacts?${queryParams.toString()}`}
-                      className={`cursor-pointer rounded-md px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-all duration-200 ${
-                        isActive
-                          ? "bg-[#0D0C0A] text-[#D8B66A] shadow-sm"
-                          : "border border-[#EDE7DC] bg-white text-[#7C7265] hover:border-[#D8B66A] hover:bg-[#FBF7EF] hover:text-[#29231D]"
-                      }`}
-                    >
-                      {dir === "asc" ? "A–Z" : "Z–A"}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
 
           <SectionCard>
             <DataTable>

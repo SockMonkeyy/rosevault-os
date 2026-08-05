@@ -67,6 +67,9 @@ type Props = {
   organizationId: string;
 };
 
+type SortField = "display_name" | "contact_type" | "status" | "email" | "created_at";
+type SortOrder = "asc" | "desc";
+
 export default function ContactsTable({
   initialContacts = [],
   groups = [],
@@ -110,6 +113,10 @@ export default function ContactsTable({
   const [statusFilter, setStatusFilter] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>("display_name");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const [searchResults, setSearchResults] =
     useState<Contact[]>(initialContacts);
@@ -172,6 +179,16 @@ export default function ContactsTable({
 
     executeSearch();
   }, [debouncedSearch, organizationId]);
+
+  // Handle column sorting toggle
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  }
 
   // 3. Client-side filters applied to the server-returned search results
   const filteredContacts = useMemo(() => {
@@ -247,12 +264,25 @@ export default function ContactsTable({
       : Math.ceil(filteredContacts.length / Number(pageSize)) || 1;
 
   const paginatedContacts = useMemo(() => {
-    if (pageSize === "all") {
-      return filteredContacts;
+    let sliceTarget = filteredContacts;
+    if (pageSize !== "all") {
+      const start = (currentPage - 1) * Number(pageSize);
+      sliceTarget = filteredContacts.slice(start, start + Number(pageSize));
     }
-    const start = (currentPage - 1) * Number(pageSize);
-    return filteredContacts.slice(start, start + Number(pageSize));
-  }, [filteredContacts, currentPage, pageSize]);
+
+    // Apply sorting strictly to the currently viewed page items
+    return [...sliceTarget].sort((a, b) => {
+      let aVal: string = String(a[sortField] ?? "");
+      let bVal: string = String(b[sortField] ?? "");
+
+      aVal = aVal.toLowerCase();
+      bVal = bVal.toLowerCase();
+
+      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredContacts, currentPage, pageSize, sortField, sortOrder]);
 
   const visibleContactIds = filteredContacts.map((contact) => contact.id);
 
@@ -285,6 +315,8 @@ export default function ContactsTable({
     setStatusFilter("all");
     setGroupFilter("all");
     setTagFilter("all");
+    setSortField("display_name");
+    setSortOrder("asc");
     setCurrentPage(1);
   }
 
@@ -1056,9 +1088,45 @@ export default function ContactsTable({
                     className="h-4 w-4 rounded border-[#E3DCD0] text-[#B7832F] focus:ring-[#B7832F]/20"
                   />
                 </th>
-                <th className="px-4 py-3.5">Display Name</th>
-                <th className="px-4 py-3.5">Type & Status</th>
-                <th className="px-4 py-3.5">Contact Info</th>
+                <th className="px-4 py-3.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("display_name")}
+                    className="group inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider text-[#7C7265] hover:text-[#B7832F]"
+                  >
+                    Display Name
+                    <span className="flex flex-col text-[8px] leading-none text-[#B7AEA2] group-hover:text-[#B7832F]">
+                      <span className={sortField === "display_name" && sortOrder === "asc" ? "text-[#B7832F] font-bold" : ""}>▲</span>
+                      <span className={sortField === "display_name" && sortOrder === "desc" ? "text-[#B7832F] font-bold" : ""}>▼</span>
+                    </span>
+                  </button>
+                </th>
+                <th className="px-4 py-3.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("contact_type")}
+                    className="group inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider text-[#7C7265] hover:text-[#B7832F]"
+                  >
+                    Type & Status
+                    <span className="flex flex-col text-[8px] leading-none text-[#B7AEA2] group-hover:text-[#B7832F]">
+                      <span className={sortField === "contact_type" && sortOrder === "asc" ? "text-[#B7832F] font-bold" : ""}>▲</span>
+                      <span className={sortField === "contact_type" && sortOrder === "desc" ? "text-[#B7832F] font-bold" : ""}>▼</span>
+                    </span>
+                  </button>
+                </th>
+                <th className="px-4 py-3.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("email")}
+                    className="group inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider text-[#7C7265] hover:text-[#B7832F]"
+                  >
+                    Contact Info
+                    <span className="flex flex-col text-[8px] leading-none text-[#B7AEA2] group-hover:text-[#B7832F]">
+                      <span className={sortField === "email" && sortOrder === "asc" ? "text-[#B7832F] font-bold" : ""}>▲</span>
+                      <span className={sortField === "email" && sortOrder === "desc" ? "text-[#B7832F] font-bold" : ""}>▼</span>
+                    </span>
+                  </button>
+                </th>
                 <th className="px-4 py-3.5">Groups & Tags</th>
                 <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
