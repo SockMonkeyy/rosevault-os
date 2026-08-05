@@ -33,6 +33,7 @@ const RELATIONSHIP_OPTIONS = [
   { value: "buyer", label: "Buyer" },
   { value: "tenant", label: "Tenant" },
   { value: "landlord", label: "Landlord" },
+  { value: "title_rep", label: "Title Rep" },
   { value: "agent", label: "Agent" },
   { value: "investor", label: "Investor" },
   { value: "contractor", label: "Contractor" },

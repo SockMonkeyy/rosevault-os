@@ -1,9 +1,61 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+
+type FieldProps = {
+  label: string;
+  className?: string;
+  children: ReactNode;
+};
+
+function Field({ label, className = "", children }: FieldProps) {
+  return (
+    <div className={className}>
+      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-[#8F8578]">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+type FormSectionProps = {
+  title: string;
+  description?: string;
+  eyebrow?: string;
+  isFullWidth?: boolean;
+  children: ReactNode;
+};
+
+function FormSection({
+  title,
+  description,
+  eyebrow,
+  isFullWidth = false,
+  children,
+}: FormSectionProps) {
+  return (
+    <section className="rounded-2xl border border-[#E8E0D4] bg-[#FCFAF7]/80 p-6 shadow-[0_10px_30px_rgba(41,35,29,0.03)]">
+      <div className="mb-6 flex flex-col gap-2">
+        {eyebrow && (
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+            {eyebrow}
+          </p>
+        )}
+        <h2 className="font-serif text-xl font-normal tracking-wide text-[#29231D]">
+          {title}
+        </h2>
+        {description && <p className="text-sm leading-6 text-[#7C7265]">{description}</p>}
+      </div>
+      <div className={`grid gap-4 ${isFullWidth ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
+        {children}
+      </div>
+    </section>
+  );
+}
 
 export default function EditContactPage() {
   const params = useParams<{ id: string }>();
@@ -12,6 +64,8 @@ export default function EditContactPage() {
 
   const contactId = params.id;
 
+  const [contactKind, setContactKind] = useState<"person" | "business">("person");
+  const [businessName, setBusinessName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -92,6 +146,8 @@ export default function EditContactPage() {
         return;
       }
 
+      setContactKind(contact.contact_kind ?? "person");
+      setBusinessName(contact.business_name ?? "");
       setFirstName(contact.first_name ?? "");
       setLastName(contact.last_name ?? "");
       setEmail(contact.email ?? "");
@@ -144,6 +200,22 @@ export default function EditContactPage() {
     setMessage("");
     setIsSubmitting(true);
 
+    if (contactKind === "person") {
+      if (!firstName.trim() || !lastName.trim()) {
+        setMessage("First and last name are required for person contacts.");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    if (contactKind === "business") {
+      if (!businessName.trim()) {
+        setMessage("Business name is required.");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const {
       data: { user },
       error: userError,
@@ -170,8 +242,23 @@ export default function EditContactPage() {
     const { error: updateError } = await supabase
       .from("contacts")
       .update({
-        first_name: firstName.trim(),
-        last_name: lastName.trim() || null,
+        contact_kind: contactKind,
+        business_name:
+          contactKind === "business"
+            ? businessName.trim() || null
+            : null,
+        display_name:
+          contactKind === "business"
+            ? businessName.trim()
+            : `${firstName.trim()} ${lastName.trim()}`.trim(),
+        first_name:
+          contactKind === "person"
+            ? firstName.trim()
+            : firstName.trim() || null,
+        last_name:
+          contactKind === "person"
+            ? lastName.trim() || null
+            : lastName.trim() || null,
         email: email.trim() || null,
         primary_phone: cellPhone.trim() || null,
         primary_phone_type: cellPhoneType,
@@ -249,8 +336,8 @@ export default function EditContactPage() {
         {/* Page Header */}
         <div className="mb-8">
           <Link
-            href={`/contacts/${contactId}`}
             className="group inline-flex items-center gap-2 text-xs font-medium tracking-wide text-[#B7832F] transition-all duration-300 hover:-translate-x-0.5 hover:text-[#916520]"
+            href={`/contacts/${contactId}`}
           >
             <span
               aria-hidden="true"
@@ -266,7 +353,7 @@ export default function EditContactPage() {
               Relationship Record
             </p>
             <h1 className="mt-2 font-serif text-3xl font-normal tracking-wide text-[#29231D]">
-              Edit Contact
+              {contactKind === "business" ? "Edit Business Contact" : "Edit Person Contact"}
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7C7265]">
               Update contact details, CRM information, spouse information,
@@ -285,30 +372,77 @@ export default function EditContactPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
           <FormSection
+            description="Update the contact's primary information and communication details."
             eyebrow="Primary Record"
             title="Basic Information"
-            description="Update the contact's primary information and communication details."
           >
-            <Field label="First Name *">
-              <input
-                type="text"
-                required
-                value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-                className={inputClasses}
-              />
+            <Field className="md:col-span-2" label="Contact Kind">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setContactKind("person")}
+                  className={`rounded-md border px-5 py-3 text-sm transition ${
+                    contactKind === "person"
+                      ? "border-[#B7832F] bg-[#B7832F]/10"
+                      : "border-[#E3DCD0] bg-white"
+                  }`}
+                >
+                  👤 Person
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setContactKind("business")}
+                  className={`rounded-md border px-5 py-3 text-sm transition ${
+                    contactKind === "business"
+                      ? "border-[#B7832F] bg-[#B7832F]/10"
+                      : "border-[#E3DCD0] bg-white"
+                  }`}
+                >
+                  🏢 Business
+                </button>
+              </div>
             </Field>
 
-            <Field label="Last Name">
-              <input
-                type="text"
-                value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
-                className={inputClasses}
-              />
-            </Field>
+            {contactKind === "person" ? (
+              <Field label="First Name *">
+                <input
+                  type="text"
+                  required={contactKind === "person"}
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  className={inputClasses}
+                />
+              </Field>
+            ) : (
+              <Field label="Business Name *" className="md:col-span-2">
+                <input
+                  type="text"
+                  required={contactKind === "business"}
+                  value={businessName}
+                  onChange={(event) => setBusinessName(event.target.value)}
+                  className={inputClasses}
+                  placeholder="Stewart Title, ABC Plumbing..."
+                />
+              </Field>
+            )}
 
-            <Field label="Email Address">
+            {contactKind === "person" && (
+              <Field label="Last Name *">
+                <input
+                  type="text"
+                  required={contactKind === "person"}
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  className={inputClasses}
+                />
+              </Field>
+            )}
+
+            <Field
+              className={contactKind === "business" ? "md:col-span-2" : ""}
+              label="Email Address"
+            >
               <input
                 type="email"
                 value={email}
@@ -340,7 +474,7 @@ export default function EditContactPage() {
               </div>
             </Field>
 
-            <Field label="Secondary Phone" className="md:col-span-2">
+            <Field className="md:col-span-2" label="Secondary Phone">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                 <select
                   value={businessPhoneType}
@@ -365,90 +499,92 @@ export default function EditContactPage() {
           </FormSection>
 
           {/* Spouse Information */}
-          <FormSection
-            eyebrow="Household Relationship"
-            title="Spouse Information"
-            description="Optional contact and communication information for the contact's spouse."
-          >
-            <Field label="Spouse First Name">
-              <input
-                type="text"
-                value={spouseFirstName}
-                onChange={(event) => setSpouseFirstName(event.target.value)}
-                className={inputClasses}
-              />
-            </Field>
-
-            <Field label="Spouse Last Name">
-              <input
-                type="text"
-                value={spouseLastName}
-                onChange={(event) => setSpouseLastName(event.target.value)}
-                className={inputClasses}
-              />
-            </Field>
-
-            <Field label="Spouse Email">
-              <input
-                type="email"
-                value={spouseEmail}
-                onChange={(event) => setSpouseEmail(event.target.value)}
-                className={inputClasses}
-              />
-            </Field>
-
-            <Field label="Spouse Primary Phone">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
-                <select
-                  value={spouseCellPhoneType}
-                  onChange={(event) => setSpouseCellPhoneType(event.target.value)}
-                  className={inputClasses}
-                >
-                  <option value="mobile">Mobile</option>
-                  <option value="work">Work</option>
-                  <option value="home">Home</option>
-                  <option value="other">Other</option>
-                </select>
-
+          {contactKind === "person" && (
+            <FormSection
+              description="Optional contact and communication information for the contact's spouse."
+              eyebrow="Household Relationship"
+              title="Spouse Information"
+            >
+              <Field label="Spouse First Name">
                 <input
-                  type="tel"
-                  value={spouseCellPhone}
-                  onChange={(event) => setSpouseCellPhone(event.target.value)}
-                  placeholder="Enter phone number"
+                  type="text"
+                  value={spouseFirstName}
+                  onChange={(event) => setSpouseFirstName(event.target.value)}
                   className={inputClasses}
                 />
-              </div>
-            </Field>
+              </Field>
 
-            <Field label="Spouse Secondary Phone" className="md:col-span-2">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
-                <select
-                  value={spouseBusinessPhoneType}
-                  onChange={(event) => setSpouseBusinessPhoneType(event.target.value)}
-                  className={inputClasses}
-                >
-                  <option value="mobile">Mobile</option>
-                  <option value="work">Work</option>
-                  <option value="home">Home</option>
-                  <option value="other">Other</option>
-                </select>
-
+              <Field label="Spouse Last Name">
                 <input
-                  type="tel"
-                  value={spouseBusinessPhone}
-                  onChange={(event) => setSpouseBusinessPhone(event.target.value)}
-                  placeholder="Enter phone number"
+                  type="text"
+                  value={spouseLastName}
+                  onChange={(event) => setSpouseLastName(event.target.value)}
                   className={inputClasses}
                 />
-              </div>
-            </Field>
-          </FormSection>
+              </Field>
+
+              <Field label="Spouse Email">
+                <input
+                  type="email"
+                  value={spouseEmail}
+                  onChange={(event) => setSpouseEmail(event.target.value)}
+                  className={inputClasses}
+                />
+              </Field>
+
+              <Field label="Spouse Primary Phone">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
+                  <select
+                    value={spouseCellPhoneType}
+                    onChange={(event) => setSpouseCellPhoneType(event.target.value)}
+                    className={inputClasses}
+                  >
+                    <option value="mobile">Mobile</option>
+                    <option value="work">Work</option>
+                    <option value="home">Home</option>
+                    <option value="other">Other</option>
+                  </select>
+
+                  <input
+                    type="tel"
+                    value={spouseCellPhone}
+                    onChange={(event) => setSpouseCellPhone(event.target.value)}
+                    placeholder="Enter phone number"
+                    className={inputClasses}
+                  />
+                </div>
+              </Field>
+
+              <Field className="md:col-span-2" label="Spouse Secondary Phone">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
+                  <select
+                    value={spouseBusinessPhoneType}
+                    onChange={(event) => setSpouseBusinessPhoneType(event.target.value)}
+                    className={inputClasses}
+                  >
+                    <option value="mobile">Mobile</option>
+                    <option value="work">Work</option>
+                    <option value="home">Home</option>
+                    <option value="other">Other</option>
+                  </select>
+
+                  <input
+                    type="tel"
+                    value={spouseBusinessPhone}
+                    onChange={(event) => setSpouseBusinessPhone(event.target.value)}
+                    placeholder="Enter phone number"
+                    className={inputClasses}
+                  />
+                </div>
+              </Field>
+            </FormSection>
+          )}
 
           {/* CRM Classification */}
           <FormSection
+            description="Categorize this contact for filtering, workflows, marketing, and future RoseVault automations."
             eyebrow="Relationship Intelligence"
             title="CRM Classification"
-            description="Categorize this contact for filtering, workflows, marketing, and future RoseVault automations."
           >
             <Field label="Contact Type">
               <select
@@ -460,6 +596,7 @@ export default function EditContactPage() {
                 <option value="buyer">Buyer</option>
                 <option value="seller">Seller</option>
                 <option value="investor">Investor</option>
+                <option value="title_rep">Title Rep</option>
                 <option value="agent">Agent</option>
                 <option value="lender">Lender</option>
                 <option value="attorney">Attorney</option>
@@ -510,38 +647,76 @@ export default function EditContactPage() {
             </Field>
           </FormSection>
 
-          {/* Company Information */}
+          {/* Company / Professional Information */}
           <FormSection
+            description={
+              contactKind === "business"
+                ? "Primary contact details for this business."
+                : "Primary professional or organizational details."
+            }
             eyebrow="Professional Profile"
-            title="Company Information"
-            description="Optional professional, business, or organizational details."
+            title={contactKind === "business" ? "Primary Contact Details" : "Company Information"}
           >
-            <Field label="Company">
-              <input
-                type="text"
-                value={company}
-                onChange={(event) => setCompany(event.target.value)}
-                className={inputClasses}
-              />
-            </Field>
+            {contactKind === "business" ? (
+              <>
+                <Field label="Primary Contact First Name">
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
+                    className={inputClasses}
+                  />
+                </Field>
 
-            <Field label="Job Title">
-              <input
-                type="text"
-                value={jobTitle}
-                onChange={(event) => setJobTitle(event.target.value)}
-                className={inputClasses}
-              />
-            </Field>
+                <Field label="Primary Contact Last Name">
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
+                    className={inputClasses}
+                  />
+                </Field>
+
+                <Field className="md:col-span-2" label="Primary Contact Title">
+                  <input
+                    type="text"
+                    value={jobTitle}
+                    onChange={(event) => setJobTitle(event.target.value)}
+                    placeholder="Account Manager, Owner, Closing Officer..."
+                    className={inputClasses}
+                  />
+                </Field>
+              </>
+            ) : (
+              <>
+                <Field label="Employer">
+                  <input
+                    type="text"
+                    value={company}
+                    onChange={(event) => setCompany(event.target.value)}
+                    className={inputClasses}
+                  />
+                </Field>
+
+                <Field label="Job Title">
+                  <input
+                    type="text"
+                    value={jobTitle}
+                    onChange={(event) => setJobTitle(event.target.value)}
+                    className={inputClasses}
+                  />
+                </Field>
+              </>
+            )}
           </FormSection>
 
           {/* Mailing Address */}
           <FormSection
+            description="Used for client records, correspondence, and mailing-label generation."
             eyebrow="Correspondence"
             title="Mailing Address"
-            description="Used for client records, correspondence, and mailing-label generation."
           >
-            <Field label="Address Line 1" className="md:col-span-2">
+            <Field className="md:col-span-2" label="Address Line 1">
               <input
                 type="text"
                 value={addressLine1}
@@ -550,7 +725,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Address Line 2" className="md:col-span-2">
+            <Field className="md:col-span-2" label="Address Line 2">
               <input
                 type="text"
                 value={addressLine2}
@@ -590,11 +765,11 @@ export default function EditContactPage() {
 
           {/* Property Address */}
           <FormSection
+            description="The property associated with this contact or real estate lead. This may be different from the contact's mailing address."
             eyebrow="Real Estate Relationship"
             title="Property Address"
-            description="The property associated with this contact or real estate lead. This may be different from the contact's mailing address."
           >
-            <Field label="Property Address Line 1" className="md:col-span-2">
+            <Field className="md:col-span-2" label="Property Address Line 1">
               <input
                 type="text"
                 value={propertyAddressLine1}
@@ -604,7 +779,7 @@ export default function EditContactPage() {
               />
             </Field>
 
-            <Field label="Property Address Line 2" className="md:col-span-2">
+            <Field className="md:col-span-2" label="Property Address Line 2">
               <input
                 type="text"
                 value={propertyAddressLine2}
@@ -648,33 +823,23 @@ export default function EditContactPage() {
 
           {/* Notes */}
           <FormSection
-            eyebrow="Relationship Context"
-            title="Notes"
             description="Add or update anything important about this relationship."
+            eyebrow="Relationship Context"
             isFullWidth={true}
+            title="Notes"
           >
             <textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
-              rows={6}
-              placeholder="Add notes about this contact..."
+              rows={4}
+              placeholder="Add key details, preferences, conversation notes, or background context..."
               className={inputClasses}
             />
           </FormSection>
 
-          {/* Bottom Error Message */}
-          {message && (
-            <div className="rounded-md border border-red-200 bg-red-50/70 px-4 py-3 text-xs leading-relaxed text-red-700">
-              {message}
-            </div>
-          )}
-
           {/* Form Actions */}
-          <div className="flex flex-col-reverse gap-3 border-t border-[#EDE7DC]/80 pt-6 sm:flex-row sm:justify-end">
-            <Link
-              href={`/contacts/${contactId}`}
-              className={secondaryButtonClasses}
-            >
+          <div className="flex items-center justify-end gap-4 pt-4">
+            <Link className={secondaryButtonClasses} href={`/contacts/${contactId}`}>
               Cancel
             </Link>
 
@@ -688,59 +853,6 @@ export default function EditContactPage() {
           </div>
         </form>
       </div>
-    </div>
-  );
-}
-
-function FormSection({
-  eyebrow,
-  title,
-  description,
-  isFullWidth = false,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  isFullWidth?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
-      <div className="mb-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-          {eyebrow}
-        </p>
-        <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
-          {title}
-        </h2>
-        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[#7C7265]">
-          {description}
-        </p>
-      </div>
-
-      <div className={isFullWidth ? "block w-full" : "grid grid-cols-1 gap-5 md:grid-cols-2"}>
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function Field({
-  label,
-  className = "",
-  children,
-}: {
-  label: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={className}>
-      <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-        {label}
-      </label>
-      {children}
     </div>
   );
 }

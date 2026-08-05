@@ -86,10 +86,12 @@ app/
     page.tsx
   actions/
     transactions/
+      advanceTransactionStage.ts
       createTransactionNote.ts
       deleteTransactionDocument.ts
       deleteTransactionNote.ts
       getTransactionDocumentUrl.ts
+      toggleChecklistItem.ts
       updateTransaction.ts
       updateTransactionNote.ts
       uploadTransactionDocument.ts
@@ -98,6 +100,8 @@ app/
       WorkspaceLayout.tsx
     transactions/
       AddTransactionNoteButton.tsx
+      AdvanceStageButton.tsx
+      ChecklistItem.tsx
       DeleteTransactionNoteButton.tsx
       EditTransactionNoteButton.tsx
       TransactionActivity.tsx
@@ -105,6 +109,7 @@ app/
       TransactionDocuments.tsx
       TransactionNotes.tsx
       TransactionTimeline.tsx
+      WorkflowProgressCard.tsx
     ui/
       Alert/
         Alert.tsx
@@ -170,6 +175,7 @@ lib/
   activity/
     getActivity.ts
     logActivity.ts
+    types.ts
   dashboard/
     getDashboardmetrics.ts
     getRecentActivity.ts
@@ -187,9 +193,12 @@ lib/
     checklistTemplates.ts
     getTransactionChecklist.ts
     getTransactionNotes.ts
+    getWorkflowSummary.ts
     milestones.ts
     seedTransactionChecklist.ts
     stages.ts
+    workflow.ts
+    workflowDefinitions.ts
   documentCategories.ts
   getFileIcon.tsx
   supabase.ts
@@ -271,9 +280,35 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
+<file path="lib/activity/types.ts">
+export const ActivityType = {
+  CHECKLIST_COMPLETED: "checklist_completed",
+
+  CHECKLIST_REOPENED: "checklist_reopened",
+
+  STAGE_ADVANCED: "stage_advanced",
+
+  DOCUMENT_UPLOADED: "document_uploaded",
+
+  DOCUMENT_DELETED: "document_deleted",
+
+  NOTE_CREATED: "note_created",
+
+  TASK_CREATED: "task_created",
+
+  TASK_COMPLETED: "task_completed",
+
+  PROPERTY_UPDATED: "property_updated",
+
+  TRANSACTION_UPDATED: "transaction_updated",
+
+  CONTACT_UPDATED: "contact_updated",
+} as const;
+</file>
+
 <file path="rosevault-os/.git/gk/config">
 [branch "main"]
-	gk-last-accessed = 2026-07-29T00:20:51.828Z
+	gk-last-accessed = 2026-07-30T17:37:41.103Z
 </file>
 
 <file path="rosevault-os/.git/hooks/applypatch-msg.sample">
@@ -1329,6 +1364,79 @@ export default function GenericFeaturePage() {
 }
 </file>
 
+<file path="app/actions/transactions/advanceTransactionStage.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { createClient } from "@/lib/supabase/server";
+
+import {
+  TRANSACTION_WORKFLOWS,
+} from "@/lib/transactions/workflowDefinitions";
+
+import { TransactionStage } from "@/lib/transactions/stages";
+
+import { ensureChecklistForStage } from "@/lib/transactions/workflow";
+
+export async function advanceTransactionStage(
+  transactionId: string,
+) {
+  const supabase = await createClient();
+
+  const {
+    data: transaction,
+    error,
+  } = await supabase
+    .from("transactions")
+    .select(`
+      id,
+      organization_id,
+      status
+    `)
+    .eq("id", transactionId)
+    .single();
+
+  if (error || !transaction) {
+    throw new Error("Transaction not found.");
+  }
+
+  const currentStage =
+    transaction.status as TransactionStage;
+
+  const workflow =
+    TRANSACTION_WORKFLOWS[currentStage];
+
+  if (!workflow?.nextStage) {
+    return;
+  }
+
+  const nextStage =
+    workflow.nextStage;
+
+  const { error: updateError } = await supabase
+    .from("transactions")
+    .update({
+      status: nextStage,
+    })
+    .eq("id", transactionId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  await ensureChecklistForStage(
+    transaction.organization_id,
+    transactionId,
+    nextStage,
+  );
+
+  revalidatePath(
+    `/transactions/${transactionId}`,
+  );
+}
+</file>
+
 <file path="app/actions/transactions/createTransactionNote.ts">
 "use server";
 
@@ -1525,6 +1633,81 @@ export async function deleteTransactionNote({
 }
 </file>
 
+<file path="app/actions/transactions/toggleChecklistItem.ts">
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+import { logActivity } from "@/lib/activity/logActivity";
+
+import { ActivityType } from "@/lib/activity/types";
+
+export async function toggleChecklistItem(
+  itemId: string,
+  completed: boolean,
+  transactionId: string,
+) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: checklistItem } = await supabase
+    .from("transaction_checklist_items")
+    .select(
+      `
+    title,
+    transaction_id,
+    organization_id
+  `,
+    )
+    .eq("id", itemId)
+    .single();
+
+  const update = completed
+    ? {
+        completed: true,
+        completed_at: new Date().toISOString(),
+        completed_by: user?.id ?? null,
+      }
+    : {
+        completed: false,
+        completed_at: null,
+        completed_by: null,
+      };
+
+  const { error } = await supabase
+    .from("transaction_checklist_items")
+    .update(update)
+    .eq("id", itemId);
+
+  if (error) {
+    console.error(error);
+    throw new Error("Unable to update checklist item.");
+  }
+  if (checklistItem) {
+    await logActivity({
+      organizationId: checklistItem.organization_id,
+
+      transactionId: checklistItem.transaction_id,
+
+      userId: user?.id,
+
+      type: completed
+        ? ActivityType.CHECKLIST_COMPLETED
+        : ActivityType.CHECKLIST_REOPENED,
+
+      title: completed ? "Checklist Item Completed" : "Checklist Item Reopened",
+
+      description: checklistItem.title,
+    });
+  }
+
+  revalidatePath(`/transactions/${transactionId}`);
+}
+</file>
+
 <file path="app/components/layout/WorkspaceLayout.tsx">
 import { ReactNode } from "react";
 
@@ -1542,6 +1725,135 @@ export default function WorkspaceLayout({
         {children}
       </div>
     </main>
+  );
+}
+</file>
+
+<file path="app/components/transactions/AdvanceStageButton.tsx">
+"use client";
+
+import { useTransition } from "react";
+
+import { ArrowRight, Loader2 } from "lucide-react";
+
+import { advanceTransactionStage } from "@/app/actions/transactions/advanceTransactionStage";
+
+interface AdvanceStageButtonProps {
+  transactionId: string;
+  disabled: boolean;
+}
+
+export default function AdvanceStageButton({
+  transactionId,
+  disabled,
+}: AdvanceStageButtonProps) {
+  const [pending, startTransition] =
+    useTransition();
+
+  function handleClick() {
+    startTransition(async () => {
+      await advanceTransactionStage(
+        transactionId,
+      );
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={disabled || pending}
+      onClick={handleClick}
+      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0D0C0A] px-4 py-3 text-sm font-semibold text-[#D8B66A] transition hover:bg-[#171512] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {pending ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Advancing...
+        </>
+      ) : (
+        <>
+          Advance Stage
+          <ArrowRight className="h-4 w-4" />
+        </>
+      )}
+    </button>
+  );
+}
+</file>
+
+<file path="app/components/transactions/ChecklistItem.tsx">
+"use client";
+
+import { useTransition } from "react";
+import {
+  CheckCircle2,
+  Circle,
+  Loader2,
+} from "lucide-react";
+
+import { toggleChecklistItem } from "@/app/actions/transactions/toggleChecklistItem";
+
+interface ChecklistItemProps {
+  id: string;
+  title: string;
+  completed: boolean;
+  autoCompleted: boolean;
+  transactionId: string;
+}
+
+export default function ChecklistItem({
+  id,
+  title,
+  completed,
+  autoCompleted,
+  transactionId,
+}: ChecklistItemProps) {
+  const [isPending, startTransition] =
+    useTransition();
+
+  function handleClick() {
+    startTransition(async () => {
+      await toggleChecklistItem(
+        id,
+        !completed,
+        transactionId,
+      );
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={isPending}
+      onClick={handleClick}
+      className="flex w-full items-center gap-3 rounded-xl border border-[#F1ECE3] p-3 text-left transition hover:bg-[#FBF7EF]"
+    >
+      {isPending ? (
+        <Loader2 className="h-5 w-5 animate-spin text-[#B7832F]" />
+      ) : completed ? (
+        <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
+      ) : (
+        <Circle className="h-5 w-5 text-[#D3C7B8]" />
+      )}
+
+      <div className="flex-1">
+        <p
+          className={`text-sm font-medium ${
+            completed
+              ? "text-[#7C7265] line-through"
+              : "text-[#29231D]"
+          }`}
+        >
+          {title}
+        </p>
+
+        {autoCompleted && (
+          <p className="mt-1 text-xs text-[#8F8578]">
+            Automatic
+          </p>
+        )}
+      </div>
+    </button>
   );
 }
 </file>
@@ -1632,92 +1944,6 @@ export default function DeleteTransactionNoteButton({
         </div>
       )}
     </>
-  );
-}
-</file>
-
-<file path="app/components/transactions/TransactionChecklist.tsx">
-import {
-  CheckCircle2,
-  Circle,
-} from "lucide-react";
-
-interface ChecklistItem {
-  id: string;
-  item_id: string;
-  title: string;
-  completed: boolean;
-  auto_completed: boolean;
-}
-
-interface TransactionChecklistProps {
-  items: ChecklistItem[];
-}
-
-export default function TransactionChecklist({
-  items,
-}: TransactionChecklistProps) {
-  const completedCount = items.filter(
-    (item) => item.completed,
-  ).length;
-
-  return (
-    <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-5 shadow-sm backdrop-blur-sm">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h2 className="font-serif text-lg text-[#29231D]">
-            Checklist
-          </h2>
-
-          <p className="mt-1 text-sm text-[#8F8578]">
-            {completedCount} of {items.length} complete
-          </p>
-        </div>
-
-        <span className="rounded-full bg-[#F7F4EF] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#B7832F]">
-          {Math.round(
-            items.length === 0
-              ? 0
-              : (completedCount / items.length) *
-                  100,
-          )}
-          %
-        </span>
-      </div>
-
-      <div className="space-y-3">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-3 rounded-xl border border-[#F1ECE3] p-3"
-          >
-            {item.completed ? (
-              <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
-            ) : (
-              <Circle className="h-5 w-5 text-[#D3C7B8]" />
-            )}
-
-            <div className="flex-1">
-              <p
-                className={`text-sm font-medium ${
-                  item.completed
-                    ? "text-[#7C7265] line-through"
-                    : "text-[#29231D]"
-                }`}
-              >
-                {item.title}
-              </p>
-
-              {item.auto_completed && (
-                <p className="mt-1 text-xs text-[#8F8578]">
-                  Automatic
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 </file>
@@ -1827,6 +2053,155 @@ export default function TransactionTimeline({
           );
         })}
       </div>
+    </div>
+  );
+}
+</file>
+
+<file path="app/components/transactions/WorkflowProgressCard.tsx">
+import { ArrowRight, CheckCircle2, FileText } from "lucide-react";
+import AdvanceStageButton from "./AdvanceStageButton";
+
+interface WorkflowProgressCardProps {
+  transactionId: string;
+
+  stageTitle: string;
+
+  nextStage?: string;
+
+  completedTasks: number;
+
+  totalTasks: number;
+
+  uploadedDocuments: number;
+
+  requiredDocuments: number;
+
+  remainingTasks: string[];
+}
+
+export default function WorkflowProgressCard({
+  transactionId,
+  stageTitle,
+  nextStage,
+  completedTasks,
+  totalTasks,
+  uploadedDocuments,
+  requiredDocuments,
+  remainingTasks,
+}: WorkflowProgressCardProps) {
+  const percent =
+    totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+  return (
+    <div className="rounded-2xl border border-[#EDE7DC] bg-white/70 p-6 shadow-sm backdrop-blur-sm">
+      <div className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8F8578]">
+          Workflow
+        </p>
+
+        <h2 className="mt-2 font-serif text-2xl text-[#29231D]">
+          {stageTitle}
+        </h2>
+      </div>
+
+      {/* Progress */}
+
+      <div className="mb-5">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-sm text-[#7C7265]">Progress</span>
+
+          <span className="font-semibold text-[#B7832F]">{percent}%</span>
+        </div>
+
+        <div className="h-2 overflow-hidden rounded-full bg-[#ECE6DB]">
+          <div
+            className="h-full rounded-full bg-[#B7832F] transition-all duration-500"
+            style={{
+              width: `${percent}%`,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Stats */}
+
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-[#B7832F]" />
+
+          <div>
+            <p className="text-sm font-medium text-[#29231D]">
+              {completedTasks} of {totalTasks} Tasks Complete
+            </p>
+
+            <p className="text-xs text-[#8F8578]">Workflow checklist</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <FileText className="h-5 w-5 text-[#B7832F]" />
+
+          <div>
+            <p className="text-sm font-medium text-[#29231D]">
+              {uploadedDocuments} of {requiredDocuments} Documents
+            </p>
+
+            <p className="text-xs text-[#8F8578]">Required for this stage</p>
+          </div>
+        </div>
+      </div>
+
+      {nextStage && (
+        <>
+          <div className="my-6 border-t border-[#ECE6DB]" />
+
+          <div className="flex items-center justify-between rounded-xl bg-[#FBF7EF] p-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-[#8F8578]">
+                Next Stage
+              </p>
+
+              <p className="mt-1 font-medium text-[#29231D]">{nextStage}</p>
+            </div>
+
+            <ArrowRight className="h-5 w-5 text-[#B7832F]" />
+          </div>
+        </>
+      )}
+
+      {remainingTasks.length > 0 && (
+        <>
+          <div className="my-6 border-t border-[#ECE6DB]" />
+
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#8F8578]">
+              Remaining
+            </p>
+
+            <div className="space-y-2">
+              {remainingTasks.map((task) => (
+                <div
+                  key={task}
+                  className="rounded-lg bg-[#FBF7EF] px-3 py-2 text-sm text-[#29231D]"
+                >
+                  {task}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+      {nextStage && (
+        <>
+          <div className="my-6 border-t border-[#ECE6DB]" />
+
+          <AdvanceStageButton
+            transactionId={transactionId}
+            disabled={remainingTasks.length > 0}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -3872,39 +4247,65 @@ body {
 <file path="lib/activity/logActivity.ts">
 import { createClient } from "@/lib/supabase/server";
 
-interface LogActivityParams {
+interface LogActivityOptions {
   organizationId: string;
-  entityType: string;
-  entityId: string;
-  activityType: string;
-  description: string;
-  createdBy: string;
+
+  transactionId?: string;
+
+  propertyId?: string;
+
+  contactId?: string;
+
+  userId?: string | null;
+
+  type: string;
+
+  title: string;
+
+  description?: string;
+
   metadata?: Record<string, unknown>;
 }
 
 export async function logActivity({
   organizationId,
-  entityType,
-  entityId,
-  activityType,
+  transactionId,
+  propertyId,
+  contactId,
+  userId,
+  type,
+  title,
   description,
-  createdBy,
-  metadata = {},
-}: LogActivityParams) {
+  metadata,
+}: LogActivityOptions) {
   const supabase = await createClient();
 
-  const { error } = await supabase.from("activity_log").insert({
-    organization_id: organizationId,
-    entity_type: entityType,
-    entity_id: entityId,
-    activity_type: activityType,
-    description,
-    created_by: createdBy,
-    metadata,
-  });
+  const { error } = await supabase
+    .from("activity")
+    .insert({
+      organization_id: organizationId,
+
+      transaction_id: transactionId,
+
+      property_id: propertyId,
+
+      contact_id: contactId,
+
+      user_id: userId,
+
+      activity_type: type,
+
+      title,
+
+      description,
+
+      metadata,
+    });
 
   if (error) {
-    console.error("Activity Log Error:", error);
+    console.error(error);
+
+    throw error;
   }
 }
 </file>
@@ -4269,6 +4670,60 @@ export async function getTransactionNotes(
 }
 </file>
 
+<file path="lib/transactions/getWorkflowSummary.ts">
+import { createClient } from "@/lib/supabase/server";
+import { TRANSACTION_WORKFLOWS } from "./workflowDefinitions";
+import { TransactionStage } from "./stages";
+
+export async function getWorkflowSummary(
+  transactionId: string,
+  stage: TransactionStage,
+) {
+  const supabase = await createClient();
+
+  const workflow =
+    TRANSACTION_WORKFLOWS[stage];
+
+  const { data: checklist } = await supabase
+    .from("transaction_checklist_items")
+    .select("title, completed")
+    .eq("transaction_id", transactionId);
+
+  const completedTasks =
+    checklist?.filter((item) => item.completed)
+      .length ?? 0;
+
+  const totalTasks =
+    checklist?.length ?? 0;
+
+  const remainingTasks =
+    checklist
+      ?.filter((item) => !item.completed)
+      .map((item) => item.title) ?? [];
+
+  return {
+    stageTitle: workflow.title,
+
+    nextStage: workflow.nextStage
+      ? TRANSACTION_WORKFLOWS[
+          workflow.nextStage
+        ].title
+      : undefined,
+
+    completedTasks,
+
+    totalTasks,
+
+    uploadedDocuments: 0,
+
+    requiredDocuments:
+      workflow.requiredDocuments.length,
+
+    remainingTasks,
+  };
+}
+</file>
+
 <file path="lib/transactions/milestones.ts">
 export const TRANSACTION_MILESTONE_KEYS = [
   "lead",
@@ -4334,53 +4789,6 @@ export const TRANSACTION_MILESTONES: TransactionMilestone[] = [
 ];
 </file>
 
-<file path="lib/transactions/seedTransactionChecklist.ts">
-import { createClient } from "@/lib/supabase/server";
-
-import {
-  TRANSACTION_CHECKLISTS,
-} from "@/lib/transactions/checklistTemplates";
-
-import {
-  TransactionStage,
-} from "@/lib/transactions/stages";
-
-export async function seedTransactionChecklist(
-  organizationId: string,
-  transactionId: string,
-  stage: TransactionStage,
-) {
-  const supabase = await createClient();
-
-  const template =
-    TRANSACTION_CHECKLISTS[stage] ?? [];
-
-  const { data: existing } = await supabase
-    .from("transaction_checklist_items")
-    .select("item_id")
-    .eq("transaction_id", transactionId);
-
-  const existingIds =
-    new Set(existing?.map((i) => i.item_id));
-
-  const rows = template
-    .filter((item) => !existingIds.has(item.id))
-    .map((item) => ({
-      organization_id: organizationId,
-      transaction_id: transactionId,
-      item_id: item.id,
-      title: item.title,
-      auto_completed: false,
-    }));
-
-  if (rows.length > 0) {
-    await supabase
-      .from("transaction_checklist_items")
-      .insert(rows);
-  }
-}
-</file>
-
 <file path="lib/transactions/stages.ts">
 export const TRANSACTION_STAGES = [
   {
@@ -4417,6 +4825,335 @@ export const TRANSACTION_STAGES = [
 
 export type TransactionStage =
   (typeof TRANSACTION_STAGES)[number]["id"];
+</file>
+
+<file path="lib/transactions/workflow.ts">
+import { createClient } from "@/lib/supabase/server";
+import { TransactionStage } from "./stages";
+import { TRANSACTION_CHECKLISTS } from "./checklistTemplates";
+
+export async function ensureChecklistForStage(
+  organizationId: string,
+  transactionId: string,
+  stage: TransactionStage,
+) {
+  const supabase = await createClient();
+
+  const template =
+    TRANSACTION_CHECKLISTS[stage] ?? [];
+
+  const { data: existing, error } = await supabase
+    .from("transaction_checklist_items")
+    .select("item_id")
+    .eq("transaction_id", transactionId);
+
+  if (error) {
+    throw error;
+  }
+
+  const existingIds = new Set(
+    existing.map((item) => item.item_id),
+  );
+
+  const rows = template
+    .filter((item) => !existingIds.has(item.id))
+    .map((item) => ({
+      organization_id: organizationId,
+      transaction_id: transactionId,
+      item_id: item.id,
+      title: item.title,
+      completed: false,
+      auto_completed: false,
+    }));
+
+  if (rows.length > 0) {
+    const { error: insertError } = await supabase
+      .from("transaction_checklist_items")
+      .insert(rows);
+
+    if (insertError) {
+      throw insertError;
+    }
+  }
+}
+
+export async function getChecklistProgress(
+  transactionId: string,
+) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("transaction_checklist_items")
+    .select("completed")
+    .eq("transaction_id", transactionId);
+
+  if (error) {
+    throw error;
+  }
+
+  const total = data.length;
+
+  const completed = data.filter(
+    (item) => item.completed,
+  ).length;
+
+  return {
+    total,
+    completed,
+    percent:
+      total === 0
+        ? 0
+        : Math.round((completed / total) * 100),
+  };
+}
+</file>
+
+<file path="lib/transactions/workflowDefinitions.ts">
+import { TransactionStage } from "./stages";
+
+export interface WorkflowChecklistItem {
+  id: string;
+  title: string;
+  required: boolean;
+  autoComplete: boolean;
+}
+
+export interface WorkflowDocument {
+  id: string;
+  title: string;
+  required: boolean;
+}
+
+export interface WorkflowDefinition {
+  stage: TransactionStage;
+
+  title: string;
+
+  description: string;
+
+  nextStage?: TransactionStage;
+
+  checklist: WorkflowChecklistItem[];
+
+  requiredDocuments: WorkflowDocument[];
+}
+
+export const TRANSACTION_WORKFLOWS: Record<
+  TransactionStage,
+  WorkflowDefinition
+> = {
+  lead: {
+    stage: "lead",
+
+    title: "Lead",
+
+    description:
+      "Qualify the lead and gather enough information to move toward an offer.",
+
+    nextStage: "under_contract",
+
+    checklist: [
+      {
+        id: "contact_created",
+        title: "Contact Created",
+        required: true,
+        autoComplete: true,
+      },
+      {
+        id: "property_identified",
+        title: "Property Identified",
+        required: true,
+        autoComplete: false,
+      },
+      {
+        id: "initial_consultation",
+        title: "Initial Consultation",
+        required: true,
+        autoComplete: false,
+      },
+    ],
+
+    requiredDocuments: [],
+  },
+
+  under_contract: {
+    stage: "under_contract",
+
+    title: "Under Contract",
+
+    description:
+      "Execute the purchase agreement and begin the contract process.",
+
+    nextStage: "inspection",
+
+    checklist: [
+      {
+        id: "purchase_agreement",
+        title: "Purchase Agreement Signed",
+        required: true,
+        autoComplete: false,
+      },
+      {
+        id: "earnest_money",
+        title: "Earnest Money Received",
+        required: true,
+        autoComplete: true,
+      },
+    ],
+
+    requiredDocuments: [
+      {
+        id: "purchase_contract",
+        title: "Purchase Agreement",
+        required: true,
+      },
+    ],
+  },
+
+  inspection: {
+    stage: "inspection",
+
+    title: "Inspection",
+
+    description:
+      "Complete inspections and negotiate repairs if needed.",
+
+    nextStage: "appraisal",
+
+    checklist: [
+      {
+        id: "inspection_ordered",
+        title: "Inspection Ordered",
+        required: true,
+        autoComplete: false,
+      },
+      {
+        id: "inspection_completed",
+        title: "Inspection Completed",
+        required: true,
+        autoComplete: false,
+      },
+    ],
+
+    requiredDocuments: [
+      {
+        id: "inspection_report",
+        title: "Inspection Report",
+        required: true,
+      },
+    ],
+  },
+
+  appraisal: {
+    stage: "appraisal",
+
+    title: "Appraisal",
+
+    description:
+      "Complete appraisal, title work, and contingency review.",
+
+    nextStage: "financing",
+
+    checklist: [
+      {
+        id: "appraisal_ordered",
+        title: "Appraisal Ordered",
+        required: true,
+        autoComplete: false,
+      },
+      {
+        id: "title_work_started",
+        title: "Title Work Started",
+        required: true,
+        autoComplete: false,
+      },
+    ],
+
+    requiredDocuments: [
+      {
+        id: "title_commitment",
+        title: "Title Commitment",
+        required: true,
+      },
+      {
+        id: "appraisal_report",
+        title: "Appraisal Report",
+        required: true,
+      },
+    ],
+  },
+
+  financing: {
+    stage: "financing",
+
+    title: "Financing",
+
+    description:
+      "Finalize financing approval before closing.",
+
+    nextStage: "closing",
+
+    checklist: [
+      {
+        id: "loan_approved",
+        title: "Loan Approved",
+        required: true,
+        autoComplete: false,
+      },
+      {
+        id: "closing_scheduled",
+        title: "Closing Scheduled",
+        required: true,
+        autoComplete: false,
+      },
+    ],
+
+    requiredDocuments: [
+      {
+        id: "clear_to_close",
+        title: "Clear To Close",
+        required: true,
+      },
+    ],
+  },
+
+  closing: {
+    stage: "closing",
+
+    title: "Closing",
+
+    description:
+      "Complete the transaction and archive the deal.",
+
+    checklist: [
+      {
+        id: "closing_completed",
+        title: "Closing Completed",
+        required: true,
+        autoComplete: false,
+      },
+      {
+        id: "documents_archived",
+        title: "Documents Archived",
+        required: true,
+        autoComplete: false,
+      },
+    ],
+
+    requiredDocuments: [
+      {
+        id: "closing_disclosure",
+        title: "Closing Disclosure",
+        required: true,
+      },
+      {
+        id: "signed_settlement_statement",
+        title: "Signed Settlement Statement",
+        required: true,
+      },
+    ],
+  },
+};
 </file>
 
 <file path="lib/documentCategories.ts">
@@ -6244,6 +6981,74 @@ export default function EditTransactionNoteButton({
 
       {modalContent}
     </>
+  );
+}
+</file>
+
+<file path="app/components/transactions/TransactionChecklist.tsx">
+import ChecklistItem from "./ChecklistItem";
+
+interface ChecklistRow {
+  id: string;
+  item_id: string;
+  title: string;
+  completed: boolean;
+  auto_completed: boolean;
+}
+
+interface TransactionChecklistProps {
+  transactionId: string;
+  items: ChecklistRow[];
+}
+
+export default function TransactionChecklist({
+  transactionId,
+  items,
+}: TransactionChecklistProps) {
+  const completedCount = items.filter((item) => item.completed).length;
+
+  return (
+    <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-5 shadow-sm backdrop-blur-sm">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h2 className="font-serif text-xl text-[#29231D]">
+            Workflow Checklist
+          </h2>
+
+          <p className="mt-1 text-sm text-[#8F8578]">
+            Complete every task before advancing to the next workflow stage.
+          </p>
+        </div>
+
+        <span className="rounded-full bg-[#F7F4EF] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#B7832F]">
+          {Math.round(
+            items.length === 0 ? 0 : (completedCount / items.length) * 100,
+          )}
+          %
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {items.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#E3DCD0] bg-[#FBF7EF] p-5 text-center">
+            <p className="text-sm text-[#8F8578]">
+              No checklist items for this stage.
+            </p>
+          </div>
+        ) : (
+          items.map((item) => (
+            <ChecklistItem
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              completed={item.completed}
+              autoCompleted={item.auto_completed}
+              transactionId={transactionId}
+            />
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 </file>
@@ -9062,55 +9867,6 @@ export default function RootLayout({
 }
 </file>
 
-<file path="lib/activity/getActivity.ts">
-import { createClient } from "@/lib/supabase/server";
-
-export async function getActivity(
-  organizationId: string,
-  entityType: string,
-  entityId: string,
-) {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("activity_log")
-    .select("*")
-    .eq("organization_id", organizationId)
-    .eq("entity_type", entityType)
-    .eq("entity_id", entityId)
-    .order("created_at", { ascending: false })
-    .limit(5);
-    
-
-  if (error) {
-    console.error("Activity Error:");
-    console.error(JSON.stringify(error, null, 2));
-    throw error;
-  }
-
-  const userIds = [...new Set(data.map((item) => item.created_by))];
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name")
-    .in("id", userIds);
-
-  if (profilesError) {
-    console.error("Profiles Error:", profilesError);
-    throw profilesError;
-  }
-
-  const profileMap = new Map(
-  (profiles ?? []).map((profile) => [profile.id, profile]),
-);
-
-return (data ?? []).map((activity) => ({
-  ...activity,
-  user: profileMap.get(activity.created_by) ?? null,
-}));
-}
-</file>
-
 <file path="lib/dashboard/getDashboardmetrics.ts">
 import { createClient } from "@/lib/supabase/server";
 
@@ -9194,6 +9950,23 @@ export async function getDashboardMetrics(organizationId: string) {
     underContract: underContract ?? 0,
     closingsThisMonth: closingsThisMonth ?? 0,
   };
+}
+</file>
+
+<file path="lib/transactions/seedTransactionChecklist.ts">
+import { TransactionStage } from "./stages";
+import { ensureChecklistForStage } from "./workflow";
+
+export async function seedTransactionChecklist(
+  organizationId: string,
+  transactionId: string,
+  stage: TransactionStage,
+) {
+  return ensureChecklistForStage(
+    organizationId,
+    transactionId,
+    stage,
+  );
 }
 </file>
 
@@ -14121,6 +14894,55 @@ export default function PropertyContactManager({
 }
 </file>
 
+<file path="lib/activity/getActivity.ts">
+import { createClient } from "@/lib/supabase/server";
+
+export async function getActivity(
+  organizationId: string,
+  entityType: string,
+  entityId: string,
+) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("activity_log")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("entity_type", entityType)
+    .eq("entity_id", entityId)
+    .order("created_at", { ascending: false })
+    .limit(3);
+    
+
+  if (error) {
+    console.error("Activity Error:");
+    console.error(JSON.stringify(error, null, 2));
+    throw error;
+  }
+
+  const userIds = [...new Set(data.map((item) => item.created_by))];
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name")
+    .in("id", userIds);
+
+  if (profilesError) {
+    console.error("Profiles Error:", profilesError);
+    throw profilesError;
+  }
+
+  const profileMap = new Map(
+  (profiles ?? []).map((profile) => [profile.id, profile]),
+);
+
+return (data ?? []).map((activity) => ({
+  ...activity,
+  user: profileMap.get(activity.created_by) ?? null,
+}));
+}
+</file>
+
 <file path="app/(dashboard)/contacts/new/page.tsx">
 "use client";
 
@@ -14911,6 +15733,9 @@ type ContactRecord = {
   id: string;
   first_name: string | null;
   last_name: string | null;
+  contact_kind: "person" | "business"
+business_name: string | null
+display_name: string | null
   email: string | null;
   primary_phone: string | null;
   secondary_phone: string | null;
@@ -20206,6 +21031,9 @@ interface ActivityItem {
   user?: {
     first_name: string | null;
     last_name: string | null;
+    contact_kind: "person" | "business"
+business_name: string | null
+display_name: string | null
   } | null;
 }
 
@@ -21204,6 +22032,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import TransactionActivity from "@/app/components/transactions/TransactionActivity";
 import { createClient } from "@/lib/supabase/server";
+import WorkflowProgressCard from "@/app/components/transactions/WorkflowProgressCard";
+import { getWorkflowSummary } from "@/lib/transactions/getWorkflowSummary";
 import { getActivity } from "@/lib/activity/getActivity";
 import { getTransactionNotes } from "@/lib/transactions/getTransactionNotes";
 import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
@@ -21300,6 +22130,11 @@ export default async function TransactionDetailPage({ params }: PageProps) {
   const checklist = await getTransactionChecklist(
     membership.organization_id,
     transaction.id,
+  );
+
+  const workflowSummary = await getWorkflowSummary(
+    transaction.id,
+    transaction.status,
   );
 
   const docCount = documents?.length ?? 0;
@@ -21515,7 +22350,23 @@ export default async function TransactionDetailPage({ params }: PageProps) {
         {/* Right Column (30% / 4 spans): Transaction Checklist, Details, & Activity */}
         <div className="space-y-8 lg:col-span-4">
           {/* Dynamic Transaction Checklist Component */}
-          <TransactionChecklist items={checklist} />
+          <div className="space-y-6">
+            <WorkflowProgressCard
+              transactionId={transaction.id}
+              stageTitle={workflowSummary.stageTitle}
+              nextStage={workflowSummary.nextStage}
+              completedTasks={workflowSummary.completedTasks}
+              totalTasks={workflowSummary.totalTasks}
+              uploadedDocuments={workflowSummary.uploadedDocuments}
+              requiredDocuments={workflowSummary.requiredDocuments}
+              remainingTasks={workflowSummary.remainingTasks}
+            />
+
+            <TransactionChecklist
+              transactionId={transaction.id}
+              items={checklist}
+            />
+          </div>
 
           {/* Transaction Details Metadata Card */}
           <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">

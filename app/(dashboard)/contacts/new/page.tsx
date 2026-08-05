@@ -9,9 +9,13 @@ export default function NewContactPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Contact Identity
+  const [contactKind, setContactKind] = useState("person");
+
   // Primary Contact State
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
 
   // Primary Contact Phone Setup
@@ -25,9 +29,11 @@ export default function NewContactPage() {
   const [spouseLastName, setSpouseLastName] = useState("");
   const [spouseEmail, setSpouseEmail] = useState("");
   const [spousePrimaryPhone, setSpousePrimaryPhone] = useState("");
-  const [spousePrimaryPhoneType, setSpousePrimaryPhoneType] = useState("mobile");
+  const [spousePrimaryPhoneType, setSpousePrimaryPhoneType] =
+    useState("mobile");
   const [spouseSecondaryPhone, setSpouseSecondaryPhone] = useState("");
-  const [spouseSecondaryPhoneType, setSpouseSecondaryPhoneType] = useState("work");
+  const [spouseSecondaryPhoneType, setSpouseSecondaryPhoneType] =
+    useState("work");
 
   // Classification & CRM Info
   const [contactType, setContactType] = useState("lead");
@@ -94,29 +100,47 @@ export default function NewContactPage() {
     const { error: insertError } = await supabase.from("contacts").insert({
       organization_id: membership.organization_id,
 
-      // Primary contact information
-      first_name: firstName.trim(),
-      last_name: sanitizeInput(lastName),
+      // Contact Identity
+      contact_kind: contactKind,
+
+      first_name:
+        contactKind === "person"
+          ? sanitizeInput(firstName)
+          : sanitizeInput(firstName),
+
+      last_name:
+        contactKind === "person"
+          ? sanitizeInput(lastName)
+          : sanitizeInput(lastName),
+
+      business_name:
+        contactKind === "business" ? sanitizeInput(businessName) : null,
+
+      display_name:
+        contactKind === "business"
+          ? sanitizeInput(businessName)
+          : `${firstName.trim()} ${lastName.trim()}`.trim(),
+
       email: sanitizeInput(email),
 
-      // Primary contact phone information (Database schema mapping target)
-      cell_phone: sanitizeInput(primaryPhone),
-      cell_phone_type: primaryPhoneType || null,
+      // Primary contact phone information (Correct schema columns)
+      primary_phone: sanitizeInput(primaryPhone),
+      primary_phone_type: primaryPhoneType || null,
 
-      business_phone: sanitizeInput(secondaryPhone),
-      business_phone_type: secondaryPhoneType || null,
+      secondary_phone: sanitizeInput(secondaryPhone),
+      secondary_phone_type: secondaryPhoneType || null,
 
       // Spouse contact information
       spouse_first_name: sanitizeInput(spouseFirstName),
       spouse_last_name: sanitizeInput(spouseLastName),
       spouse_email: sanitizeInput(spouseEmail),
 
-      // Spouse contact phone information (Database schema mapping target)
-      spouse_cell_phone: sanitizeInput(spousePrimaryPhone),
-      spouse_cell_phone_type: spousePrimaryPhoneType || null,
+      // Spouse contact phone information (Correct schema columns)
+      spouse_primary_phone: sanitizeInput(spousePrimaryPhone),
+      spouse_primary_phone_type: spousePrimaryPhoneType || null,
 
-      spouse_business_phone: sanitizeInput(spouseSecondaryPhone),
-      spouse_business_phone_type: spouseSecondaryPhoneType || null,
+      spouse_secondary_phone: sanitizeInput(spouseSecondaryPhone),
+      spouse_secondary_phone_type: spouseSecondaryPhoneType || null,
 
       // Contact classification
       contact_type: contactType,
@@ -212,33 +236,85 @@ export default function NewContactPage() {
             description="Enter the contact's primary identity and communication details."
           />
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div>
-              <label htmlFor="firstName" className={labelClasses}>
-                First Name *
-              </label>
-              <input
-                id="firstName"
-                type="text"
-                required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className={inputClasses}
-              />
-            </div>
+          <div className="mb-8">
+            <label className={labelClasses}>Contact Kind</label>
 
-            <div>
-              <label htmlFor="lastName" className={labelClasses}>
-                Last Name
-              </label>
-              <input
-                id="lastName"
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className={inputClasses}
-              />
+            <div className="mt-2 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setContactKind("person")}
+                className={`rounded-md border px-5 py-3 text-sm transition-all ${
+                  contactKind === "person"
+                    ? "border-[#B7832F] bg-[#B7832F]/10 text-[#29231D]"
+                    : "border-[#E3DCD0] bg-white text-[#7C7265]"
+                }`}
+              >
+                👤 Person
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setContactKind("business")}
+                className={`rounded-md border px-5 py-3 text-sm transition-all ${
+                  contactKind === "business"
+                    ? "border-[#B7832F] bg-[#B7832F]/10 text-[#29231D]"
+                    : "border-[#E3DCD0] bg-white text-[#7C7265]"
+                }`}
+              >
+                🏢 Business
+              </button>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {contactKind === "person" ? (
+              <>
+                <div>
+                  <label htmlFor="firstName" className={labelClasses}>
+                    First Name *
+                  </label>
+
+                  <input
+                    id="firstName"
+                    type="text"
+                    required={contactKind === "person"}
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className={inputClasses}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="lastName" className={labelClasses}>
+                    Last Name *
+                  </label>
+
+                  <input
+                    id="lastName"
+                    type="text"
+                    required={contactKind === "person"}
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className={inputClasses}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="md:col-span-2">
+                <label htmlFor="businessName" className={labelClasses}>
+                  Business Name *
+                </label>
+
+                <input
+                  id="businessName"
+                  type="text"
+                  required={contactKind === "business"}
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+            )}
 
             <div className="md:col-span-2">
               <label htmlFor="email" className={labelClasses}>
@@ -281,81 +357,83 @@ export default function NewContactPage() {
           </div>
         </section>
 
-        {/* Spouse Contact Information */}
-        <section className={sectionClasses}>
-          <SectionHeader
-            eyebrow="Relationship Details"
-            title="Spouse Contact Information"
-            description="Optional information for a spouse or partner involved in the relationship or transaction process."
-          />
-
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div>
-              <label htmlFor="spouseFirstName" className={labelClasses}>
-                First Name
-              </label>
-              <input
-                id="spouseFirstName"
-                type="text"
-                value={spouseFirstName}
-                onChange={(e) => setSpouseFirstName(e.target.value)}
-                className={inputClasses}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="spouseLastName" className={labelClasses}>
-                Last Name
-              </label>
-              <input
-                id="spouseLastName"
-                type="text"
-                value={spouseLastName}
-                onChange={(e) => setSpouseLastName(e.target.value)}
-                className={inputClasses}
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label htmlFor="spouseEmail" className={labelClasses}>
-                Email Address
-              </label>
-              <input
-                id="spouseEmail"
-                type="email"
-                value={spouseEmail}
-                onChange={(e) => setSpouseEmail(e.target.value)}
-                className={inputClasses}
-              />
-            </div>
-
-            <PhoneField
-              id="spousePrimaryPhone"
-              label="Spouse Primary Phone"
-              value={spousePrimaryPhone}
-              phoneType={spousePrimaryPhoneType}
-              onValueChange={setSpousePrimaryPhone}
-              onTypeChange={setSpousePrimaryPhoneType}
-              placeholder="(205) 555-1234"
-              selectClasses={selectClasses}
-              inputClasses={inputGroupClasses}
-              labelClasses={labelClasses}
+        {/* Spouse Information */}
+        {contactKind === "person" && (
+          <section className={sectionClasses}>
+            <SectionHeader
+              eyebrow="Relationship Details"
+              title="Spouse Contact Information"
+              description="Optional information for a spouse or partner involved in the relationship or transaction process."
             />
 
-            <PhoneField
-              id="spouseSecondaryPhone"
-              label="Spouse Secondary Phone"
-              value={spouseSecondaryPhone}
-              phoneType={spouseSecondaryPhoneType}
-              onValueChange={setSpouseSecondaryPhone}
-              onTypeChange={setSpouseSecondaryPhoneType}
-              placeholder="(205) 555-5678"
-              selectClasses={selectClasses}
-              inputClasses={inputGroupClasses}
-              labelClasses={labelClasses}
-            />
-          </div>
-        </section>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div>
+                <label htmlFor="spouseFirstName" className={labelClasses}>
+                  Spouse First Name
+                </label>
+                <input
+                  id="spouseFirstName"
+                  type="text"
+                  value={spouseFirstName}
+                  onChange={(e) => setSpouseFirstName(e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="spouseLastName" className={labelClasses}>
+                  Spouse Last Name
+                </label>
+                <input
+                  id="spouseLastName"
+                  type="text"
+                  value={spouseLastName}
+                  onChange={(e) => setSpouseLastName(e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label htmlFor="spouseEmail" className={labelClasses}>
+                  Spouse Email Address
+                </label>
+                <input
+                  id="spouseEmail"
+                  type="email"
+                  value={spouseEmail}
+                  onChange={(e) => setSpouseEmail(e.target.value)}
+                  className={inputClasses}
+                />
+              </div>
+
+              <PhoneField
+                id="spousePrimaryPhone"
+                label="Spouse Primary Phone"
+                value={spousePrimaryPhone}
+                phoneType={spousePrimaryPhoneType}
+                onValueChange={setSpousePrimaryPhone}
+                onTypeChange={setSpousePrimaryPhoneType}
+                placeholder="(205) 555-1234"
+                selectClasses={selectClasses}
+                inputClasses={inputGroupClasses}
+                labelClasses={labelClasses}
+              />
+
+              <PhoneField
+                id="spouseSecondaryPhone"
+                label="Spouse Secondary Phone"
+                value={spouseSecondaryPhone}
+                phoneType={spouseSecondaryPhoneType}
+                onValueChange={setSpouseSecondaryPhone}
+                onTypeChange={setSpouseSecondaryPhoneType}
+                placeholder="(205) 555-5678"
+                selectClasses={selectClasses}
+                inputClasses={inputGroupClasses}
+                labelClasses={labelClasses}
+              />
+            </div>
+          </section>
+        )}
 
         {/* CRM Classification */}
         <section className={sectionClasses}>
@@ -380,6 +458,7 @@ export default function NewContactPage() {
                 <option value="buyer">Buyer</option>
                 <option value="seller">Seller</option>
                 <option value="investor">Investor</option>
+                <option value="title_rep">Title Rep</option>
                 <option value="agent">Agent</option>
                 <option value="lender">Lender</option>
                 <option value="attorney">Attorney</option>
@@ -443,40 +522,99 @@ export default function NewContactPage() {
           </div>
         </section>
 
-        {/* Company Information */}
+        {/* Professional Information */}
         <section className={sectionClasses}>
           <SectionHeader
             eyebrow="Professional Details"
-            title="Company Information"
-            description="Optional professional or business details associated with this contact."
+            title={
+              contactKind === "person"
+                ? "Employment Information"
+                : "Business Contact Information"
+            }
+            description={
+              contactKind === "person"
+                ? "Optional employment information."
+                : "Primary contact information for this business."
+            }
           />
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div>
-              <label htmlFor="company" className={labelClasses}>
-                Company
-              </label>
-              <input
-                id="company"
-                type="text"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                className={inputClasses}
-              />
-            </div>
+            {contactKind === "person" ? (
+              <>
+                <div>
+                  <label htmlFor="company" className={labelClasses}>
+                    Employer
+                  </label>
 
-            <div>
-              <label htmlFor="jobTitle" className={labelClasses}>
-                Job Title
-              </label>
-              <input
-                id="jobTitle"
-                type="text"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-                className={inputClasses}
-              />
-            </div>
+                  <input
+                    id="company"
+                    type="text"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    className={inputClasses}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="jobTitle" className={labelClasses}>
+                    Job Title
+                  </label>
+
+                  <input
+                    id="jobTitle"
+                    type="text"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    className={inputClasses}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label htmlFor="firstName" className={labelClasses}>
+                    Primary Contact First Name
+                  </label>
+
+                  <input
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className={inputClasses}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="lastName" className={labelClasses}>
+                    Primary Contact Last Name
+                  </label>
+
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className={inputClasses}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="jobTitle" className={labelClasses}>
+                    Primary Contact Title
+                  </label>
+
+                  <input
+                    id="jobTitle"
+                    type="text"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    placeholder="Escrow Officer, Closing Agent, Manager..."
+                    className={inputClasses}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </section>
 

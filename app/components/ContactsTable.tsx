@@ -2,44 +2,39 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Contact = {
   id: string;
-  first_name: string;
+  contact_kind: "person" | "business";
+  display_name: string;
+  business_name: string | null;
+  first_name: string | null;
   last_name: string | null;
   email: string | null;
-
   primary_phone: string | null;
   primary_phone_type: string | null;
-
   secondary_phone: string | null;
   secondary_phone_type: string | null;
-
   spouse_primary_phone: string | null;
   spouse_primary_phone_type: string | null;
-
   spouse_secondary_phone: string | null;
   spouse_secondary_phone_type: string | null;
-
   contact_type: string;
   status: string;
   lead_source: string | null;
-
   mailing_address_line_1: string | null;
   mailing_address_line_2: string | null;
   mailing_city: string | null;
   mailing_state: string | null;
   mailing_postal_code: string | null;
-
   property_address_line_1: string | null;
   property_address_line_2: string | null;
   property_city: string | null;
   property_state: string | null;
   property_postal_code: string | null;
-
   created_at: string;
 };
 
@@ -64,7 +59,7 @@ type TagAssignment = {
 };
 
 type Props = {
-  contacts: Contact[];
+  initialContacts: Contact[];
   groups: Group[];
   tags: Tag[];
   groupMemberships: GroupMembership[];
@@ -73,11 +68,11 @@ type Props = {
 };
 
 export default function ContactsTable({
-  contacts,
-  groups,
-  tags,
-  groupMemberships,
-  tagAssignments,
+  initialContacts = [],
+  groups = [],
+  tags = [],
+  groupMemberships = [],
+  tagAssignments = [],
   organizationId,
 }: Props) {
   function ContactStatusBadge({ status }: { status: string }) {
@@ -103,13 +98,23 @@ export default function ContactsTable({
       </span>
     );
   }
+
   const router = useRouter();
+  const supabase = createClient();
+  const [isPending, startTransition] = useTransition();
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
+
+  const [searchResults, setSearchResults] =
+    useState<Contact[]>(initialContacts);
+  const [totalCount, setTotalCount] = useState<number>(initialContacts.length);
+  const [isSearching, setIsSearching] = useState(false);
 
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
   const [bulkGroupId, setBulkGroupId] = useState("");
@@ -122,25 +127,57 @@ export default function ContactsTable({
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number | "all">(25);
+
+  // 1. Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // 2. Server-side search & count query whenever search query changes
+  useEffect(() => {
+    async function executeSearch() {
+      setIsSearching(true);
+
+      let query = supabase
+        .from("contacts")
+        .select("*", { count: "exact" })
+        .eq("organization_id", organizationId);
+
+      const term = debouncedSearch.trim();
+      if (term) {
+        const cleanTerm = term.replace(/[%(),]/g, "");
+        query = query.or(
+          `display_name.ilike.%${cleanTerm}%,business_name.ilike.%${cleanTerm}%,first_name.ilike.%${cleanTerm}%,last_name.ilike.%${cleanTerm}%,email.ilike.%${cleanTerm}%,primary_phone.ilike.%${cleanTerm}%`,
+        );
+      }
+
+      query = query.order("display_name", { ascending: true });
+
+      const { data, count, error } = await query;
+
+      if (!error && data) {
+        setSearchResults(data as Contact[]);
+        setTotalCount(count ?? data.length);
+      }
+
+      setIsSearching(false);
+    }
+
+    executeSearch();
+  }, [debouncedSearch, organizationId]);
+
+  // 3. Client-side filters applied to the server-returned search results
   const filteredContacts = useMemo(() => {
-    const searchTerm = search.toLowerCase().trim();
-
-    return contacts.filter((contact) => {
-      const searchableText = [
-        contact.first_name,
-        contact.last_name,
-        contact.email,
-        contact.primary_phone,
-        contact.secondary_phone,
-        contact.spouse_primary_phone,
-        contact.spouse_secondary_phone,
-        contact.lead_source,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch = !searchTerm || searchableText.includes(searchTerm);
+    return searchResults.filter((contact) => {
+      const matchesKind =
+        kindFilter === "all" || contact.contact_kind === kindFilter;
 
       const matchesType =
         typeFilter === "all" || contact.contact_type === typeFilter;
@@ -165,7 +202,7 @@ export default function ContactsTable({
         );
 
       return (
-        matchesSearch &&
+        matchesKind &&
         matchesType &&
         matchesStatus &&
         matchesGroup &&
@@ -173,8 +210,8 @@ export default function ContactsTable({
       );
     });
   }, [
-    contacts,
-    search,
+    searchResults,
+    kindFilter,
     typeFilter,
     statusFilter,
     groupFilter,
@@ -182,6 +219,40 @@ export default function ContactsTable({
     groupMemberships,
     tagAssignments,
   ]);
+
+  // Reset to page 1 whenever filters or search query change
+  useEffect(() => {
+    if (currentPage === 1) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCurrentPage(1);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    debouncedSearch,
+    kindFilter,
+    typeFilter,
+    statusFilter,
+    groupFilter,
+    tagFilter,
+    currentPage,
+  ]);
+
+  const totalPages =
+    pageSize === "all"
+      ? 1
+      : Math.ceil(filteredContacts.length / Number(pageSize)) || 1;
+
+  const paginatedContacts = useMemo(() => {
+    if (pageSize === "all") {
+      return filteredContacts;
+    }
+    const start = (currentPage - 1) * Number(pageSize);
+    return filteredContacts.slice(start, start + Number(pageSize));
+  }, [filteredContacts, currentPage, pageSize]);
 
   const visibleContactIds = filteredContacts.map((contact) => contact.id);
 
@@ -191,6 +262,7 @@ export default function ContactsTable({
 
   const hasActiveFilters =
     Boolean(search) ||
+    kindFilter !== "all" ||
     typeFilter !== "all" ||
     statusFilter !== "all" ||
     groupFilter !== "all" ||
@@ -207,10 +279,13 @@ export default function ContactsTable({
 
   function clearFilters() {
     setSearch("");
+    setDebouncedSearch("");
+    setKindFilter("all");
     setTypeFilter("all");
     setStatusFilter("all");
     setGroupFilter("all");
     setTagFilter("all");
+    setCurrentPage(1);
   }
 
   function toggleContact(contactId: string) {
@@ -251,7 +326,6 @@ export default function ContactsTable({
     setBulkMessage("");
 
     const contactCount = selectedContactIds.length;
-    const supabase = createClient();
 
     const { data, error } = await supabase
       .from("contacts")
@@ -259,11 +333,6 @@ export default function ContactsTable({
       .eq("organization_id", organizationId)
       .in("id", selectedContactIds)
       .select();
-
-    console.log("Organization:", organizationId);
-    console.log("Selected IDs:", selectedContactIds);
-    console.log("Deleted:", data);
-    console.log("Error:", error);
 
     if (error) {
       setBulkMessage(`Unable to delete contacts: ${error.message}`);
@@ -289,11 +358,13 @@ export default function ContactsTable({
       setBulkMessage("");
     }, 5000);
 
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   function getSelectedContacts() {
-    return contacts.filter((contact) =>
+    return searchResults.filter((contact) =>
       selectedContactIds.includes(contact.id),
     );
   }
@@ -338,6 +409,9 @@ export default function ContactsTable({
     }
 
     const headers = [
+      "Display Name",
+      "Contact Kind",
+      "Business Name",
       "First Name",
       "Last Name",
       "Email",
@@ -361,6 +435,9 @@ export default function ContactsTable({
     ];
 
     const rows = selectedContacts.map((contact) => [
+      contact.display_name,
+      contact.contact_kind,
+      contact.business_name,
       contact.first_name,
       contact.last_name,
       contact.email,
@@ -413,6 +490,9 @@ export default function ContactsTable({
     }
 
     const headers = [
+      "Display Name",
+      "Contact Kind",
+      "Business Name",
       "First Name",
       "Last Name",
       "Email",
@@ -425,6 +505,9 @@ export default function ContactsTable({
     ];
 
     const rows = contactsWithPropertyAddress.map((contact) => [
+      contact.display_name,
+      contact.contact_kind,
+      contact.business_name,
       contact.first_name,
       contact.last_name,
       contact.email,
@@ -469,9 +552,7 @@ export default function ContactsTable({
 
     const labelsHtml = contactsWithMailingAddresses
       .map((contact) => {
-        const fullName = [contact.first_name, contact.last_name]
-          .filter(Boolean)
-          .join(" ");
+        const fullName = [contact.display_name].filter(Boolean).join(" ");
 
         const city = contact.mailing_city?.trim() || "";
         const state = contact.mailing_state?.trim() || "";
@@ -553,8 +634,6 @@ export default function ContactsTable({
     setIsSaving(true);
     setBulkMessage("");
 
-    const supabase = createClient();
-
     const rows = selectedContactIds.map((contactId) => ({
       organization_id: organizationId,
       contact_id: contactId,
@@ -582,7 +661,9 @@ export default function ContactsTable({
 
     setBulkGroupId("");
     setIsSaving(false);
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   async function addSelectedTag() {
@@ -592,8 +673,6 @@ export default function ContactsTable({
 
     setIsSaving(true);
     setBulkMessage("");
-
-    const supabase = createClient();
 
     const rows = selectedContactIds.map((contactId) => ({
       organization_id: organizationId,
@@ -622,7 +701,9 @@ export default function ContactsTable({
 
     setBulkTagId("");
     setIsSaving(false);
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+    });
   }
 
   function getContactGroups(contactId: string) {
@@ -667,21 +748,34 @@ export default function ContactsTable({
             </h2>
 
             <p className="mt-1.5 text-xs text-[#7C7265]">
-              Showing {filteredContacts.length} of {contacts.length} contacts
+              Showing {filteredContacts.length} of {totalCount} contacts
+              {isSearching && " (Searching...)"}
             </p>
           </div>
 
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, email, phone, or source..."
-            className={`${inputClasses} w-full xl:max-w-md`}
-          />
+          <div className="relative w-full xl:max-w-md">
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search name, email, phone, or business..."
+              className={`${inputClasses} w-full`}
+            />
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap items-center">
+          <select
+            value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value)}
+            className={inputClasses}
+          >
+            <option value="all">All Contacts</option>
+            <option value="person">Persons</option>
+            <option value="business">Businesses</option>
+          </select>
+
           <select
             value={typeFilter}
             onChange={(event) => setTypeFilter(event.target.value)}
@@ -692,6 +786,7 @@ export default function ContactsTable({
             <option value="buyer">Buyer</option>
             <option value="seller">Seller</option>
             <option value="investor">Investor</option>
+            <option value="title_rep">Title Rep</option>
             <option value="agent">Agent</option>
             <option value="lender">Lender</option>
             <option value="attorney">Attorney</option>
@@ -742,6 +837,24 @@ export default function ContactsTable({
             ))}
           </select>
 
+          <div className="flex items-center gap-2 text-xs text-[#7C7265] ml-auto">
+            <span>Per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const val = e.target.value;
+                setPageSize(val === "all" ? "all" : Number(val));
+                setCurrentPage(1);
+              }}
+              className={inputClasses}
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+
           {hasActiveFilters && (
             <button
               type="button"
@@ -754,49 +867,53 @@ export default function ContactsTable({
         </div>
 
         {/* Main Actions */}
-        <div className="mt-5 flex flex-wrap gap-3 border-t border-[#EDE7DC]/80 pt-5">
-          <button
-            type="button"
-            onClick={exportSelectedContacts}
-            className={secondaryButtonClasses}
-          >
-            Export Contacts CSV
-          </button>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#EDE7DC]/80 pt-5">
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={exportSelectedContacts}
+              className={secondaryButtonClasses}
+            >
+              Export Contacts CSV
+            </button>
 
-          <button
-            type="button"
-            onClick={generateMailingLabels}
-            className={secondaryButtonClasses}
-          >
-            Print Mailing Labels
-          </button>
+            <button
+              type="button"
+              onClick={generateMailingLabels}
+              className={secondaryButtonClasses}
+            >
+              Print Mailing Labels
+            </button>
 
-          <button
-            type="button"
-            onClick={exportPropertyAddresses}
-            className={secondaryButtonClasses}
-          >
-            Export Property Addresses
-          </button>
+            <button
+              type="button"
+              onClick={exportPropertyAddresses}
+              className={secondaryButtonClasses}
+            >
+              Export Property Addresses
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={openBulkEmailComposer}
-            className="cursor-pointer rounded-md bg-[#0D0C0A] px-4 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
-          >
-            Bulk Email Selected
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={openBulkEmailComposer}
+              className="cursor-pointer rounded-md bg-[#0D0C0A] px-4 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
+            >
+              Bulk Email Selected
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setDeleteConfirmation("");
-              setShowDeleteModal(true);
-            }}
-            className="cursor-pointer rounded-md border border-red-200 bg-red-50/30 px-4 py-3 text-xs font-medium tracking-wide text-red-600 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-50 hover:text-red-700 hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
-          >
-            Delete Selected Contacts
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteConfirmation("");
+                setShowDeleteModal(true);
+              }}
+              className="cursor-pointer rounded-md border border-red-200 bg-red-50/30 px-4 py-3 text-xs font-medium tracking-wide text-red-600 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-50 hover:text-red-700 hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
+            >
+              Delete Selected Contacts
+            </button>
+          </div>
         </div>
       </div>
 
@@ -903,134 +1020,123 @@ export default function ContactsTable({
         <div className="flex min-h-72 items-center justify-center p-8">
           <div className="max-w-md text-center">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-              Registry Search
+              Registry Empty
             </p>
-
-            <h3 className="font-serif text-xl font-normal text-[#29231D]">
-              No Matching Contacts
+            <h3 className="font-serif text-base text-[#29231D]">
+              No contacts found
             </h3>
-
-            <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
-              Try changing your search term or removing one of the filters.
+            <p className="mt-1 text-xs text-[#7C7265]">
+              {hasActiveFilters
+                ? "Try adjusting your search query or filter options."
+                : "Get started by adding your first contact."}
             </p>
-
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="mt-5 cursor-pointer rounded-md border border-[#D8B66A]/50 bg-white/60 px-5 py-2.5 text-xs font-medium tracking-wide text-[#916520] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A] hover:bg-[#B7832F]/10 hover:shadow-sm"
-            >
-              Clear All Filters
-            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className={`${secondaryButtonClasses} mt-4`}
+              >
+                Clear All Filters
+              </button>
+            )}
           </div>
         </div>
       ) : (
+        /* Table Content */
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b border-[#EDE7DC] bg-[#F5EEDF]/50">
-              <tr className="text-left text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-                <th className="w-12 px-5 py-4">
+          <table className="w-full text-left text-xs text-[#29231D]">
+            <thead className="border-b border-[#EDE7DC] bg-[#FAF7F2]/80 text-[10px] font-semibold uppercase tracking-wider text-[#7C7265]">
+              <tr>
+                <th className="w-12 px-4 py-3.5">
+                  <span className="sr-only">Select All</span>
                   <input
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={toggleAllVisible}
-                    aria-label="Select all visible contacts"
-                    className="h-4 w-4 accent-[#B7832F]"
+                    className="h-4 w-4 rounded border-[#E3DCD0] text-[#B7832F] focus:ring-[#B7832F]/20"
                   />
                 </th>
-
-                <th className="px-5 py-4 font-semibold">Name</th>
-                <th className="px-5 py-4 font-semibold">Type</th>
-                <th className="px-5 py-4 font-semibold">Email</th>
-                <th className="px-5 py-4 font-semibold">Primary Phone</th>
-                <th className="px-5 py-4 font-semibold">Secondary Phone</th>
-                <th className="px-5 py-4 font-semibold">Groups & Tags</th>
-                <th className="px-5 py-4 font-semibold">Status</th>
+                <th className="px-4 py-3.5">Display Name</th>
+                <th className="px-4 py-3.5">Type & Status</th>
+                <th className="px-4 py-3.5">Contact Info</th>
+                <th className="px-4 py-3.5">Groups & Tags</th>
+                <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-[#EDE7DC]/80">
-              {filteredContacts.map((contact) => {
+            <tbody className="divide-y divide-[#EDE7DC]">
+              {paginatedContacts.map((contact) => {
+                const isSelected = selectedContactIds.includes(contact.id);
                 const contactGroups = getContactGroups(contact.id);
                 const contactTags = getContactTags(contact.id);
-                const isSelected = selectedContactIds.includes(contact.id);
 
                 return (
                   <tr
                     key={contact.id}
-                    className={`transition-all duration-300 ${
-                      isSelected ? "bg-[#B7832F]/[0.07]" : "hover:bg-white/70"
+                    className={`transition-colors duration-150 hover:bg-[#FAF7F2]/60 ${
+                      isSelected ? "bg-[#B7832F]/5" : ""
                     }`}
                   >
-                    <td className="px-5 py-4">
+                    <td className="w-12 px-4 py-4">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleContact(contact.id)}
-                        aria-label={`Select ${contact.first_name} ${
-                          contact.last_name ?? ""
-                        }`}
-                        className="h-4 w-4 accent-[#B7832F]"
+                        className="h-4 w-4 rounded border-[#E3DCD0] text-[#B7832F] focus:ring-[#B7832F]/20"
                       />
                     </td>
-
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-4 font-medium">
                       <Link
                         href={`/contacts/${contact.id}`}
-                        className="font-serif text-sm font-medium text-[#29231D] transition-colors duration-300 hover:text-[#B7832F]"
+                        className="font-medium text-[#29231D] hover:text-[#B7832F]"
                       >
-                        {contact.first_name} {contact.last_name ?? ""}
+                        {contact.display_name}
                       </Link>
-
-                      {contact.lead_source && (
-                        <p className="mt-1 text-[10px] text-[#A89C8D]">
-                          {formatLabel(contact.lead_source)}
+                      {contact.business_name && (
+                        <p className="mt-0.5 text-[11px] text-[#7C7265]">
+                          {contact.business_name}
                         </p>
                       )}
                     </td>
-
-                    <td className="px-5 py-4 text-xs text-[#5F574D]">
-                      {formatLabel(contact.contact_type)}
-                    </td>
-
-                    <td className="px-5 py-4 text-xs text-[#7C7265]">
-                      {contact.email || "—"}
-                    </td>
-
-                    {/* Primary Phone */}
-                    <td className="px-5 py-4 text-xs text-[#5F574D]">
-                      <div className="flex items-center gap-2">
-                        <span>{contact.primary_phone || "—"}</span>
-
-                        {contact.primary_phone &&
-                          contact.primary_phone_type && (
-                            <span className="rounded bg-[#171512]/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7C7265]">
-                              {formatLabel(contact.primary_phone_type)}
-                            </span>
-                          )}
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col items-start gap-1.5">
+                        <span className="text-[10px] font-medium tracking-wide text-[#7C7265]">
+                          {formatLabel(contact.contact_type)}
+                        </span>
+                        <ContactStatusBadge status={contact.status} />
                       </div>
                     </td>
-
-                    {/* Secondary Phone */}
-                    <td className="px-5 py-4 text-xs text-[#5F574D]">
-                      <div className="flex items-center gap-2">
-                        <span>{contact.secondary_phone || "—"}</span>
-
-                        {contact.secondary_phone &&
-                          contact.secondary_phone_type && (
-                            <span className="rounded bg-[#171512]/5 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7C7265]">
-                              {formatLabel(contact.secondary_phone_type)}
-                            </span>
-                          )}
+                    <td className="px-4 py-4">
+                      <div className="space-y-0.5 text-[11px]">
+                        {contact.email && (
+                          <p className="text-[#29231D]">
+                            <a
+                              href={`mailto:${contact.email}`}
+                              className="hover:underline"
+                            >
+                              {contact.email}
+                            </a>
+                          </p>
+                        )}
+                        {contact.primary_phone && (
+                          <p className="text-[#7C7265]">
+                            <a
+                              href={`tel:${contact.primary_phone}`}
+                              className="hover:underline"
+                            >
+                              {contact.primary_phone}
+                            </a>
+                            {contact.primary_phone_type &&
+                              ` (${formatLabel(contact.primary_phone_type)})`}
+                          </p>
+                        )}
                       </div>
                     </td>
-
-                    {/* Groups & Tags Column */}
-                    <td className="px-5 py-4 text-xs">
-                      <div className="flex flex-wrap gap-1.5 max-w-xs">
+                    <td className="px-4 py-4">
+                      <div className="flex flex-wrap gap-1 max-w-xs">
                         {contactGroups.map((group) => (
                           <span
                             key={group.id}
-                            className="inline-flex items-center rounded border border-[#EDE7DC] bg-[#FDFBF7] px-2 py-0.5 text-[10px] font-medium text-[#7C7265]"
+                            className="rounded bg-[#FAF7F2] px-1.5 py-0.5 text-[10px] text-[#7C7265] border border-[#E3DCD0]"
                           >
                             {group.name}
                           </span>
@@ -1038,21 +1144,20 @@ export default function ContactsTable({
                         {contactTags.map((tag) => (
                           <span
                             key={tag.id}
-                            className="inline-flex items-center rounded bg-[#B7832F]/10 px-2 py-0.5 text-[10px] font-medium text-[#916520]"
+                            className="rounded bg-[#B7832F]/10 px-1.5 py-0.5 text-[10px] text-[#916520] border border-[#D8B66A]/30"
                           >
-                            #{tag.name}
+                            {tag.name}
                           </span>
                         ))}
-                        {contactGroups.length === 0 &&
-                          contactTags.length === 0 && (
-                            <span className="text-[#A89C8D]">—”</span>
-                          )}
                       </div>
                     </td>
-
-                    {/* Status Badge Column */}
-                    <td className="px-5 py-4">
-                      <ContactStatusBadge status={contact.status} />
+                    <td className="px-4 py-4 text-right">
+                      <Link
+                        href={`/contacts/${contact.id}`}
+                        className="font-medium text-[#B7832F] hover:underline"
+                      >
+                        View
+                      </Link>
                     </td>
                   </tr>
                 );
@@ -1062,43 +1167,74 @@ export default function ContactsTable({
         </div>
       )}
 
-      {/* Delete Confirmation Modal Overlay */}
+      {/* Pagination Footer */}
+      {filteredContacts.length > 0 && pageSize !== "all" && (
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-[#EDE7DC] px-6 py-4 sm:flex-row">
+          <div className="flex items-center gap-3 text-xs text-[#7C7265]">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const val = e.target.value;
+                setPageSize(val === "all" ? "all" : Number(val));
+                setCurrentPage(1);
+              }}
+              className="rounded border border-[#E3DCD0] bg-white px-2 py-1 text-xs text-[#29231D] outline-none"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-[#7C7265]">
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                className="rounded border border-[#E3DCD0] bg-white px-3 py-1 text-xs font-medium text-[#7C7265] hover:bg-[#FAF7F2] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                className="rounded border border-[#E3DCD0] bg-white px-3 py-1 text-xs font-medium text-[#7C7265] hover:bg-[#FAF7F2] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-[#12110F]/60 backdrop-blur-sm">
-  <div className="flex min-h-screen items-start justify-center px-4 pt-24 pb-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-xl border border-[#EDE7DC] bg-white p-6 shadow-xl">
-            <h3 className="font-serif text-lg font-normal text-[#29231D]">
+            <h3 className="font-serif text-lg text-[#29231D]">
               Permanently Delete Contacts?
             </h3>
-
-            <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
-              You are about to delete{" "}
-              <strong className="text-red-600">
-                {selectedContactIds.length}
-              </strong>{" "}
-              selected contact{selectedContactIds.length === 1 ? "" : "s"}. This
-              action cannot be undone.
+            <p className="mt-2 text-xs text-[#7C7265]">
+              You are about to delete {selectedContactIds.length} contact
+              {selectedContactIds.length === 1 ? "" : "s"}. This action cannot
+              be undone. Type <span className="font-bold text-red-600">DELETE</span>{" "}
+              below to confirm.
             </p>
 
-            <div className="mt-4">
-              <label
-                htmlFor="confirm-delete"
-                className="block text-[10px] font-semibold uppercase tracking-wide text-[#8F8578] mb-1.5"
-              >
-                Type <span className="text-[#29231D] font-bold">DELETE</span> to
-                confirm
-              </label>
-              <input
-                id="confirm-delete"
-                type="text"
-                placeholder="DELETE"
-                value={deleteConfirmation}
-                onChange={(e) =>
-                  setDeleteConfirmation(e.target.value.trim().toUpperCase())
-                }
-                className={`${inputClasses} w-full border-red-200 focus:border-red-500 focus:ring-red-100 uppercase`}
-              />
-            </div>
+            <input
+              type="text"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder="Type DELETE"
+              className={`${inputClasses} mt-4 w-full`}
+            />
 
             <div className="mt-6 flex justify-end gap-3">
               <button
@@ -1107,25 +1243,20 @@ export default function ContactsTable({
                   setShowDeleteModal(false);
                   setDeleteConfirmation("");
                 }}
-                disabled={isDeleting}
                 className={secondaryButtonClasses}
               >
                 Cancel
               </button>
               <button
                 type="button"
+                disabled={deleteConfirmation !== "DELETE" || isDeleting}
                 onClick={deleteSelectedContacts}
-                disabled={
-                  isDeleting ||
-                  deleteConfirmation.trim().toUpperCase() !== "DELETE"
-                }
-                className="cursor-pointer rounded-md bg-red-600 px-4 py-3 text-xs font-medium tracking-wide text-white transition-all duration-300 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer rounded-md bg-red-600 px-4 py-3 text-xs font-medium tracking-wide text-white transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isDeleting ? "Deleting..." : "Permanently Delete"}
               </button>
             </div>
           </div>
-        </div>
         </div>
       )}
     </div>

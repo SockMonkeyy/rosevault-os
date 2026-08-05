@@ -415,6 +415,7 @@ function normalizeContactType(value: string | null | undefined) {
     "buyer",
     "seller",
     "investor",
+    "title_rep",
     "agent",
     "lender",
     "attorney",
@@ -468,10 +469,6 @@ export default function ContactImporter({ organizationId, userId }: Props) {
 
   const hasFirstNameMapping = mappedFields.some(
     ([, destination]) => destination === "first_name",
-  );
-
-  const hasPropertyAddressMapping = mappedFields.some(
-    ([, destination]) => destination === "property_address_line_1",
   );
 
   function resetImporter() {
@@ -744,7 +741,6 @@ export default function ContactImporter({ organizationId, userId }: Props) {
         contactId = duplicateContact.id;
         contactsUpdated++;
       } else {
-        console.log(contact);
         const { data, error } = await supabase
           .from("contacts")
           .insert(contact)
@@ -1094,212 +1090,86 @@ export default function ContactImporter({ organizationId, userId }: Props) {
         </section>
       )}
 
-      {/* Step 4 — Duplicate Handling */}
+      {/* Step 4 — Import Options & Execution */}
       {rows.length > 0 && (
         <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
           <div className="mb-6">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-              Step 04 · Record Protection
+              Step 04 · Execution
             </p>
 
             <h2 className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
-              Handle Contact Duplicates
+              Import Settings & Action
             </h2>
 
             <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[#7C7265]">
-              RoseVault checks existing contacts by email address or cell phone.
-              Properties are matched by parcel number or property address.
+              Configure how duplicate contacts are handled and launch your import into RoseVault.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <DuplicateOption
-              title="Skip Duplicates"
-              description="Keep the existing contact unchanged, but still connect any property from the imported row."
-              selected={duplicateMode === "skip"}
-              onClick={() => setDuplicateMode("skip")}
-            />
+          <div className="space-y-6">
+            <div>
+              <label className="block text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+                Duplicate Contact Strategy
+              </label>
 
-            <DuplicateOption
-              title="Update Existing"
-              description="Update matching contacts with imported values and connect their properties."
-              selected={duplicateMode === "update"}
-              onClick={() => setDuplicateMode("update")}
-            />
+              <select
+                value={duplicateMode}
+                onChange={(event) =>
+                  setDuplicateMode(event.target.value as DuplicateMode)
+                }
+                className={`mt-2 ${inputClasses}`}
+              >
+                <option value="skip">Skip duplicates (keep existing records)</option>
+                <option value="update">Update existing records with new data</option>
+                <option value="create">Create duplicate records anyway</option>
+              </select>
+            </div>
 
-            <DuplicateOption
-              title="Create Anyway"
-              description="Create a new contact even when the email or cell phone matches an existing contact."
-              selected={duplicateMode === "create"}
-              onClick={() => setDuplicateMode("create")}
-            />
+            {message && (
+              <div className="rounded-lg border border-[#D8B66A]/30 bg-[#B7832F]/5 px-4 py-3 text-xs text-[#29231D]">
+                {message}
+              </div>
+            )}
+
+            {results && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-lg border border-[#EDE7DC] bg-white/60 p-4 text-center">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">Contacts Created</p>
+                  <p className="mt-2 font-serif text-xl font-normal text-[#29231D]">{results.contactsCreated}</p>
+                </div>
+                <div className="rounded-lg border border-[#EDE7DC] bg-white/60 p-4 text-center">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">Contacts Updated</p>
+                  <p className="mt-2 font-serif text-xl font-normal text-[#29231D]">{results.contactsUpdated}</p>
+                </div>
+                <div className="rounded-lg border border-[#EDE7DC] bg-white/60 p-4 text-center">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">Properties Mapped</p>
+                  <p className="mt-2 font-serif text-xl font-normal text-[#29231D]">{results.propertiesCreated + results.propertiesMatched}</p>
+                </div>
+                <div className="rounded-lg border border-[#EDE7DC] bg-white/60 p-4 text-center">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">Failed Rows</p>
+                  <p className="mt-2 font-serif text-xl font-normal text-[#B7832F]">{results.failed}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+              <Link href="/dashboard/contacts" className={secondaryButtonClasses}>
+                Cancel & Return to Contacts
+              </Link>
+
+              <button
+                type="button"
+                disabled={isImporting || !hasFirstNameMapping}
+                onClick={handleImport}
+                className={primaryButtonClasses}
+              >
+                {isImporting ? "Importing Records..." : `Import ${rows.length} Row${rows.length === 1 ? "" : "s"}`}
+              </button>
+            </div>
           </div>
         </section>
       )}
-
-      {/* Error Message */}
-      {message && (
-        <div className="rounded-md border border-red-200 bg-red-50/70 px-4 py-3 text-xs leading-relaxed text-red-700">
-          {message}
-        </div>
-      )}
-
-      {/* Import Results */}
-      {results && (
-        <section className="rounded-xl border border-[#D8B66A]/35 bg-white/50 p-6 backdrop-blur-sm lg:p-8">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-              Import Complete
-            </p>
-
-            <h2 className="mt-2 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
-              RoseVault finished processing your data.
-            </h2>
-
-            <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
-              Review the import summary below to see exactly what was created,
-              updated, matched, skipped, or unable to process.
-            </p>
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <ResultCard
-              label="Contacts Created"
-              value={results.contactsCreated}
-            />
-
-            <ResultCard
-              label="Contacts Updated"
-              value={results.contactsUpdated}
-            />
-
-            <ResultCard
-              label="Contacts Skipped"
-              value={results.contactsSkipped}
-            />
-
-            <ResultCard
-              label="Properties Created"
-              value={results.propertiesCreated}
-            />
-
-            <ResultCard
-              label="Properties Matched"
-              value={results.propertiesMatched}
-            />
-
-            <ResultCard
-              label="Property Links"
-              value={results.relationshipsCreated}
-            />
-
-            <ResultCard label="Failed" value={results.failed} />
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3 border-t border-[#EDE7DC]/80 pt-6">
-            <Link href="/contacts" className={primaryButtonClasses}>
-              View Contacts
-            </Link>
-
-            <button
-              type="button"
-              onClick={resetImporter}
-              className={secondaryButtonClasses}
-            >
-              Import Another File
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* Primary Import Action */}
-      {rows.length > 0 && !results && (
-        <div className="flex flex-col items-end gap-3 border-t border-[#EDE7DC]/70 pt-6">
-          {!hasFirstNameMapping && (
-            <p className="text-xs text-amber-700">
-              Map one CSV column to First Name to enable importing.
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={handleImport}
-            disabled={isImporting || !hasFirstNameMapping}
-            className={`${primaryButtonClasses} px-7`}
-          >
-            {isImporting
-              ? "Importing Data..."
-              : hasPropertyAddressMapping
-                ? `Import ${rows.length} Contacts & Properties`
-                : `Import ${rows.length} Contacts`}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DuplicateOption({
-  title,
-  description,
-  selected,
-  onClick,
-}: {
-  title: string;
-  description: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={`group cursor-pointer rounded-xl border p-5 text-left transition-all duration-300 ${
-        selected
-          ? "border-[#D8B66A]/60 bg-[#B7832F]/10 shadow-sm"
-          : "border-[#EDE7DC] bg-white/50 hover:-translate-y-0.5 hover:border-[#D8B66A]/50 hover:bg-[#B7832F]/5 hover:shadow-sm"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p
-          className={`font-serif text-sm font-medium tracking-wide transition-colors duration-300 ${
-            selected
-              ? "text-[#916520]"
-              : "text-[#29231D] group-hover:text-[#B7832F]"
-          }`}
-        >
-          {title}
-        </p>
-
-        <span
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] transition-all duration-300 ${
-            selected
-              ? "border-[#D8B66A] bg-[#B7832F] text-white"
-              : "border-[#D8CDBE] bg-white/60 text-transparent group-hover:border-[#D8B66A]"
-          }`}
-        >
-          ✓
-        </span>
-      </div>
-
-      <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
-        {description}
-      </p>
-    </button>
-  );
-}
-
-function ResultCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="group rounded-xl border border-[#EDE7DC] bg-white/55 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/80 hover:shadow-sm">
-      <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#8F8578]">
-        {label}
-      </p>
-
-      <p className="mt-3 font-serif text-3xl font-normal text-[#B7832F]">
-        {value}
-      </p>
     </div>
   );
 }

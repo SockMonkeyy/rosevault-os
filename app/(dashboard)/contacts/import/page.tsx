@@ -25,32 +25,46 @@ export default async function ImportContactsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mx-auto max-w-7xl">
+    <div className="px-6 py-10 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        {/* Page Header */}
         <div className="mb-8">
           <Link
             href="/contacts"
-            className="mb-4 inline-block text-sm text-[#d4af37] hover:underline"
+            className="group inline-flex items-center gap-2 text-xs font-medium tracking-wide text-[#B7832F] transition-all duration-300 hover:-translate-x-0.5 hover:text-[#916520]"
           >
-            ← Back to Contacts
+            <span
+              aria-hidden="true"
+              className="transition-transform duration-300 group-hover:-translate-x-0.5"
+            >
+              &larr;
+            </span>
+            Back to Contacts
           </Link>
 
-          <h1 className="text-3xl font-semibold">Import Contacts</h1>
-
-          <p className="mt-2 max-w-3xl text-gray-400">
-            Upload a CSV file, review the automatic field mapping, preview your
-            contacts, choose how duplicates should be handled, and import them
-            into RoseVault OS.
-          </p>
+          <div className="mt-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
+              Data Management
+            </p>
+            <h1 className="mt-2 font-serif text-3xl font-normal tracking-wide text-[#29231D]">
+              Import Contacts
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7C7265]">
+              Upload a CSV file, review the automatic field mapping, preview your
+              contacts, choose how duplicates should be handled, and import them
+              into RoseVault OS.
+            </p>
+          </div>
         </div>
 
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#EDE7DC] bg-white/40 p-5 backdrop-blur-sm">
+        {/* Download Template Section */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-6 rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50 lg:p-8">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
               Import Template
             </p>
 
-            <h2 className="mt-1 font-serif text-xl text-[#29231D]">
+            <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
               Download the RoseVault CSV Template
             </h2>
 
@@ -64,35 +78,62 @@ export default async function ImportContactsPage() {
           <a
             href="/templates/RoseVault_Contact_Import_Template.csv"
             download
-            className="rounded-md bg-[#0D0C0A] px-5 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm"
+            className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md bg-[#0D0C0A] px-6 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
           >
             ⬇ Download CSV Template
           </a>
         </div>
-        <div className="mb-6 rounded-xl border border-[#EDE7DC] bg-[#FBF7EF] p-5">
+
+        {/* Before You Import Notice */}
+        <div className="mb-8 rounded-xl border border-[#EDE7DC] bg-[#FBF7EF]/80 p-6 backdrop-blur-sm lg:p-8">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
             Before You Import
           </p>
 
-          <ul className="mt-3 space-y-2 text-sm text-[#29231D]">
-            <li>✓ Download and use the official RoseVault CSV Template.</li>
-            <li>✓ Do not rename the column headers.</li>
-            <li>✓ Leave fields blank if you don't have the information.</li>
-            <li>
-              ✓ Phone Types should be: <strong>mobile</strong>,{" "}
-              <strong>home</strong>, <strong>work</strong>, or{" "}
-              <strong>other</strong>.
+          <h3 className="mt-2 font-serif text-lg font-normal tracking-wide text-[#29231D]">
+            Guidelines & Best Practices
+          </h3>
+
+          <ul className="mt-4 grid grid-cols-1 gap-3 text-xs leading-relaxed text-[#7C7265] sm:grid-cols-2">
+            <li className="flex items-start gap-2">
+              <span className="text-[#B7832F]">✓</span>
+              <span>Download and use the official RoseVault CSV Template.</span>
             </li>
-            <li>
-              ✓ Existing contacts are automatically checked to help prevent
-              duplicates.
+            <li className="flex items-start gap-2">
+              <span className="text-[#B7832F]">✓</span>
+              <span>Do not rename the column headers.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-[#B7832F]">✓</span>
+              <span>Leave fields blank if you don&apos;t have the information.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-[#B7832F]">✓</span>
+              <span>
+                Phone Types should be:{" "}
+                <strong className="text-[#29231D]">mobile</strong>,{" "}
+                <strong className="text-[#29231D]">home</strong>,{" "}
+                <strong className="text-[#29231D]">work</strong>, or{" "}
+                <strong className="text-[#29231D]">other</strong>.
+              </span>
+            </li>
+            <li className="flex items-start gap-2 sm:col-span-2">
+              <span className="text-[#B7832F]">✓</span>
+              <span>
+                Existing contacts are automatically checked to help prevent
+                duplicates.
+              </span>
             </li>
           </ul>
         </div>
-        <ContactImporter
-          organizationId={membership.organization_id}
-          userId={user.id}
-        />
+
+        {/* Importer Component Container */}
+        <div className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm lg:p-8">
+          <ContactImporter
+            organizationId={membership.organization_id}
+            userId={user.id}
+          />
+        </div>
       </div>
     </div>
   );

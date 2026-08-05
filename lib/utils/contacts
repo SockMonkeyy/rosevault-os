@@ -1,0 +1,9 @@
+export function getContactDisplayName(contact: Contact) {
+  return (
+    contact.display_name ||
+    contact.business_name ||
+    [contact.first_name, contact.last_name]
+      .filter(Boolean)
+      .join(" ")
+  );
+}

@@ -180,7 +180,9 @@ export default async function ContactProfilePage({
     );
 
   const fullName =
+    contact.display_name ||
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
+    contact.business_name ||
     "Unnamed Contact";
 
   const spouseName = [contact.spouse_first_name, contact.spouse_last_name]
@@ -249,7 +251,10 @@ export default async function ContactProfilePage({
           </div>
 
           <p className="text-xs tracking-wide text-[#7C7265]">
-            {contact.company || "Contact Profile"}{" "}
+            {contact.contact_kind === "business"
+              ? "Business Contact"
+              : contact.company || "Contact Profile"}
+
             {contact.job_title ? ` · ${contact.job_title}` : ""}
           </p>
         </div>
@@ -440,7 +445,7 @@ export default async function ContactProfilePage({
           </section>
 
           {/* Co-Signer / Spouse Details Block */}
-          {hasSpouseInfo && (
+          {contact.contact_kind === "person" && hasSpouseInfo && (
             <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-8 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
               <div className="mb-6">
                 <h2 className="font-serif text-lg font-normal tracking-wide text-[#29231D]">
@@ -537,7 +542,20 @@ export default async function ContactProfilePage({
               <InfoItem label="Contact Type" value={contact.contact_type} />
               <InfoItem label="Status" value={contact.status} />
               <InfoItem label="Lead Source" value={contact.lead_source} />
-              <InfoItem label="Company" value={contact.company} />
+              <InfoItem label="Contact Kind" value={contact.contact_kind} />
+              {contact.contact_kind === "person" ? (
+                <InfoItem label="Employer" value={contact.company} />
+              ) : (
+                <InfoItem label="Business Name" value={contact.business_name} />
+              )}
+              {contact.contact_kind === "business" && (
+                <InfoItem
+                  label="Primary Contact"
+                  value={[contact.first_name, contact.last_name]
+                    .filter(Boolean)
+                    .join(" ")}
+                />
+              )}
               <InfoItem label="Professional Title" value={contact.job_title} />
               <InfoItem
                 label="Preferred Contact Method"
