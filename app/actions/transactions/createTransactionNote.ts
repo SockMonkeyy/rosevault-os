@@ -59,6 +59,7 @@ export async function createTransactionNote(
     organizationId: membership.organization_id,
     entityType: "transaction",
     entityId: transactionId,
+    transactionId: transactionId,
     activityType: "note_added",
     description: "Added a transaction note",
     createdBy: user.id,
