@@ -46,11 +46,12 @@ export async function deleteTransactionNote({
 
   await logActivity({
     organizationId: membership.organization_id,
+    transactionId: transactionId, // <-- Added required transactionId
     entityType: "transaction",
     entityId: transactionId,
-    activityType: "note_deleted",
+    activityType: "note_deleted", // Or whatever activity type you are using here
     description: "Deleted a transaction note",
-    createdBy: user.id,
+    createdBy: user.id, // Keep whatever creator/metadata fields you had
   });
 
   revalidatePath(`/transactions/${transactionId}`);
