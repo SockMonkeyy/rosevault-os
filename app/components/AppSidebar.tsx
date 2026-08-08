@@ -11,8 +11,8 @@ const navigationItems = [
   { label: "Dashboard", href: "/" },
   { label: "Contacts", href: "/contacts" },
   { label: "Leads", href: "/leads" },
-  { label: "Pipeline", href: "/pipeline", icon: KanbanSquare, },
   { label: "Properties", href: "/properties" },
+  { label: "Pipeline", href: "/pipeline", icon: KanbanSquare },
   { label: "Transactions", href: "/transactions" },
   { label: "Tasks", href: "/tasks" },
   { label: "Calendar", href: "/calendar" },
@@ -137,9 +137,7 @@ export default function AppSidebar() {
               fill="none"
               aria-hidden="true"
               className={`h-4 w-4 text-[#8F8578] transition-all duration-300 ${
-                marketingOpen
-                  ? "rotate-180 text-[#D8B66A]"
-                  : ""
+                marketingOpen ? "rotate-180 text-[#D8B66A]" : ""
               }`}
             >
               <path

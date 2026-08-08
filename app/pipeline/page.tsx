@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import PipelineBoard from "@/app/features/pipeline/components/PipelineBoard";
+import PipelineDnd from "@/app/features/pipeline/components/PipelineDnd";
 import { getPipeline } from "@/app/features/pipeline/lib/getPipeline";
 import AppSidebar from "@/app/components/AppSidebar";
 
@@ -55,7 +55,7 @@ export default async function PipelinePage() {
           {/* Pipeline Canvas Container with full responsiveness */}
           <div className="rounded-xl border border-[#EDE7DC] bg-white/45 p-4 backdrop-blur-sm shadow-sm w-full">
             <div className="w-full overflow-hidden">
-              <PipelineBoard columns={columns} />
+              <PipelineDnd columns={columns} />
             </div>
           </div>
         </main>

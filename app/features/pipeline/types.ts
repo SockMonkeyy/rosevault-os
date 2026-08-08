@@ -24,6 +24,12 @@ export interface PipelineCard {
   checklistRemaining: number;
 
   documentsRemaining: number;
+
+  transactionType?: string;
+
+  priority?: "low" | "medium" | "high";
+
+  daysUntilClosing?: number;
 }
 
 export interface PipelineColumn {
