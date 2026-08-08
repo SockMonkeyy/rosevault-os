@@ -5,12 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import LogoutButton from "@/app/components/LogoutButton";
+import { KanbanSquare } from "lucide-react";
 
 const navigationItems = [
   { label: "Dashboard", href: "/" },
   { label: "Contacts", href: "/contacts" },
   { label: "Leads", href: "/leads" },
-  { label: "Pipelines", href: "/pipelines" },
+  { label: "Pipeline", href: "/pipeline", icon: KanbanSquare, },
   { label: "Properties", href: "/properties" },
   { label: "Transactions", href: "/transactions" },
   { label: "Tasks", href: "/tasks" },

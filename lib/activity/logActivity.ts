@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 interface LogActivityParams {
+  transactionId: string;
   organizationId: string;
   entityType: string;
   entityId: string;
@@ -26,6 +27,7 @@ export async function logActivity({
     entity_type: entityType,
     entity_id: entityId,
     activity_type: activityType,
+    title: activityType, // Using activityType as title for now
     description,
     created_by: createdBy,
     metadata,

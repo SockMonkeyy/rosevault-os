@@ -5,12 +5,16 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 import {
+  moveTransactionToStage,
+} from "@/lib/transactions/workflowEngine";
+
+import {
   TRANSACTION_WORKFLOWS,
 } from "@/lib/transactions/workflowDefinitions";
 
-import { TransactionStage } from "@/lib/transactions/stages";
-
-import { ensureChecklistForStage } from "@/lib/transactions/workflow";
+import {
+  TransactionStage,
+} from "@/lib/transactions/stages";
 
 export async function advanceTransactionStage(
   transactionId: string,
@@ -22,11 +26,7 @@ export async function advanceTransactionStage(
     error,
   } = await supabase
     .from("transactions")
-    .select(`
-      id,
-      organization_id,
-      status
-    `)
+    .select("status")
     .eq("id", transactionId)
     .single();
 
@@ -37,29 +37,15 @@ export async function advanceTransactionStage(
   const currentStage =
     transaction.status as TransactionStage;
 
-  const workflow =
-    TRANSACTION_WORKFLOWS[currentStage];
+  const nextStage =
+    TRANSACTION_WORKFLOWS[currentStage]
+      ?.nextStage;
 
-  if (!workflow?.nextStage) {
+  if (!nextStage) {
     return;
   }
 
-  const nextStage =
-    workflow.nextStage;
-
-  const { error: updateError } = await supabase
-    .from("transactions")
-    .update({
-      status: nextStage,
-    })
-    .eq("id", transactionId);
-
-  if (updateError) {
-    throw updateError;
-  }
-
-  await ensureChecklistForStage(
-    transaction.organization_id,
+  await moveTransactionToStage(
     transactionId,
     nextStage,
   );
