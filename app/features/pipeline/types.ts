@@ -9,6 +9,12 @@ export interface PipelineCard {
 
   purchasePrice: number | null;
 
+  salePrice: number | null;
+
+  assignmentFee: number | null;
+
+  pipelineValue: number;
+
   closingDate: string | null;
 
   assignedAgent: string | null;
@@ -30,6 +36,18 @@ export interface PipelineCard {
   priority?: "low" | "medium" | "high";
 
   daysUntilClosing?: number;
+}
+
+export interface PipelineColumn {
+  id: string;
+
+  title: string;
+
+  cards: PipelineCard[];
+
+  totalValue: number;
+
+  totalDeals: number;
 }
 
 export interface PipelineColumn {

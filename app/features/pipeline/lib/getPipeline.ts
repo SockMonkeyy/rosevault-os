@@ -2,140 +2,131 @@ import { createClient } from "@/lib/supabase/server";
 
 import { TRANSACTION_STAGES } from "@/lib/transactions/stages";
 
+import { getTransactionPipelineValue } from "@/lib/transactions/getTransactionPipelineValue";
+
 import { PipelineColumn } from "../types";
-
-import { mapTransactionToPipelineCard } from "./mapTransactionToPipelineCard";
-
-import { getPipelineMetrics } from "./getPipelineMetrics";
-
-import { getDocumentMetrics } from "./getDocumentMetrics";
 
 export async function getPipeline(
   organizationId: string,
 ): Promise<PipelineColumn[]> {
   const supabase = await createClient();
 
-  // -----------------------------
-  // Load Transactions
-  // -----------------------------
-
-  const { data: transactions, error: transactionError } = await supabase
+  const {
+    data: transactions,
+    error,
+  } = await supabase
     .from("transactions")
-    .select(
-      `
+    .select(`
       id,
       transaction_name,
+      property_id,
       transaction_type,
       purchase_price,
+      sale_price,
+      assignment_fee,
       closing_date,
-      property_id,
       status
-    `,
-    )
-    .eq("organization_id", organizationId);
-
-  if (transactionError) {
-    throw transactionError;
-  }
-
-  // -----------------------------
-  // Load Properties
-  // -----------------------------
-
-  const propertyIds = [
-    ...new Set((transactions ?? []).map((t) => t.property_id).filter(Boolean)),
-  ];
-
-  const { data: properties } =
-    propertyIds.length > 0
-      ? await supabase
-          .from("properties")
-          .select(
-            `
-            id,
-            property_address_line_1,
-            property_city,
-            property_state
-          `,
-          )
-          .in("id", propertyIds)
-      : { data: [] };
-
-  const propertyMap = new Map(
-    (properties ?? []).map((property) => [property.id, property]),
-  );
-
-  // -----------------------------
-  // Build Columns
-  // -----------------------------
-
-  const columns: PipelineColumn[] = TRANSACTION_STAGES.map((stage) => ({
-    id: stage.id,
-    title: stage.label,
-    cards: [],
-    totalDeals: 0,
-    totalValue: 0,
-  }));
-
-  // -----------------------------
-  // Build Cards
-  // -----------------------------
-
-  for (const transaction of transactions ?? []) {
-    const workflow = await getPipelineMetrics(transaction.id);
-
-    const documents = await getDocumentMetrics(
-      transaction.id,
-      transaction.status,
+    `)
+    .eq(
+      "organization_id",
+      organizationId,
     );
 
-    const property = propertyMap.get(transaction.property_id);
+  if (error) {
+    throw error;
+  }
 
-    const propertyAddress = property
-      ? `${property.property_address_line_1},
-${property.property_city}, ${property.property_state}`
-      : null;
+  const columns: PipelineColumn[] =
+    TRANSACTION_STAGES.map(
+      (stage) => ({
+        id: stage.id,
 
-    const validWorkflowHealthes = [
-      "healthy",
-      "good",
-      "warning",
-      "attention",
-    ] as const;
+        title: stage.label,
 
-    type WorkflowHealth = (typeof validWorkflowHealthes)[number];
+        cards: [],
 
-    const workflowHealth = validWorkflowHealthes.includes(
-      workflow.workflowHealth as WorkflowHealth,
-    )
-      ? (workflow.workflowHealth as WorkflowHealth)
-      : "attention";
+        totalDeals: 0,
 
-    const card = mapTransactionToPipelineCard({
-      ...transaction,
+        totalValue: 0,
+      }),
+    );
 
-      propertyAddress,
+  for (const transaction of
+    transactions ?? []) {
+    const column =
+      columns.find(
+        (item) =>
+          item.id ===
+          transaction.status,
+      );
+
+    if (!column) {
+      continue;
+    }
+
+    const pipelineValue =
+      getTransactionPipelineValue(
+        transaction,
+      );
+
+    const daysUntilClosing =
+      transaction.closing_date
+        ? Math.ceil(
+            (new Date(
+              transaction.closing_date,
+            ).getTime() -
+              Date.now()) /
+              86400000,
+          )
+        : undefined;
+
+    column.cards.push({
+      id: transaction.id,
+
+      transactionName:
+        transaction.transaction_name,
+
+      propertyAddress: null,
+
+      stage:
+        transaction.status,
+
+      purchasePrice:
+        transaction.purchase_price,
+
+      salePrice:
+        transaction.sale_price,
+
+      assignmentFee:
+        transaction.assignment_fee,
+
+      closingDate:
+        transaction.closing_date,
 
       assignedAgent: null,
 
-      workflowPercent: workflow.workflowPercent,
+      workflowPercent: 0,
 
-      workflowHealth,
+      workflowHealth: "good",
 
-      checklistRemaining: workflow.checklistRemaining,
+      checklistRemaining: 0,
 
-      documentsRemaining: documents.uploadedDocuments,
+      documentsRemaining: 0,
+
+      transactionType:
+        transaction.transaction_type,
+
+      priority: "medium",
+
+      pipelineValue,
+
+      daysUntilClosing,
     });
 
-    const column = columns.find((c) => c.id === transaction.status);
+    column.totalDeals += 1;
 
-    if (!column) continue;
-
-    column.cards.push(card);
-
-    column.totalDeals++;
-
-    column.totalValue += transaction.purchase_price ?? 0;
+    column.totalValue +=
+      pipelineValue;
   }
 
   return columns;

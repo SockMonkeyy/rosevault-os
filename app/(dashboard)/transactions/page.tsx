@@ -5,13 +5,6 @@ import TransactionsTable, {
 } from "@/app/components/TransactionsTable";
 import { createClient } from "@/lib/supabase/server";
 import StatCard from "@/app/components/ui/StatCard";
-import AddTransactionNoteButton from "@/app/components/transactions/AddTransactionNoteButton";
-import {
-    FolderOpen,
-    Briefcase,
-    FileSignature,
-    CheckCircle2,
-} from "lucide-react";
 
 type Property = {
   id: string;
@@ -131,13 +124,11 @@ export default async function TransactionsPage() {
     "under_contract",
     "due_diligence",
     "clear_to_close",
-];
+  ];
 
   const activeTransactions = transactionRows.filter((transaction) =>
-    ACTIVE_STATUSES.includes(transaction.status)
-).length;
-
-  
+    ACTIVE_STATUSES.includes(transaction.status),
+  ).length;
 
   const underContractTransactions = transactionRows.filter(
     (transaction) => transaction.status === "under_contract",
@@ -239,18 +230,3 @@ export default async function TransactionsPage() {
     </div>
   );
 }
-
-function SummaryCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-5 shadow-sm backdrop-blur-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
-        {label}
-      </p>
-
-      <p className="mt-2 font-serif text-3xl font-normal text-[#B7832F]">
-        {value}
-      </p>
-    </div>
-  );
-}
-

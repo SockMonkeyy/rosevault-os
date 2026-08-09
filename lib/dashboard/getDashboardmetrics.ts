@@ -1,19 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
+import { getTransactionPipelineValue } from "@/lib/transactions/getTransactionPipelineValue";
 
-export async function getDashboardMetrics(organizationId: string) {
+export async function getDashboardMetrics(
+  organizationId: string,
+) {
   const supabase = await createClient();
 
   // Active Leads
   const { count: activeLeads } = await supabase
     .from("contacts")
-    .select("*", { count: "exact", head: true })
+    .select("*", {
+      count: "exact",
+      head: true,
+    })
     .eq("organization_id", organizationId)
     .eq("contact_type", "lead");
 
   // Under Contract
   const { count: underContract } = await supabase
     .from("transactions")
-    .select("*", { count: "exact", head: true })
+    .select("*", {
+      count: "exact",
+      head: true,
+    })
     .eq("organization_id", organizationId)
     .eq("status", "under_contract");
 
@@ -23,27 +32,43 @@ export async function getDashboardMetrics(organizationId: string) {
   const startOfMonth = new Date(
     today.getFullYear(),
     today.getMonth(),
-    1
+    1,
   );
 
   const endOfMonth = new Date(
     today.getFullYear(),
     today.getMonth() + 1,
-    1
+    1,
   );
 
-  const { count: closingsThisMonth } = await supabase
+  const {
+    count: closingsThisMonth,
+  } = await supabase
     .from("transactions")
-    .select("*", { count: "exact", head: true })
+    .select("*", {
+      count: "exact",
+      head: true,
+    })
     .eq("organization_id", organizationId)
     .eq("status", "closed")
-    .gte("actual_closing_date", startOfMonth.toISOString())
-    .lt("actual_closing_date", endOfMonth.toISOString());
+    .gte(
+      "actual_closing_date",
+      startOfMonth.toISOString(),
+    )
+    .lt(
+      "actual_closing_date",
+      endOfMonth.toISOString(),
+    );
 
   // Pipeline Value
-  const { data: pipelineTransactions } = await supabase
+  const {
+    data: pipelineTransactions,
+    error: pipelineError,
+  } = await supabase
     .from("transactions")
-    .select("transaction_type, purchase_price, sale_price, assignment_fee")
+    .select(
+      "transaction_type, purchase_price, sale_price, assignment_fee",
+    )
     .eq("organization_id", organizationId)
     .in("status", [
       "lead",
@@ -53,31 +78,36 @@ export async function getDashboardMetrics(organizationId: string) {
       "clear_to_close",
     ]);
 
+  if (pipelineError) {
+    console.error(
+      "Error loading pipeline transactions:",
+      pipelineError,
+    );
+  }
+
   const pipelineValue =
-  pipelineTransactions?.reduce((sum, transaction) => {
-    let value = 0;
-
-    switch (transaction.transaction_type) {
-      case "wholesale_assignment":
-        value = Number(transaction.assignment_fee ?? 0);
-        break;
-
-      case "sale":
-        value = Number(transaction.sale_price ?? 0);
-        break;
-
-      default:
-        value = Number(transaction.purchase_price ?? 0);
-        break;
-    }
-
-    return sum + value;
-  }, 0) ?? 0;
+    pipelineTransactions?.reduce(
+      (sum, transaction) => {
+        return (
+          sum +
+          getTransactionPipelineValue(
+            transaction,
+          )
+        );
+      },
+      0,
+    ) ?? 0;
 
   return {
     pipelineValue,
-    activeLeads: activeLeads ?? 0,
-    underContract: underContract ?? 0,
-    closingsThisMonth: closingsThisMonth ?? 0,
+
+    activeLeads:
+      activeLeads ?? 0,
+
+    underContract:
+      underContract ?? 0,
+
+    closingsThisMonth:
+      closingsThisMonth ?? 0,
   };
 }

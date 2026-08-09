@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import PipelineDnd from "@/app/features/pipeline/components/PipelineDnd";
 import { getPipeline } from "@/app/features/pipeline/lib/getPipeline";
 import AppSidebar from "@/app/components/AppSidebar";
+import PipelineWorkspace from "@/app/features/pipeline/components/PipelineWorkspace";
+
+import PipelineHeader from "@/app/features/pipeline/components/PipelineHeader";
+import { getPipelineStats } from "@/app/features/pipeline/lib/getPipelineStats";
 
 export default async function PipelinePage() {
   const supabase = await createClient();
@@ -28,6 +32,8 @@ export default async function PipelinePage() {
 
   const columns = await getPipeline(membership.organization_id);
 
+  const stats = getPipelineStats(columns);
+
   return (
     <div className="min-h-screen bg-[#FBF9F6] text-[#29231D]">
       {/* App Layout Structure with Sidebar */}
@@ -35,27 +41,18 @@ export default async function PipelinePage() {
         <AppSidebar />
 
         <main className="flex-1 p-6 lg:p-10 overflow-hidden">
-          {/* Header Section */}
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-                Transaction Management
-              </p>
-
-              <h1 className="font-serif text-3xl font-normal tracking-wide text-[#29231D]">
-                Pipeline
-              </h1>
-
-              <p className="mt-1.5 text-xs text-[#7C7265]">
-                Manage every transaction visually through each stage.
-              </p>
-            </div>
+          {/* Header Section with Pipeline Stats */}
+          <div className="mb-6">
+            <PipelineHeader
+              totalDeals={stats.totalDeals}
+              totalValue={stats.totalValue}
+            />
           </div>
 
           {/* Pipeline Canvas Container with full responsiveness */}
           <div className="rounded-xl border border-[#EDE7DC] bg-white/45 p-4 backdrop-blur-sm shadow-sm w-full">
             <div className="w-full overflow-hidden">
-              <PipelineDnd columns={columns} />
+              <PipelineWorkspace columns={columns} />
             </div>
           </div>
         </main>

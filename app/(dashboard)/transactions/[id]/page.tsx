@@ -217,47 +217,95 @@ export default async function TransactionDetailPage({ params }: PageProps) {
         {/* Left Column (70% / 8 spans): Property, Financials, Documents, & Notes */}
         <div className="space-y-8 lg:col-span-8">
           {/* Property Details */}
-          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-[#B7832F]" />
-              <h2 className="font-serif text-xl font-normal text-[#29231D]">
-                Property Details
-              </h2>
+          <div className="rounded-2xl border border-[#EDE7DC] bg-white/60 p-6 shadow-sm backdrop-blur-sm space-y-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-[#B7832F]" />
+
+                <h2 className="font-serif text-xl font-normal text-[#29231D]">
+                  Property Details
+                </h2>
+              </div>
             </div>
 
             {transaction.property ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-[#7C7265]">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                      Address
-                    </p>
-                    <p className="mt-1 font-medium text-[#29231D]">
-                      {transaction.property.property_address_line_1}
-                    </p>
+              <div className="rounded-xl border border-[#EDE7DC] bg-[#FBF7EF]/50 p-4">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                  {/* Property Information */}
+                  <div className="flex gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B7832F] shadow-sm">
+                      <Building2 className="h-5 w-5" />
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8F8578]">
+                        Linked Property
+                      </p>
+
+                      <p className="mt-1 font-medium text-[#29231D]">
+                        {transaction.property.property_address_line_1}
+                      </p>
+
+                      <p className="mt-1 text-sm text-[#7C7265]">
+                        {transaction.property.property_city},{" "}
+                        {transaction.property.property_state}{" "}
+                        {transaction.property.property_postal_code}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#8F8578]">
-                      Location
-                    </p>
-                    <p className="mt-1 font-medium text-[#29231D]">
-                      {transaction.property.property_city},{" "}
-                      {transaction.property.property_state}{" "}
-                      {transaction.property.property_postal_code}
-                    </p>
+
+                  {/* Property Actions */}
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Link
+                      href={`/properties/${transaction.property.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#EDE7DC] bg-white px-3 py-2 text-xs font-medium text-[#7C7265] transition-colors hover:border-[#D8B66A] hover:text-[#B7832F]"
+                    >
+                      <Building2 className="h-3.5 w-3.5" />
+                      View Property
+                    </Link>
+
+                    <Link
+                      href={`/transactions/${transaction.id}/edit`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#D8B66A]/50 bg-[#F4E5C2]/40 px-3 py-2 text-xs font-medium text-[#8A6116] transition-colors hover:bg-[#F4E5C2] hover:text-[#6F4D0F]"
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                      Change Property
+                    </Link>
                   </div>
                 </div>
-                <div>
+
+                {/* Property Record Link */}
+                <div className="mt-4 border-t border-[#E3DCD0] pt-3">
                   <Link
                     href={`/properties/${transaction.property.id}`}
-                    className="inline-flex items-center text-sm font-medium text-[#B7832F] hover:underline"
+                    className="inline-flex items-center text-sm font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
                   >
-                    View Property Record →
+                    View Full Property Record →
                   </Link>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-[#7C7265]">No property linked.</p>
+              <div className="rounded-xl border border-dashed border-[#D8B66A]/60 bg-[#FBF7EF]/60 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-[#29231D]">
+                      No property linked
+                    </p>
+
+                    <p className="mt-1 text-sm text-[#7C7265]">
+                      Connect this transaction to an existing property record.
+                    </p>
+                  </div>
+
+                  <Link
+                    href={`/transactions/${transaction.id}/edit`}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0D0C0A] px-4 py-2.5 text-sm font-semibold text-[#D8B66A] shadow-sm transition hover:bg-[#29231D]"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Link Property
+                  </Link>
+                </div>
+              </div>
             )}
           </div>
 

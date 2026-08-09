@@ -50,37 +50,30 @@ export function mapTransactionToPipelineCard(
   return {
     id: transaction.id,
 
-    transactionName:
-      transaction.transaction_name,
+    transactionName: transaction.transaction_name,
 
-    propertyAddress:
-      transaction.propertyAddress,
+    propertyAddress: transaction.propertyAddress,
 
-    transactionType:
-      transaction.transaction_type ?? undefined,
+    transactionType: transaction.transaction_type ?? undefined,
 
     stage: transaction.status,
 
-    purchasePrice:
-      transaction.purchase_price,
+    purchasePrice: transaction.purchase_price,
+    salePrice: null,
+    assignmentFee: null,
+    pipelineValue: 0,
 
-    closingDate:
-      transaction.closing_date,
+    closingDate: transaction.closing_date,
 
-    assignedAgent:
-      transaction.assignedAgent,
+    assignedAgent: transaction.assignedAgent,
 
-    workflowPercent:
-      transaction.workflowPercent,
+    workflowPercent: transaction.workflowPercent,
 
-    workflowHealth:
-      transaction.workflowHealth,
+    workflowHealth: transaction.workflowHealth,
 
-    checklistRemaining:
-      transaction.checklistRemaining,
+    checklistRemaining: transaction.checklistRemaining,
 
-    documentsRemaining:
-      transaction.documentsRemaining,
+    documentsRemaining: transaction.documentsRemaining,
 
     priority,
 

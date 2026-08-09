@@ -10,6 +10,8 @@ interface UpdateTransactionParams {
   transaction_type: string;
   status: string;
 
+  property_id: string | null;
+
   purchase_price: number | null;
   sale_price: number | null;
   assignment_fee: number | null;
@@ -41,6 +43,7 @@ export async function updateTransaction(params: UpdateTransactionParams) {
     throw new Error("Unauthorized organization access.");
   }
 
+  // Fetch the existing transaction
   const { data: existingTransaction, error: existingError } = await supabase
     .from("transactions")
     .select("*")
@@ -52,6 +55,7 @@ export async function updateTransaction(params: UpdateTransactionParams) {
     throw new Error("Transaction not found.");
   }
 
+  // Track important transaction changes
   const trackedFields = [
     {
       key: "transaction_name",
@@ -64,6 +68,10 @@ export async function updateTransaction(params: UpdateTransactionParams) {
     {
       key: "status",
       label: "Status",
+    },
+    {
+      key: "property_id",
+      label: "Property",
     },
     {
       key: "purchase_price",
@@ -89,15 +97,24 @@ export async function updateTransaction(params: UpdateTransactionParams) {
 
   console.log("Detected changes:", changes);
 
+  // Update transaction
   const { error: updateError } = await supabase
     .from("transactions")
     .update({
       transaction_name: params.transaction_name,
+
       transaction_type: params.transaction_type,
+
       status: params.status,
+
+      property_id: params.property_id,
+
       purchase_price: params.purchase_price,
+
       sale_price: params.sale_price,
+
       assignment_fee: params.assignment_fee,
+
       closing_date: params.closing_date,
     })
     .eq("id", params.transactionId)
@@ -105,30 +122,51 @@ export async function updateTransaction(params: UpdateTransactionParams) {
 
   if (updateError) {
     console.error("Transaction update error:", updateError);
+
     throw new Error(updateError.message || JSON.stringify(updateError));
   }
 
+  // Log field changes
   for (const change of changes) {
     console.log("Logging activity for:", change);
 
-    const { error: activityError } = await supabase.from("activity_log").insert({
-      organization_id: membership.organization_id,
-      entity_type: "transaction",
-      entity_id: params.transactionId,
-      activity_type: "field_updated",
-      description: `${change.label} changed`,
-      created_by: user.id,
-      metadata: {
-        field: change.key,
-        oldValue: existingTransaction[change.key],
-        newValue: params[change.key],
-      },
-    });
+    const { error: activityError } = await supabase
+      .from("activity_log")
+      .insert({
+        organization_id: membership.organization_id,
+
+        entity_type: "transaction",
+
+        entity_id: params.transactionId,
+
+        activity_type: "field_updated",
+
+        description: `${change.label} changed`,
+
+        created_by: user.id,
+
+        metadata: {
+          field: change.key,
+
+          oldValue: existingTransaction[change.key],
+
+          newValue: params[change.key],
+        },
+      });
 
     if (activityError) {
       console.error("Activity log insert error:", activityError);
     }
   }
 
+  // Refresh transaction pages
   revalidatePath(`/transactions/${params.transactionId}`);
+
+  revalidatePath("/transactions");
+
+  revalidatePath("/pipeline");
+
+  return {
+    success: true,
+  };
 }
