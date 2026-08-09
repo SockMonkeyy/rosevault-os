@@ -19,6 +19,39 @@ interface UpdateTransactionParams {
   closing_date: string | null;
 }
 
+type PropertyAddress = {
+  id: string;
+  property_address_line_1: string | null;
+  property_address_line_2: string | null;
+  property_city: string | null;
+  property_state: string | null;
+  property_postal_code: string | null;
+};
+
+function formatPropertyAddress(property: PropertyAddress | null) {
+  if (!property) {
+    return "No property";
+  }
+
+  const street = [
+    property.property_address_line_1,
+    property.property_address_line_2,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const cityStateZip = [
+    property.property_city,
+    property.property_state,
+    property.property_postal_code,
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .replace(/,\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/, ", $1 $2");
+
+  return [street, cityStateZip].filter(Boolean).join(", ");
+}
+
 export async function updateTransaction(params: UpdateTransactionParams) {
   console.log("updateTransaction() called");
 
@@ -32,7 +65,10 @@ export async function updateTransaction(params: UpdateTransactionParams) {
     throw new Error("Unauthorized");
   }
 
-  // Get the user's organization
+  // --------------------------------------------------
+  // 1. Get the user's organization
+  // --------------------------------------------------
+
   const { data: membership, error: membershipError } = await supabase
     .from("organization_members")
     .select("organization_id")
@@ -43,7 +79,10 @@ export async function updateTransaction(params: UpdateTransactionParams) {
     throw new Error("Unauthorized organization access.");
   }
 
-  // Fetch the existing transaction
+  // --------------------------------------------------
+  // 2. Fetch the existing transaction
+  // --------------------------------------------------
+
   const { data: existingTransaction, error: existingError } = await supabase
     .from("transactions")
     .select("*")
@@ -55,7 +94,10 @@ export async function updateTransaction(params: UpdateTransactionParams) {
     throw new Error("Transaction not found.");
   }
 
-  // Track important transaction changes
+  // --------------------------------------------------
+  // 3. Determine which fields changed
+  // --------------------------------------------------
+
   const trackedFields = [
     {
       key: "transaction_name",
@@ -97,7 +139,62 @@ export async function updateTransaction(params: UpdateTransactionParams) {
 
   console.log("Detected changes:", changes);
 
-  // Update transaction
+  // --------------------------------------------------
+  // 4. If property changed, load old/new addresses
+  // --------------------------------------------------
+
+  let oldProperty: PropertyAddress | null = null;
+
+  let newProperty: PropertyAddress | null = null;
+
+  const propertyChanged =
+    existingTransaction.property_id !== params.property_id;
+
+  if (propertyChanged) {
+    const propertyIds = [
+      existingTransaction.property_id,
+      params.property_id,
+    ].filter((id): id is string => Boolean(id));
+
+    if (propertyIds.length > 0) {
+      const { data: propertyRecords, error: propertyError } = await supabase
+        .from("properties")
+        .select(
+          `
+            id,
+            property_address_line_1,
+            property_address_line_2,
+            property_city,
+            property_state,
+            property_postal_code
+          `,
+        )
+        .eq("organization_id", membership.organization_id)
+        .in("id", propertyIds);
+
+      if (propertyError) {
+        console.error(
+          "Property lookup for activity log failed:",
+          propertyError,
+        );
+      } else {
+        oldProperty =
+          propertyRecords?.find(
+            (property) => property.id === existingTransaction.property_id,
+          ) ?? null;
+
+        newProperty =
+          propertyRecords?.find(
+            (property) => property.id === params.property_id,
+          ) ?? null;
+      }
+    }
+  }
+
+  // --------------------------------------------------
+  // 5. Update transaction
+  // --------------------------------------------------
+
   const { error: updateError } = await supabase
     .from("transactions")
     .update({
@@ -126,9 +223,53 @@ export async function updateTransaction(params: UpdateTransactionParams) {
     throw new Error(updateError.message || JSON.stringify(updateError));
   }
 
-  // Log field changes
+  // --------------------------------------------------
+  // --------------------------------------------------
+  // 6. Log field changes
+  // --------------------------------------------------
+
   for (const change of changes) {
     console.log("Logging activity for:", change);
+
+    let description = `${change.label} changed`;
+
+    let metadata: Record<string, unknown>;
+
+    // ------------------------------------------------
+    // Special handling for property changes
+    // ------------------------------------------------
+
+    if (change.key === "property_id") {
+      const oldAddress = formatPropertyAddress(oldProperty);
+
+      const newAddress = formatPropertyAddress(newProperty);
+
+      if (existingTransaction.property_id && params.property_id) {
+        description = `Property changed from ${oldAddress} to ${newAddress}`;
+      } else if (!existingTransaction.property_id && params.property_id) {
+        description = `Property linked: ${newAddress}`;
+      } else if (existingTransaction.property_id && !params.property_id) {
+        description = `Property unlinked: ${oldAddress}`;
+      }
+
+      metadata = {
+        field: "property",
+        oldLabel: oldAddress,
+        newLabel: newAddress,
+      };
+    } else {
+      // ----------------------------------------------
+      // Normal field changes
+      // ----------------------------------------------
+
+      metadata = {
+        field: change.key,
+
+        oldValue: existingTransaction[change.key],
+
+        newValue: params[change.key],
+      };
+    }
 
     const { error: activityError } = await supabase
       .from("activity_log")
@@ -141,17 +282,11 @@ export async function updateTransaction(params: UpdateTransactionParams) {
 
         activity_type: "field_updated",
 
-        description: `${change.label} changed`,
+        description,
 
         created_by: user.id,
 
-        metadata: {
-          field: change.key,
-
-          oldValue: existingTransaction[change.key],
-
-          newValue: params[change.key],
-        },
+        metadata,
       });
 
     if (activityError) {
@@ -159,7 +294,10 @@ export async function updateTransaction(params: UpdateTransactionParams) {
     }
   }
 
-  // Refresh transaction pages
+  // --------------------------------------------------
+  // 7. Refresh related pages
+  // --------------------------------------------------
+
   revalidatePath(`/transactions/${params.transactionId}`);
 
   revalidatePath("/transactions");

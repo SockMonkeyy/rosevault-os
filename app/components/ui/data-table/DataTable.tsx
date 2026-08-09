@@ -2,16 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import DataTableToolbar from "./data-table/DataTableToolbar";
-import DataTablePagination from "./data-table/DataTablePagination";
-import DataTableSkeleton from "./data-table/DataTableSkeleton";
-import DataTableEmpty from "./data-table/DataTableEmpty";
+import DataTableToolbar from "./DataTableToolbar";
+import DataTablePagination from "./DataTablePagination";
+import DataTableSkeleton from "./DataTableSkeleton";
+import DataTableEmpty from "./DataTableEmpty";
 import { ArrowUpDown } from "lucide-react";
 import { sortRows } from "@/lib/table/sorting";
-
+import DataTableBulkActions from "./DataTableBulkActions";
 import { DataTableProps } from "@/lib/table/types";
-
-import DataTableBulkActions from "./data-table/DataTableBulkActions";
 
 const PAGE_SIZE = 10;
 
@@ -79,12 +77,11 @@ export default function DataTable<T>({
     <div className="overflow-hidden rounded-2xl border border-[#EDE7DC] bg-white shadow-sm">
       <DataTableToolbar
         search={search}
-        onSearch={(value: string) => {
+        onSearch={(value) => {
           setSearch(value);
           setPage(1);
         }}
       />
-
       <DataTableBulkActions
         selectedCount={selectedRows.length}
         selectedRows={selectedData}
@@ -100,9 +97,11 @@ export default function DataTable<T>({
         <DataTableEmpty title={emptyTitle} description={emptyDescription} />
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className="max-h-[650px] overflow-auto">
+            {" "}
             <table className="min-w-full">
-              <thead className="border-b border-[#EDE7DC] bg-[#FBF7EF]">
+              <thead className="sticky top-0 z-10 border-b border-[#EDE7DC] bg-[#FBF7EF]">
+                {" "}
                 <tr>
                   {/* Step 11.6 — Add Master Checkbox Column */}
                   {selectable && (
