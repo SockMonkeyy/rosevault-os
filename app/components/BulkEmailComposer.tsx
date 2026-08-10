@@ -1,52 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-
-type Contact = {
-  id: string;
-  first_name: string;
-  last_name: string | null;
-  email: string | null;
-
-  mailing_address_line_1: string | null;
-  mailing_address_line_2: string | null;
-  mailing_city: string | null;
-  mailing_state: string | null;
-  mailing_postal_code: string | null;
-
-  property_address_line_1: string | null;
-  property_address_line_2: string | null;
-  property_city: string | null;
-  property_state: string | null;
-  property_postal_code: string | null;
-};
-
-type EmailTemplate = {
-  id: string;
-  name: string;
-  subject: string;
-  body: string;
-  category: string;
-};
-
-type InitialCampaign = {
-  id: string;
-  name: string;
-  subject: string;
-  body: string;
-  template_id: string | null;
-  status: string;
-};
-
-type Props = {
-  contacts: Contact[];
-  templates: EmailTemplate[];
-  initialSelectedContactIds?: string[];
-  organizationId: string;
-  userId: string;
-  initialCampaign?: InitialCampaign | null;
-};
+import { useMemo, useState, useTransition } from "react";
+import RecipientSelector from "./email/BulkEmailComposer/RecipientSelector";
+import { sendCampaign } from "@/app/actions/email/sendCampaign";
+import { saveCampaignDraft } from "@/app/actions/email/saveCampaignDraft";
+import {
+  Contact,
+  EmailTemplate,
+  InitialCampaign,
+} from "./email/BulkEmailComposer/types";
 
 const VARIABLES = [
   "{{first_name}}",
@@ -56,6 +18,15 @@ const VARIABLES = [
   "{{mailing_address}}",
   "{{property_address}}",
 ];
+
+type Props = {
+  contacts: Contact[];
+  templates: EmailTemplate[];
+  initialSelectedContactIds?: string[];
+  organizationId: string;
+  userId: string;
+  initialCampaign?: InitialCampaign | null;
+};
 
 export default function BulkEmailComposer({
   contacts,
@@ -71,20 +42,26 @@ export default function BulkEmailComposer({
     ),
   );
 
-  const [selectedTemplateId, setSelectedTemplateId] = useState(
-    initialCampaign?.template_id ?? "",
+  const [campaign, setCampaign] = useState<InitialCampaign | null>(
+    initialCampaign,
   );
 
-  const [subject, setSubject] = useState(initialCampaign?.subject ?? "");
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    campaign?.template_id ?? "",
+  );
 
-  const [body, setBody] = useState(initialCampaign?.body ?? "");
+  const [subject, setSubject] = useState(campaign?.subject ?? "");
+
+  const [body, setBody] = useState(campaign?.body ?? "");
 
   const [search, setSearch] = useState("");
 
   const [previewContactId, setPreviewContactId] = useState("");
-  const [campaignName, setCampaignName] = useState("");
+  const [campaignName, setCampaignName] = useState(campaign?.name ?? "");
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
+
+  const [isSending, startTransition] = useTransition();
 
   const skippedInitialContactCount =
     initialSelectedContactIds.length -
@@ -122,14 +99,6 @@ export default function BulkEmailComposer({
     selectedContacts[0] ??
     null;
 
-  const personalizedSubject = previewContact
-    ? personalizeText(subject, previewContact)
-    : subject;
-
-  const personalizedBody = previewContact
-    ? personalizeText(body, previewContact)
-    : body;
-
   function toggleContact(contactId: string) {
     setSelectedContactIds((current) =>
       current.includes(contactId)
@@ -164,7 +133,7 @@ export default function BulkEmailComposer({
     setBody(template.body);
   }
 
-    function insertVariable(variable: string) {
+  function insertVariable(variable: string) {
     setBody((current) => `${current}${variable}`);
   }
 
@@ -179,138 +148,71 @@ export default function BulkEmailComposer({
       return;
     }
 
-    setIsSavingDraft(true);
-    setDraftMessage("");
+    try {
+      setIsSavingDraft(true);
+      setDraftMessage("");
 
-    const supabase = createClient();
+      const savedCampaign = await saveCampaignDraft({
+        campaignId: campaign?.id,
+        organizationId,
+        userId,
+        campaignName,
+        subject,
+        body,
+        templateId: selectedTemplateId || undefined,
+        recipients: selectedContacts.map((r) => ({
+          contactId: r.id,
+          email: r.email ?? "",
+          firstName: r.first_name,
+          lastName: r.last_name,
+        })),
+      });
 
-    const campaignPayload = {
-      organization_id: organizationId,
-      name: campaignName.trim(),
-      subject: subject.trim(),
-      body,
-      template_id: selectedTemplateId || null,
-      status: "draft",
-      recipient_count: selectedContacts.length,
-    };
-
-    if (initialCampaign) {
-      const { error: updateError } = await supabase
-        .from("email_campaigns")
-        .update(campaignPayload)
-        .eq("id", initialCampaign.id)
-        .eq("organization_id", organizationId);
-
-      if (updateError) {
-        setDraftMessage(
-          `Unable to update campaign: ${updateError.message}`,
-        );
-        setIsSavingDraft(false);
-        return;
-      }
-
-      const { error: deleteRecipientsError } = await supabase
-        .from("email_campaign_recipients")
-        .delete()
-        .eq("campaign_id", initialCampaign.id);
-
-      if (deleteRecipientsError) {
-        setDraftMessage(
-          `Campaign details were updated, but recipients could not be refreshed: ${deleteRecipientsError.message}`,
-        );
-        setIsSavingDraft(false);
-        return;
-      }
-
-      const recipients = selectedContacts
-        .filter((contact) => contact.email)
-        .map((contact) => ({
-          campaign_id: initialCampaign.id,
-          contact_id: contact.id,
-          email: contact.email as string,
-          first_name: contact.first_name || null,
-          last_name: contact.last_name || null,
-          status: "pending",
-        }));
-
-      const { error: recipientsError } = await supabase
-        .from("email_campaign_recipients")
-        .insert(recipients);
-
-      if (recipientsError) {
-        setDraftMessage(
-          `Campaign details were updated, but recipients could not be saved: ${recipientsError.message}`,
-        );
-        setIsSavingDraft(false);
-        return;
-      }
-
-      setDraftMessage("Campaign draft updated successfully.");
-      setIsSavingDraft(false);
+      // Update local component state so subsequent saves act as updates
+      setCampaign(savedCampaign);
+      setDraftMessage(
+        campaign
+          ? "Campaign draft updated successfully."
+          : "Campaign draft saved successfully.",
+      );
 
       setTimeout(() => {
         setDraftMessage("");
       }, 5000);
-
-      return;
-    }
-
-    const { data: campaign, error: campaignError } = await supabase
-      .from("email_campaigns")
-      .insert({
-        ...campaignPayload,
-        created_by: userId,
-      })
-      .select("id")
-      .single();
-
-    if (campaignError || !campaign) {
+    } catch (error) {
+      console.error(error);
       setDraftMessage(
-        campaignError?.message ||
-          "Unable to save the campaign draft.",
+        error instanceof Error
+          ? error.message
+          : "Unable to save the campaign draft.",
       );
+    } finally {
       setIsSavingDraft(false);
-      return;
     }
-
-    const recipients = selectedContacts
-      .filter((contact) => contact.email)
-      .map((contact) => ({
-        campaign_id: campaign.id,
-        contact_id: contact.id,
-        email: contact.email as string,
-        first_name: contact.first_name || null,
-        last_name: contact.last_name || null,
-        status: "pending",
-      }));
-
-    const { error: recipientsError } = await supabase
-      .from("email_campaign_recipients")
-      .insert(recipients);
-
-    if (recipientsError) {
-      await supabase
-        .from("email_campaigns")
-        .delete()
-        .eq("id", campaign.id)
-        .eq("organization_id", organizationId);
-
-      setDraftMessage(
-        `Unable to save recipients: ${recipientsError.message}`,
-      );
-      setIsSavingDraft(false);
-      return;
-    }
-
-    setDraftMessage("Campaign draft saved successfully.");
-    setIsSavingDraft(false);
-
-    setTimeout(() => {
-      setDraftMessage("");
-    }, 5000);
   }
 
-    const inputClasses =
+  async function handleSendCampaign() {
+    if (!campaign) {
+      setDraftMessage("Please save the campaign as a draft before sending.");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await sendCampaign(campaign.id);
+
+        setDraftMessage(
+          `Campaign sent successfully. ${result.sent} emails sent.${result.failed > 0 ? ` ${result.failed} failed.` : ""}`,
+        );
+      } catch (error) {
+        setDraftMessage(
+          error instanceof Error ? error.message : "Unable to send campaign.",
+        );
+      }
+    });
+  }
+
+  const inputClasses =
     "w-full rounded-md border border-[#E3DCD0] bg-white/70 px-4 py-3 text-sm text-[#29231D] outline-none transition-all duration-300 placeholder:text-[#A89C8D] hover:border-[#CFC5B6] focus:border-[#D8B66A] focus:bg-white focus:ring-2 focus:ring-[#D8B66A]/10";
 
   const labelClasses =
@@ -321,6 +223,60 @@ export default function BulkEmailComposer({
 
   const primaryButtonClasses =
     "cursor-pointer rounded-md bg-[#0D0C0A] px-6 py-3 text-xs font-medium tracking-wide text-[#D8B66A] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#211E1A] hover:text-[#EAE5DE] hover:shadow-sm active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#0D0C0A] disabled:hover:text-[#D8B66A] disabled:hover:shadow-none";
+
+  function formatAddress(
+    line1: string | null,
+    line2: string | null,
+    city: string | null,
+    state: string | null,
+    postalCode: string | null,
+  ): string {
+    return [line1, line2, [city, state, postalCode].filter(Boolean).join(", ")]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function renderPreviewBody(
+    body: string,
+    previewContact: Contact,
+  ): import("react").ReactNode {
+    if (!body) return null;
+
+    const replacements: Record<string, string> = {
+      "{{first_name}}": previewContact.first_name ?? "",
+      "{{last_name}}": previewContact.last_name ?? "",
+      "{{full_name}}": [previewContact.first_name, previewContact.last_name]
+        .filter(Boolean)
+        .join(" "),
+      "{{email}}": previewContact.email ?? "",
+      "{{mailing_address}}": formatAddress(
+        previewContact.mailing_address_line_1,
+        previewContact.mailing_address_line_2,
+        previewContact.mailing_city,
+        previewContact.mailing_state,
+        previewContact.mailing_postal_code,
+      ),
+      "{{property_address}}": formatAddress(
+        previewContact.property_address_line_1,
+        previewContact.property_address_line_2,
+        previewContact.property_city,
+        previewContact.property_state,
+        previewContact.property_postal_code,
+      ),
+    };
+
+    let processed = body;
+
+    for (const key of Object.keys(replacements)) {
+      processed = processed.split(key).join(replacements[key]);
+    }
+
+    return (
+      <div className="whitespace-pre-wrap text-sm text-[#29231D]">
+        {processed}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -337,105 +293,18 @@ export default function BulkEmailComposer({
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(340px,0.7fr)_minmax(0,1.3fr)]">
         {/* Recipients */}
-        <section className="rounded-xl border border-[#EDE7DC] bg-white/40 p-6 backdrop-blur-sm transition-colors duration-300 hover:bg-white/50">
-          <div className="mb-5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
-              Audience
-            </p>
-
-            <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
-              Select Contacts
-            </h2>
-
-            <div className="mt-2 flex items-center gap-2">
-              <span className="inline-flex rounded-full border border-[#D8B66A]/30 bg-[#B7832F]/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#B7832F]">
-                {selectedContactIds.length} selected
-              </span>
-            </div>
-          </div>
-
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name or email..."
-            className={inputClasses}
-          />
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={selectAllFiltered}
-              className={secondaryButtonClasses}
-            >
-              Select All Shown
-            </button>
-
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-3 text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-50/70 hover:text-red-700 hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
-            >
-              Clear Selection
-            </button>
-          </div>
-
-          <div className="mt-5 max-h-[650px] space-y-2 overflow-y-auto pr-1">
-            {filteredContacts.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#D8CDBE] bg-white/30 p-6 text-center">
-                <p className="font-serif text-sm text-[#29231D]">
-                  No contacts found
-                </p>
-
-                <p className="mt-1 text-xs text-[#8F8578]">
-                  Try changing your search term.
-                </p>
-              </div>
-            ) : (
-              filteredContacts.map((contact) => {
-                const fullName = [contact.first_name, contact.last_name]
-                  .filter(Boolean)
-                  .join(" ");
-
-                const isSelected = selectedContactIds.includes(contact.id);
-
-                return (
-                  <label
-                    key={contact.id}
-                    className={`group flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all duration-300 ${
-                      isSelected
-                        ? "border-[#D8B66A]/60 bg-[#B7832F]/10 shadow-sm"
-                        : "border-[#EDE7DC] bg-white/45 hover:-translate-y-0.5 hover:border-[#D8B66A]/40 hover:bg-white/75 hover:shadow-sm"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleContact(contact.id)}
-                      className="mt-1 h-4 w-4 accent-[#B7832F]"
-                    />
-
-                    <span className="min-w-0">
-                      <span
-                        className={`block font-serif text-sm font-medium tracking-wide transition-colors duration-300 ${
-                          isSelected
-                            ? "text-[#916520]"
-                            : "text-[#29231D] group-hover:text-[#B7832F]"
-                        }`}
-                      >
-                        {fullName || "Unnamed Contact"}
-                      </span>
-
-                      <span className="mt-1 block truncate text-xs text-[#8F8578]">
-                        {contact.email || "No email address"}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })
-            )}
-          </div>
-        </section>
+        <RecipientSelector
+          contacts={contacts}
+          filteredContacts={filteredContacts}
+          selectedContactIds={selectedContactIds}
+          search={search}
+          inputClasses={inputClasses}
+          secondaryButtonClasses={secondaryButtonClasses}
+          onSearchChange={setSearch}
+          onToggleContact={toggleContact}
+          onSelectAll={selectAllFiltered}
+          onClearSelection={clearSelection}
+        />
 
         {/* Composer Column */}
         <div className="space-y-6">
@@ -451,7 +320,8 @@ export default function BulkEmailComposer({
               </h2>
 
               <p className="mt-2 text-xs leading-relaxed text-[#7C7265]">
-                Compose a personalized email for the contacts you&apos;ve selected.
+                Compose a personalized email for the contacts you&apos;ve
+                selected.
               </p>
             </div>
 
@@ -582,14 +452,19 @@ export default function BulkEmailComposer({
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#A89C8D]">
                     Subject
                   </p>
-
-                  <p className="mt-1.5 font-serif text-sm font-medium tracking-wide text-[#29231D]">
-                    {personalizedSubject || "No subject"}
+                  <p className="mt-1.5 text-xs text-[#5F574D] truncate">
+                    {subject || "(No subject)"}
                   </p>
                 </div>
 
-                <div className="min-h-64 whitespace-pre-wrap px-5 py-6 text-sm leading-7 text-[#5F574D]">
-                  {personalizedBody || "Your email preview will appear here."}
+                <div className="px-5 py-4">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#A89C8D]">
+                    Message
+                  </p>
+
+                  <div className="mt-1.5 text-xs text-[#5F574D] whitespace-pre-wrap">
+                    {renderPreviewBody(body, previewContact)}
+                  </div>
                 </div>
               </div>
             )}
@@ -604,7 +479,7 @@ export default function BulkEmailComposer({
                 </p>
 
                 <h2 className="mt-2 font-serif text-xl font-normal tracking-wide text-[#29231D]">
-                  {initialCampaign
+                  {campaign
                     ? "Update or Send Campaign"
                     : "Save or Send Campaign"}
                 </h2>
@@ -647,26 +522,27 @@ export default function BulkEmailComposer({
                   className={primaryButtonClasses}
                 >
                   {isSavingDraft
-                    ? initialCampaign
+                    ? campaign
                       ? "Updating Draft..."
                       : "Saving Draft..."
-                    : initialCampaign
+                    : campaign
                       ? "Update Draft"
                       : "Save as Draft"}
                 </button>
 
                 <button
                   type="button"
-                  disabled
-                  className="cursor-not-allowed rounded-md border border-[#E3DCD0] bg-white/50 px-6 py-3 text-xs font-medium tracking-wide text-[#A89C8D] opacity-60"
+                  onClick={handleSendCampaign}
+                  disabled={isSending || !campaign}
+                  className={primaryButtonClasses}
                 >
-                  Send Email
+                  {isSending ? "Sending..." : "Send Campaign"}
                 </button>
               </div>
 
               <p className="text-[10px] leading-5 text-[#A89C8D]">
-                Actual sending will be enabled after Gmail or Microsoft 365 is
-                connected.
+                Each selected recipient will receive a personalized email using
+                the active campaign.
               </p>
             </div>
           </section>
@@ -674,66 +550,4 @@ export default function BulkEmailComposer({
       </div>
     </>
   );
-}
-function personalizeText(
-  text: string,
-  contact: Contact,
-) {
-  const fullName = [
-    contact.first_name,
-    contact.last_name,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const mailingAddress = formatAddress([
-    contact.mailing_address_line_1,
-    contact.mailing_address_line_2,
-    contact.mailing_city,
-    contact.mailing_state,
-    contact.mailing_postal_code,
-  ]);
-
-  const propertyAddress = formatAddress([
-    contact.property_address_line_1,
-    contact.property_address_line_2,
-    contact.property_city,
-    contact.property_state,
-    contact.property_postal_code,
-  ]);
-
-  return text
-    .replaceAll(
-      "{{first_name}}",
-      contact.first_name ?? "",
-    )
-    .replaceAll(
-      "{{last_name}}",
-      contact.last_name ?? "",
-    )
-    .replaceAll(
-      "{{full_name}}",
-      fullName,
-    )
-    .replaceAll(
-      "{{email}}",
-      contact.email ?? "",
-    )
-    .replaceAll(
-      "{{mailing_address}}",
-      mailingAddress,
-    )
-    .replaceAll(
-      "{{property_address}}",
-      propertyAddress,
-    );
-}
-
-function formatAddress(
-  parts: Array<string | null | undefined>,
-) {
-  return parts
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(", ");
 }

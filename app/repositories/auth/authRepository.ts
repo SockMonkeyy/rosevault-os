@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 
 export class AuthRepository {
+  getPendingInvitation(email: string) {
+      throw new Error("Method not implemented.");
+  }
   async getCurrentUser() {
     const supabase = await createClient();
 
