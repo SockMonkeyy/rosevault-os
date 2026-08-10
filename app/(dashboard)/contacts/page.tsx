@@ -246,16 +246,9 @@ export default async function ContactsPage({ searchParams }: PageProps) {
         <div className="mt-8 space-y-4">
 
           <SectionCard>
-            <DataTable>
-              <ContactsTable
+            <ContactsTable
                 initialContacts={formattedContacts ?? []}
-                groups={groups ?? []}
-                tags={tags ?? []}
-                groupMemberships={groupMemberships ?? []}
-                tagAssignments={tagAssignments ?? []}
-                organizationId={membership.organization_id}
-              />
-            </DataTable>
+                groups={groups ?? []} tags={[]} groupMemberships={[]} tagAssignments={[]} organizationId={""}            />
           </SectionCard>
 
           {/* Pagination Footer */}
