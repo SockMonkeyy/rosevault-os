@@ -121,6 +121,35 @@ export default function TransactionsTable({
         </span>
       ),
     },
+    {
+      id: "actions",
+      header: "",
+      cell: (row) => (
+        <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setTransactionToDelete(row)}
+            className="cursor-pointer rounded-md p-1.5 text-[#8F8578] transition-colors hover:bg-rose-50 hover:text-rose-700"
+            title="Delete Transaction"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -136,6 +165,25 @@ export default function TransactionsTable({
           {
             label: "Export",
             onClick: (rows) => exportRowsToCsv(rows, "transactions"),
+          },
+          {
+            label: "Delete Selected",
+            onClick: async (rows) => {
+              const ids = rows.map((r) => r.id);
+              const result = await supabase
+                .from("transactions")
+                .delete()
+                .in("id", ids);
+
+              if (result.error) {
+                console.error("Bulk delete failed:", result.error);
+                toast.error("Unable to delete selected transactions.");
+                return;
+              }
+
+              toast.success("Selected transactions deleted successfully.");
+              router.refresh();
+            },
           },
         ]}
         onRowClick={(row) => {
