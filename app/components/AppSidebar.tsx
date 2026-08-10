@@ -12,14 +12,14 @@ const navigationItems = [
   { label: "Contacts", href: "/contacts" },
   { label: "Leads", href: "/leads" },
   { label: "Properties", href: "/properties" },
-  { label: "Pipeline", href: "/pipeline", icon: KanbanSquare },
+   { label: "Pipeline", href: "/pipeline", icon: KanbanSquare, },
   { label: "Transactions", href: "/transactions" },
   { label: "Tasks", href: "/tasks" },
   { label: "Calendar", href: "/calendar" },
 ];
 
 const marketingItems = [
-  { label: "Bulk Email", href: "/email/compose" },
+  { label: "Email Composer", href: "/email/compose" },
   { label: "Email Templates", href: "/email/templates" },
   { label: "Campaigns", href: "/marketing/campaigns" },
   { label: "Mailchimp", href: "/marketing/mailchimp" },
@@ -30,7 +30,7 @@ const bottomNavigationItems = [
   { label: "Documents", href: "/documents" },
   { label: "Rosie AI", href: "/rosie" },
   { label: "Reports", href: "/reports" },
-  { label: "Settings", href: "/settings" },
+  { label: "Settings", href: "/settings/developer/email" },
 ];
 
 export default function AppSidebar() {
@@ -137,7 +137,9 @@ export default function AppSidebar() {
               fill="none"
               aria-hidden="true"
               className={`h-4 w-4 text-[#8F8578] transition-all duration-300 ${
-                marketingOpen ? "rotate-180 text-[#D8B66A]" : ""
+                marketingOpen
+                  ? "rotate-180 text-[#D8B66A]"
+                  : ""
               }`}
             >
               <path

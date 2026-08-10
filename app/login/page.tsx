@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
 import Link from "next/link";
+import GoogleIcon from "../components/auth/GoogleIcon";
 
 export default function LoginPage() {
   const supabase = createClient();
@@ -12,8 +13,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
+  async function handleSignIn(event: FormEvent) {
     event.preventDefault();
     setMessage("");
     setIsLoading(true);
@@ -32,23 +34,38 @@ export default function LoginPage() {
     window.location.href = "/";
   }
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#FBF7EF] px-6 py-12 text-[#29231D]">
-      <div className="w-full max-w-md">
-        {/* Header & Branding */}
-        <div className="mb-8 text-center">
-          <div className="mb-0 flex justify-center">
-            <Image
-              src="/RoseVaultLogo.png"
-              alt="Rose Key Realty Co. logo"
-              width={450}
-              height={450}
-              priority
-              className="h-auto max-w-[240px] object-contain"
-            />
-          </div>
+  async function handleGoogleSignIn() {
+    setMessage("");
+    setIsGoogleLoading(true);
 
-          <h1 className="font-serif text-2xl font-normal tracking-wide text-[#29231D]">
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setMessage(error.message);
+      setIsGoogleLoading(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#FBF7EF] px-6 py-10">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col justify-center">
+        {/* Header & Branding */}
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Image
+            src="/RoseVaultLogo.png"
+            alt="Rose Key Realty Co. logo"
+            width={450}
+            height={450}
+            priority
+            className="h-auto max-w-[240px] object-contain"
+          />
+
+          <h1 className="mt-4 font-serif text-2xl font-normal tracking-wide text-[#29231D]">
             Real Estate Command Center
           </h1>
 
@@ -116,13 +133,42 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isGoogleLoading}
               className="mt-2 w-full rounded-xl bg-[#B7832F] px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? "Signing in..." : "Sign in"}
             </button>
           </form>
 
+          {/* Divider */}
+          <div className="my-6 flex items-center">
+            <div className="flex-1 border-t border-[#EDE7DC]" />
+
+            <span className="mx-4 text-xs uppercase tracking-[0.12em] text-[#8F8578]">
+              or
+            </span>
+
+            <div className="flex-1 border-t border-[#EDE7DC]" />
+          </div>
+
+          {/* Google Sign In */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading || isLoading}
+            className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-[#E3DCD0] bg-white px-4 text-sm font-medium text-[#29231D] shadow-sm transition duration-300 hover:bg-[#FBF7EF] hover:border-[#D8B66A] focus:outline-none focus:ring-2 focus:ring-[#D8B66A]/30 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isGoogleLoading ? (
+              <span>Connecting to Google...</span>
+            ) : (
+              <>
+                <GoogleIcon size={18} />
+                <span>Continue with Google</span>
+              </>
+            )}
+          </button>
+
+          {/* Create Account */}
           <div className="mt-6 text-center text-sm text-[#7C7265]">
             Don&apos;t have an account yet?{" "}
             <Link

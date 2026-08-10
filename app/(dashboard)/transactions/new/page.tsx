@@ -251,7 +251,7 @@ export default function NewTransactionPage() {
         closing_attorney: form.closing_attorney.trim() || null,
         notes: form.notes.trim() || null,
 
-        created_by: userId,
+        user_id: userId,
       };
 
       console.log("Organization ID:", organizationId);

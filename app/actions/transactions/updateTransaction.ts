@@ -284,7 +284,7 @@ export async function updateTransaction(params: UpdateTransactionParams) {
 
         description,
 
-        created_by: user.id,
+        user_id: user.id,
 
         metadata,
       });

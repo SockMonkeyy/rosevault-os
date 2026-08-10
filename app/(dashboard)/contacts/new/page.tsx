@@ -167,7 +167,7 @@ export default function NewContactPage() {
       preferred_contact_method: preferredContactMethod || null,
       notes: sanitizeInput(notes),
 
-      created_by: user.id,
+      user_id: user.id,
     });
 
     if (insertError) {

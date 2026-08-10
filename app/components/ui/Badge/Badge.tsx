@@ -81,7 +81,7 @@ export default function AddPropertyPage() {
       .from("properties")
       .insert({
         organization_id: membership.organization_id,
-        created_by: user.id,
+        user_id: user.id,
 
         // Property address
         property_address_line_1: propertyAddressLine1.trim(),

@@ -551,7 +551,7 @@ export default function ContactImporter({ organizationId, userId }: Props) {
   function buildContact(mapped: Record<string, string | null>) {
     return {
       organization_id: organizationId,
-      created_by: userId,
+      user_id: userId,
 
       first_name: mapped.first_name?.trim() || "",
       last_name: mapped.last_name?.trim() || null,
@@ -603,7 +603,7 @@ export default function ContactImporter({ organizationId, userId }: Props) {
   function buildProperty(mapped: Record<string, string | null>) {
     return {
       organization_id: organizationId,
-      created_by: userId,
+      user_id: userId,
 
       property_address_line_1: mapped.property_address_line_1?.trim() || "",
 

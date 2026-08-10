@@ -72,7 +72,7 @@ export default function GroupsTagsManager({
         organization_id: organizationId,
         name: trimmedName,
         description: groupDescription.trim() || null,
-        created_by: user.id,
+        user_id: user.id,
       })
       .select("id, name, description")
       .single();
@@ -130,7 +130,7 @@ export default function GroupsTagsManager({
       .insert({
         organization_id: organizationId,
         name: trimmedName,
-        created_by: user.id,
+        user_id: user.id,
       })
       .select("id, name")
       .single();

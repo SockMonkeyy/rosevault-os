@@ -31,6 +31,23 @@ export class AuthRepository {
     return session;
   }
 
+  async getPendingInvitation(email: string) {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("organization_invitations")
+      .select("*")
+      .eq("email", email)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data;
+  }
+
   async signOut() {
     const supabase = await createClient();
 

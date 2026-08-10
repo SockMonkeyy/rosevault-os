@@ -80,7 +80,7 @@ export async function uploadTransactionDocument(
     transaction_id: transactionId,
     activity_type: "document_uploaded",
     description: `Uploaded document: ${file.name}`,
-    created_by: user.id,
+    user_id: user.id,
   });
 
   // 2. Revalidate the Transaction Page

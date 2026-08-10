@@ -103,7 +103,7 @@ export default function EmailTemplatesManager({
 
     const payload = {
       organization_id: organizationId,
-      created_by: userId,
+      user_id: userId,
       name: name.trim(),
       subject: subject.trim(),
       body: body.trim(),

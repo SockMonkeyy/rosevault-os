@@ -34,7 +34,7 @@ export async function createTransactionNote(
     organization_id: membership.organization_id,
     transaction_id: transactionId,
     note,
-    created_by: user.id,
+    user_id: user.id,
   });
 
   const { data, error } = await supabase
@@ -43,7 +43,7 @@ export async function createTransactionNote(
       organization_id: membership.organization_id,
       transaction_id: transactionId,
       note,
-      created_by: user.id,
+      user_id: user.id,
     })
     .select();
   console.log("Insert result:", { data, error });

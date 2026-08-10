@@ -11,7 +11,6 @@ import Button from "@/app/components/ui/Button";
 import StatCard from "@/app/components/ui/StatCard";
 import SectionCard from "@/app/components/ui/SectionCard";
 import EmptyState from "@/app/components/ui/EmptyState";
-import DataTable from "@/app/components/ui/DataTable";
 
 const getContactDisplayName = (contact: {
   display_name?: string | null;

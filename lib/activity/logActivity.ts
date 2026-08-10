@@ -29,7 +29,7 @@ export async function logActivity({
     activity_type: activityType,
     title: activityType, // Using activityType as title for now
     description,
-    created_by: createdBy,
+    user_id: createdBy,
     metadata,
   });
 

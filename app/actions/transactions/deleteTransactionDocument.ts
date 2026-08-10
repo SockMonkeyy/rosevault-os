@@ -53,7 +53,7 @@ export async function deleteTransactionDocument(
     transaction_id: transactionId,
     activity_type: "document_deleted",
     description: `Deleted document: ${document.file_name}`,
-    created_by: user.id,
+    user_id: user.id,
   });
 
   revalidatePath(`/transactions/${transactionId}`);

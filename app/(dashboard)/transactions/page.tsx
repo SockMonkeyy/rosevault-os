@@ -14,7 +14,7 @@ type Property = {
   property_postal_code: string;
 };
 
-export default async function TransactionsPage() {
+async function getTransactionsPageData() {
   const supabase = await createClient();
 
   const {
@@ -41,8 +41,7 @@ export default async function TransactionsPage() {
 
   const { data: transactions, error: transactionsError } = await supabase
     .from("transactions")
-    .select(
-      `
+    .select(`
       id,
       organization_id,
       property_id,
@@ -63,8 +62,7 @@ export default async function TransactionsPage() {
       notes,
       created_at,
       updated_at
-    `,
-    )
+    `)
     .eq("organization_id", membership.organization_id)
     .order("created_at", { ascending: false });
 
@@ -75,8 +73,8 @@ export default async function TransactionsPage() {
   const propertyIds = [
     ...new Set(
       (transactions ?? [])
-        .map((transaction) => transaction.property_id)
-        .filter((propertyId): propertyId is string => Boolean(propertyId)),
+        .map((tx) => tx.property_id)
+        .filter((id): id is string => Boolean(id))
     ),
   ];
 
@@ -85,15 +83,13 @@ export default async function TransactionsPage() {
   if (propertyIds.length > 0) {
     const { data: propertiesData, error: propertiesError } = await supabase
       .from("properties")
-      .select(
-        `
+      .select(`
         id,
         property_address_line_1,
         property_city,
         property_state,
         property_postal_code
-      `,
-      )
+      `)
       .eq("organization_id", membership.organization_id)
       .in("id", propertyIds);
 
@@ -104,73 +100,67 @@ export default async function TransactionsPage() {
     }
   }
 
-  const transactionRows: TransactionRow[] = (transactions ?? []).map(
-    (transaction) => {
-      const property =
-        properties.find((item) => item.id === transaction.property_id) ?? null;
+  const transactionRows: TransactionRow[] = (transactions ?? []).map((tx) => ({
+    ...tx,
+    property: properties.find((p) => p.id === tx.property_id) ?? null,
+  }));
 
-      return {
-        ...transaction,
-        property,
-      };
-    },
-  );
+  return { transactionRows };
+}
+
+const ACTIVE_STATUSES = [
+  "lead",
+  "offer_made",
+  "under_contract",
+  "due_diligence",
+  "clear_to_close",
+];
+
+export default async function TransactionsPage() {
+  const { transactionRows } = await getTransactionsPageData();
 
   const totalTransactions = transactionRows.length;
-
-  const ACTIVE_STATUSES = [
-    "lead",
-    "offer_made",
-    "under_contract",
-    "due_diligence",
-    "clear_to_close",
-  ];
-
-  const activeTransactions = transactionRows.filter((transaction) =>
-    ACTIVE_STATUSES.includes(transaction.status),
+  const activeTransactions = transactionRows.filter((tx) =>
+    ACTIVE_STATUSES.includes(tx.status)
   ).length;
-
   const underContractTransactions = transactionRows.filter(
-    (transaction) => transaction.status === "under_contract",
+    (tx) => tx.status === "under_contract"
   ).length;
-
   const closedTransactions = transactionRows.filter(
-    (transaction) => transaction.status === "closed",
+    (tx) => tx.status === "closed"
   ).length;
 
   return (
-    <div className="min-h-screen bg-[#FBF7EF] p-8 text-[#29231D]">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+    <div className="min-h-screen bg-[#FBF7EF] px-4 py-8 sm:px-6 lg:px-8 text-[#29231D]">
+      <div className="mx-auto max-w-7xl space-y-8">
+        
+        {/* Header Section */}
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <Link
               href="/"
-              className="mb-3 inline-block text-sm font-medium text-[#B7832F] transition hover:text-[#966822] hover:underline"
+              className="inline-flex items-center text-sm font-medium text-[#B7832F] transition-colors hover:text-[#966822] hover:underline"
             >
               ← Back to Dashboard
             </Link>
-
-            <h1 className="font-serif text-3xl font-normal text-[#29231D]">
+            <h1 className="mt-2 font-serif text-3xl font-normal tracking-tight text-[#29231D]">
               Transactions
             </h1>
-
-            <p className="mt-2 max-w-2xl text-[#7C7265]">
-              Manage purchases, sales, wholesale assignments, closings, key
-              deadlines, and every active deal in RoseVault.
+            <p className="mt-1 text-sm text-[#7C7265]">
+              Manage purchases, sales, wholesale assignments, closings, key deadlines, and active deals.
             </p>
           </div>
 
           <Link
             href="/transactions/new"
-            className="rounded-xl bg-[#B7832F] px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50"
+            className="inline-flex items-center justify-center rounded-xl bg-[#B7832F] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#966822] focus:outline-none focus:ring-2 focus:ring-[#B7832F]/50"
           >
             + New Transaction
           </Link>
         </div>
 
-        {/* Summary Cards */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {/* Summary Metric Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Total Transactions"
             value={totalTransactions}
@@ -181,13 +171,11 @@ export default async function TransactionsPage() {
             value={activeTransactions}
             subtitle="Currently in progress"
           />
-
           <StatCard
             title="Under Contract"
             value={underContractTransactions}
             subtitle="Awaiting closing"
           />
-
           <StatCard
             title="Closed"
             value={closedTransactions}
@@ -195,36 +183,33 @@ export default async function TransactionsPage() {
           />
         </div>
 
-        {/* Transactions Table or Global Empty State */}
+        {/* Content Section: Empty state or Table */}
         {transactionRows.length === 0 ? (
-          <section className="flex min-h-96 items-center justify-center rounded-2xl border border-[#EDE7DC] bg-white/60 p-8 shadow-sm backdrop-blur-sm">
-            <div className="max-w-lg text-center">
+          <section className="flex min-h-[380px] items-center justify-center rounded-2xl border border-[#EDE7DC] bg-white/60 p-8 shadow-sm backdrop-blur-sm">
+            <div className="max-w-md text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B66A]/30 bg-[#FBF7EF]">
                 <span className="font-serif text-xl font-bold text-[#B7832F]">
                   RV
                 </span>
               </div>
-
               <h2 className="mt-5 font-serif text-xl font-medium text-[#29231D]">
                 No transactions yet
               </h2>
-
-              <p className="mt-3 text-sm leading-6 text-[#7C7265]">
-                Create your first transaction to begin tracking properties,
-                financials, contract dates, closing deadlines, and deal progress
-                inside RoseVault.
+              <p className="mt-2 text-sm leading-relaxed text-[#7C7265]">
+                Create your first transaction to begin tracking properties, financials, contract dates, and deal progress inside RoseVault.
               </p>
-
               <Link
                 href="/transactions/new"
-                className="mt-6 inline-block rounded-xl bg-[#B7832F] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#966822]"
+                className="mt-6 inline-flex items-center justify-center rounded-xl bg-[#B7832F] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#966822]"
               >
                 + Create First Transaction
               </Link>
             </div>
           </section>
         ) : (
-          <TransactionsTable transactions={transactionRows} />
+          <div className="overflow-hidden rounded-2xl border border-[#EDE7DC] bg-white shadow-sm">
+            <TransactionsTable transactions={transactionRows} />
+          </div>
         )}
       </div>
     </div>
