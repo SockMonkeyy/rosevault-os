@@ -32,6 +32,15 @@ export const TRANSACTION_CHECKLISTS: Record<
     },
   ],
 
+  offer_made: [
+    {
+      id: "offer_submitted",
+      title: "Offer Submitted",
+      required: true,
+      autoComplete: false,
+    },
+  ],
+
   under_contract: [
     {
       id: "purchase_agreement",
@@ -54,4 +63,13 @@ export const TRANSACTION_CHECKLISTS: Record<
   financing: [],
 
   closing: [],
+
+  closed: [
+    {
+      id: "transaction_finalized",
+      title: "Transaction Finalized",
+      required: true,
+      autoComplete: true,
+    },
+  ],
 };
