@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { sendCampaign } from "@/app/actions/email/sendCampaign";
-import router from "next/dist/client/router";
+import { useRouter } from "next/navigation";
 
 type Contact = {
   id: string;
@@ -67,6 +67,7 @@ export default function BulkEmailComposer({
   userId,
   initialCampaign = null,
 }: Props) {
+  const router = useRouter();
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>(
     initialSelectedContactIds.filter((id) =>
       contacts.some((contact) => contact.id === id),
@@ -305,11 +306,9 @@ export default function BulkEmailComposer({
     }
 
     setCampaign(savedCampaign);
-    router.replace(
-      `/email/compose?campaign=${savedCampaign.id}`,
-      undefined,
-      { scroll: false }
-    );
+    router.replace(`/email/compose?campaign=${savedCampaign.id}`, {
+      scroll: false,
+    });
     setDraftMessage("Campaign draft saved successfully.");
     setIsSavingDraft(false);
 

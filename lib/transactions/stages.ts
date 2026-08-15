@@ -5,6 +5,11 @@ export const TRANSACTION_STAGES = [
     description: "Initial inquiry and qualification",
   },
   {
+    id: "offer_made",
+    label: "Offer Made",
+    description: "Submit the offer and await seller response",
+  },
+  {
     id: "under_contract",
     label: "Under Contract",
     description: "Purchase agreement executed",
@@ -28,6 +33,11 @@ export const TRANSACTION_STAGES = [
     id: "closing",
     label: "Closing / Settlement",
     description: "Final walkthrough and closing",
+  },
+  {
+    id: "closed",
+    label: "Closed",
+    description: "Transaction successfully completed and archived",
   },
 ] as const;
 

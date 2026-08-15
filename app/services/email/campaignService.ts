@@ -13,31 +13,23 @@ export class CampaignService {
     // 1. Load campaign
     // ------------------------------------------------------------
 
-    const campaign =
-      await campaignRepository.getCampaign(
-        campaignId,
-      );
+    const campaign = await campaignRepository.getCampaign(campaignId);
 
     if (!campaign) {
-      throw new Error(
-        "Campaign not found.",
-      );
+      throw new Error("Campaign not found.");
     }
 
     if (campaign.status === "sent") {
-      throw new Error(
-        "This campaign has already been sent.",
-      );
+      throw new Error("This campaign has already been sent.");
     }
 
     // ------------------------------------------------------------
     // 2. Get authenticated user
     // ------------------------------------------------------------
 
-    const supabase =
-      await (
-        await import("@/lib/supabase/server")
-      ).createClient();
+    const supabase = await (
+      await import("@/lib/supabase/server")
+    ).createClient();
 
     const {
       data: { user },
@@ -45,67 +37,58 @@ export class CampaignService {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      throw new Error(
-        "Unauthorized.",
-      );
+      throw new Error("Unauthorized.");
     }
 
     // ------------------------------------------------------------
     // 3. Load recipients BEFORE creating send history
     // ------------------------------------------------------------
 
-    const recipients =
-      await campaignRepository.getRecipients(
-        campaignId,
-      );
+    const recipients = await campaignRepository.getRecipients(campaignId);
 
-    const recipientList =
-      recipients ?? [];
+    const recipientList = recipients ?? [];
 
-    const recipientCount =
-      recipientList.length;
+    const recipientCount = recipientList.length;
 
     if (recipientCount === 0) {
-      throw new Error(
-        "This campaign has no recipients.",
-      );
+      throw new Error("This campaign has no recipients.");
     }
 
     // ------------------------------------------------------------
     // 4. Create campaign send-history record
     // ------------------------------------------------------------
+    console.log("CREATING CAMPAIGN SEND HISTORY:", {
+      campaignId,
+      organizationId: campaign.organization_id,
+      sentBy: user.id,
+      recipientCount,
+    });
 
-    const campaignSend =
-      await campaignRepository.createCampaignSend({
-        campaignId,
+    const campaignSend = await campaignRepository.createCampaignSend({
+      campaignId,
 
-        organizationId:
-          campaign.organization_id,
+      organizationId: campaign.organization_id,
 
-        sentBy: user.id,
+      sentBy: user.id,
 
-        status: "sending",
+      status: "sending",
 
-        recipientCount,
+      recipientCount,
 
-        sentCount: 0,
+      sentCount: 0,
 
-        failedCount: 0,
+      failedCount: 0,
 
-        startedAt:
-          new Date().toISOString(),
+      startedAt: new Date().toISOString(),
 
-        completedAt: null,
-      });
+      completedAt: null,
+    });
 
     // ------------------------------------------------------------
     // 5. Mark campaign as sending
     // ------------------------------------------------------------
 
-    await campaignRepository.updateCampaignStatus(
-      campaignId,
-      "sending",
-    );
+    await campaignRepository.updateCampaignStatus(campaignId, "sending");
 
     // ------------------------------------------------------------
     // 6. Send recipients
@@ -115,36 +98,20 @@ export class CampaignService {
     let failed = 0;
 
     for (const recipient of recipientList) {
-      console.log(
-        "Sending campaign email to:",
-        recipient.email,
-      );
+      console.log("Sending campaign email to:", recipient.email);
 
       try {
-        const result =
-          await emailService.sendEmail({
-            to: [recipient.email],
+        const result = await emailService.sendEmail({
+          to: [recipient.email],
 
-            subject: personalizeText(
-              campaign.subject,
-              recipient,
-            ),
+          subject: personalizeText(campaign.subject, recipient),
 
-            html: personalizeText(
-              campaign.body,
-              recipient,
-            ),
+          html: personalizeText(campaign.body, recipient),
 
-            text: personalizeText(
-              campaign.body,
-              recipient,
-            ),
-          });
+          text: personalizeText(campaign.body, recipient),
+        });
 
-        console.log(
-          "Email send result:",
-          result,
-        );
+        console.log("Email send result:", result);
 
         // --------------------------------------------------------
         // Successful send
@@ -153,16 +120,12 @@ export class CampaignService {
         if (result.success) {
           sent++;
 
-          await campaignRepository.updateRecipientStatus(
-            recipient.id,
-            "sent",
-          );
+          await campaignRepository.updateRecipientStatus(recipient.id, "sent");
         }
 
         // --------------------------------------------------------
         // Failed send
         // --------------------------------------------------------
-
         else {
           failed++;
 
@@ -182,34 +145,21 @@ export class CampaignService {
         // Update send-history progress
         // --------------------------------------------------------
 
-        await campaignRepository.updateCampaignSend(
-          campaignSend.id,
-          {
-            sentCount: sent,
-            failedCount: failed,
-          },
-        );
+        await campaignRepository.updateCampaignSend(campaignSend.id, {
+          sentCount: sent,
+          failedCount: failed,
+        });
       } catch (error) {
         failed++;
 
-        console.error(
-          "Unexpected send error:",
-          recipient.email,
-          error,
-        );
+        console.error("Unexpected send error:", recipient.email, error);
 
-        await campaignRepository.updateRecipientStatus(
-          recipient.id,
-          "failed",
-        );
+        await campaignRepository.updateRecipientStatus(recipient.id, "failed");
 
-        await campaignRepository.updateCampaignSend(
-          campaignSend.id,
-          {
-            sentCount: sent,
-            failedCount: failed,
-          },
-        );
+        await campaignRepository.updateCampaignSend(campaignSend.id, {
+          sentCount: sent,
+          failedCount: failed,
+        });
       }
     }
 
@@ -217,10 +167,7 @@ export class CampaignService {
     // 7. Determine final status
     // ------------------------------------------------------------
 
-    let finalStatus:
-      | "sent"
-      | "partial"
-      | "failed";
+    let finalStatus: "sent" | "partial" | "failed";
 
     if (sent === recipientCount) {
       finalStatus = "sent";
@@ -234,34 +181,25 @@ export class CampaignService {
     // 8. Complete send-history record
     // ------------------------------------------------------------
 
-    await campaignRepository.updateCampaignSend(
-      campaignSend.id,
-      {
-        status: finalStatus,
+    await campaignRepository.updateCampaignSend(campaignSend.id, {
+      status: finalStatus,
 
-        recipientCount,
+      recipientCount,
 
-        sentCount: sent,
+      sentCount: sent,
 
-        failedCount: failed,
+      failedCount: failed,
 
-        completedAt:
-          new Date().toISOString(),
-      },
-    );
+      completedAt: new Date().toISOString(),
+    });
 
     // ------------------------------------------------------------
     // 9. Update campaign
     // ------------------------------------------------------------
 
-    await campaignRepository.updateCampaignStatus(
-      campaignId,
-      finalStatus,
-      {
-        sent_at:
-          new Date().toISOString(),
-      },
-    );
+    await campaignRepository.updateCampaignStatus(campaignId, finalStatus, {
+      sent_at: new Date().toISOString(),
+    });
 
     // ------------------------------------------------------------
     // 10. Return result to UI
@@ -284,101 +222,68 @@ export class CampaignService {
   // SAVE CAMPAIGN DRAFT
   // ============================================================
 
-  async saveDraft(
-    input: SaveCampaignDraftInput,
-  ) {
-    let campaignId =
-      input.campaignId;
+  async saveDraft(input: SaveCampaignDraftInput) {
+    let campaignId = input.campaignId;
 
-    console.log(
-      "Incoming campaignId:",
-      input.campaignId,
-    );
+    console.log("Incoming campaignId:", input.campaignId);
 
-    console.log(
-      "Resolved campaignId:",
-      campaignId,
-    );
+    console.log("Resolved campaignId:", campaignId);
 
     // ------------------------------------------------------------
     // UPDATE EXISTING CAMPAIGN
     // ------------------------------------------------------------
 
     if (campaignId) {
-      await campaignRepository.updateCampaign(
-        campaignId,
-        {
-          organization_id:
-            input.organizationId,
+      await campaignRepository.updateCampaign(campaignId, {
+        organization_id: input.organizationId,
 
-          created_by:
-            input.userId,
+        created_by: input.userId,
 
-          user_id:
-            input.userId,
+        user_id: input.userId,
 
-          name:
-            input.campaignName,
+        name: input.campaignName,
 
-          campaign_name:
-            input.campaignName,
+        campaign_name: input.campaignName,
 
-          subject:
-            input.subject,
+        subject: input.subject,
 
-          body:
-            input.body,
+        body: input.body,
 
-          template_id:
-            input.templateId ?? null,
+        template_id: input.templateId ?? null,
 
-          recipient_count:
-            input.recipients.length,
+        recipient_count: input.recipients.length,
 
-          status: "draft",
-        },
-      );
+        status: "draft",
+      });
     }
 
     // ------------------------------------------------------------
     // CREATE NEW CAMPAIGN
     // ------------------------------------------------------------
-
     else {
-      const newCampaign =
-        await campaignRepository.createCampaign(
-          {
-            organizationId:
-              input.organizationId,
+      const newCampaign = await campaignRepository.createCampaign({
+        organizationId: input.organizationId,
 
-            userId:
-              input.userId,
+        userId: input.userId,
 
-            campaignName:
-              input.campaignName,
+        campaignName: input.campaignName,
 
-            subject:
-              input.subject,
+        subject: input.subject,
 
-            body:
-              input.body,
+        body: input.body,
 
-            templateId:
-              input.templateId ?? null,
+        templateId: input.templateId ?? null,
 
-            status: "draft",
+        status: "draft",
 
-            recipientCount:
-              input.recipients.length,
-          },
-        );
+        recipientCount: input.recipients.length,
+      });
 
-      campaignId =
-        (
-          newCampaign as {
-            id?: string;
-          }
-        )?.id;
+      campaignId = (
+        newCampaign as {
+          id?: string;
+        }
+      )?.id;
 
       if (!campaignId) {
         throw new Error(
@@ -393,34 +298,25 @@ export class CampaignService {
 
     await campaignRepository.replaceRecipients(
       campaignId,
-      input.recipients.map(
-        (recipient) => ({
-          contact_id:
-            recipient.contactId,
+      input.recipients.map((recipient) => ({
+        contact_id: recipient.contactId,
 
-          email:
-            recipient.email,
+        email: recipient.email,
 
-          first_name:
-            recipient.firstName,
+        first_name: recipient.firstName,
 
-          last_name:
-            recipient.lastName,
+        last_name: recipient.lastName,
 
-          status: "pending",
-        }),
-      ),
+        status: "pending",
+      })),
     );
 
     // ------------------------------------------------------------
     // Return saved campaign
     // ------------------------------------------------------------
 
-    return await campaignRepository.getCampaign(
-      campaignId,
-    );
+    return await campaignRepository.getCampaign(campaignId);
   }
 }
 
-export const campaignService =
-  new CampaignService();
+export const campaignService = new CampaignService();
