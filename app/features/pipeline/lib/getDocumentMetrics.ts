@@ -16,8 +16,7 @@ export async function getDocumentMetrics(
     ];
 
   const required =
-    workflow?.requiredDocuments.length ??
-    0;
+    workflow?.requiredDocuments?.length ?? 0;
 
   const { count } = await supabase
     .from("transaction_documents")
