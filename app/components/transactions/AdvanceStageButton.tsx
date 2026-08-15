@@ -1,28 +1,25 @@
 "use client";
 
 import { useTransition } from "react";
-
 import { ArrowRight, Loader2 } from "lucide-react";
-
 import { advanceTransactionStage } from "@/app/actions/transactions/advanceTransactionStage";
 
 interface AdvanceStageButtonProps {
   transactionId: string;
-  disabled: boolean;
+  disabled?: boolean;
 }
 
 export default function AdvanceStageButton({
   transactionId,
-  disabled,
+  disabled = false,
 }: AdvanceStageButtonProps) {
-  const [pending, startTransition] =
-    useTransition();
+  const [pending, startTransition] = useTransition();
 
   function handleClick() {
+    if (disabled) return;
+    
     startTransition(async () => {
-      await advanceTransactionStage(
-        transactionId,
-      );
+      await advanceTransactionStage(transactionId);
     });
   }
 
@@ -38,6 +35,8 @@ export default function AdvanceStageButton({
           <Loader2 className="h-4 w-4 animate-spin" />
           Advancing...
         </>
+      ) : disabled ? (
+        "Workflow Complete"
       ) : (
         <>
           Advance Stage
