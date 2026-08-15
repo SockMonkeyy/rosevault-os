@@ -21,6 +21,21 @@ export type WorkflowDefinition = {
 };
 
 export const TRANSACTION_WORKFLOWS: Record<string, WorkflowDefinition> = {
+  draft: {
+    stage: "draft",
+    title: "Draft",
+    description: "Initial transaction record in draft state.",
+    nextStage: "lead",
+    checklist: [
+      {
+        id: "draft_initialized",
+        title: "Draft Initialized",
+        required: true,
+        autoComplete: true,
+      },
+    ],
+    requiredDocuments: [],
+  },
   lead: {
     stage: "lead",
     title: "Lead / Prospect",
@@ -218,7 +233,8 @@ export const TRANSACTION_WORKFLOWS: Record<string, WorkflowDefinition> = {
   due_diligence: {
     stage: "due_diligence",
     title: "Due Diligence",
-    description: "Review property documentation, disclosures, and contingencies.",
+    description:
+      "Review property documentation, disclosures, and contingencies.",
     nextStage: "inspection", // or whichever stage comes next in your workflow
     checklist: [
       {
@@ -234,7 +250,8 @@ export const TRANSACTION_WORKFLOWS: Record<string, WorkflowDefinition> = {
   clear_to_close: {
     stage: "clear_to_close",
     title: "Clear to Close",
-    description: "Loan fully approved and final closing details being prepared.",
+    description:
+      "Loan fully approved and final closing details being prepared.",
     nextStage: "closing",
     checklist: [
       {

@@ -11,6 +11,14 @@ export const TRANSACTION_CHECKLISTS: Record<
   TransactionStage,
   ChecklistItemTemplate[]
 > = {
+  draft: [
+    {
+      id: "draft_initialized",
+      title: "Draft Initialized",
+      required: true,
+      autoComplete: true,
+    },
+  ],
   lead: [
     {
       id: "contact_created",

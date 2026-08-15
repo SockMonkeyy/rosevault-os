@@ -14,6 +14,17 @@ export const TRANSACTION_STAGES = [
     label: "Under Contract",
     description: "Purchase agreement executed",
   },
+
+  {
+    id: "draft",
+    label: "Draft",
+    description: "Transaction being drafted before active lead status",
+  },
+  {
+    id: "lead",
+    label: "Lead / Prospect",
+    description: "Initial inquiry and qualification",
+  },
   {
     id: "inspection",
     label: "Inspection Period",
@@ -41,5 +52,4 @@ export const TRANSACTION_STAGES = [
   },
 ] as const;
 
-export type TransactionStage =
-  (typeof TRANSACTION_STAGES)[number]["id"];
+export type TransactionStage = (typeof TRANSACTION_STAGES)[number]["id"];
