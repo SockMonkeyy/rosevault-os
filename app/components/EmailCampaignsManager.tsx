@@ -287,7 +287,7 @@ export default function EmailCampaignsManager({
     setCampaignToDelete(null);
   }
 
-    return (
+  return (
     <>
       <div className="space-y-6">
         {/* Summary Cards */}
@@ -460,14 +460,12 @@ export default function EmailCampaignsManager({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {campaign.status === "draft" && (
-                        <Link
-                          href={`/email/compose?campaign=${campaign.id}`}
-                          className="cursor-pointer rounded-md border border-[#D8B66A]/50 bg-[#B7832F]/5 px-4 py-2 text-[10px] font-medium tracking-wide text-[#B7832F] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A] hover:bg-[#B7832F]/10 hover:text-[#916520] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
-                        >
-                          Edit
-                        </Link>
-                      )}
+                      <Link
+                        href={`/email/compose?campaign=${campaign.id}`}
+                        className="cursor-pointer rounded-md border border-[#D8B66A]/50 bg-[#B7832F]/5 px-4 py-2 text-[10px] font-medium tracking-wide text-[#B7832F] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A] hover:bg-[#B7832F]/10 hover:text-[#916520] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
+                      >
+                        Edit
+                      </Link>
 
                       <button
                         type="button"

@@ -23,6 +23,7 @@ export interface SaveEmailParams {
 
   status: "draft" | "queued" | "sent" | "failed";
 
+  created_by: string;
   user_id: string;
 }
 
@@ -54,8 +55,7 @@ export class EmailRepository {
       .from("emails")
       .update({
         status,
-        provider_message_id:
-          providerMessageId ?? null,
+        provider_message_id: providerMessageId ?? null,
       })
       .eq("id", emailId);
 
@@ -64,9 +64,7 @@ export class EmailRepository {
     }
   }
 
-  async getEmailHistory(
-    organizationId: string,
-  ) {
+  async getEmailHistory(organizationId: string) {
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -85,5 +83,4 @@ export class EmailRepository {
   }
 }
 
-export const emailRepository =
-  new EmailRepository();
+export const emailRepository = new EmailRepository();

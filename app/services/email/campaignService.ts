@@ -29,32 +29,57 @@ export class CampaignService {
 
     for (const recipient of recipients ?? []) {
       try {
-        await emailService.sendEmail({
+        const result = await emailService.sendEmail({
           to: [recipient.email],
           subject: personalizeText(campaign.subject, recipient),
           html: personalizeText(campaign.body, recipient),
           text: personalizeText(campaign.body, recipient),
         });
 
-        sent++;
+        if (result.success) {
+          sent++;
 
-        // 4. Update recipient success status via repository
-        await campaignRepository.updateRecipientStatus(recipient.id, "sent");
-      } catch {
+          await campaignRepository.updateRecipientStatus(
+            recipient.id,
+            "sent",
+          );
+        } else {
+          failed++;
+
+          console.error(
+            "Email failed:",
+            recipient.email,
+            result.error,
+          );
+
+          await campaignRepository.updateRecipientStatus(
+            recipient.id,
+            "failed",
+          );
+        }
+      } catch (error) {
         failed++;
 
-        // 5. Update recipient failure status via repository
-        await campaignRepository.updateRecipientStatus(recipient.id, "failed");
+        console.error(
+          "Unexpected send error:",
+          recipient.email,
+          error,
+        );
+
+        await campaignRepository.updateRecipientStatus(
+          recipient.id,
+          "failed",
+        );
       }
     }
 
-    // 6. Update final campaign status via repository
-    const finalStatus = failed === 0 ? "sent" : "failed";
-    await campaignRepository.updateCampaignStatus(campaignId, finalStatus, {
+    // 4. Mark campaign as sent and return results summary
+    await campaignRepository.updateCampaignStatus(campaignId, "sent", {
       sent_at: new Date().toISOString(),
     });
 
     return {
+      success: true,
       sent,
       failed,
     };
@@ -68,8 +93,6 @@ export class CampaignService {
 
     if (campaignId) {
       // Update existing campaign draft
-      console.log("Incoming campaignId:", input.campaignId);
-      console.log("Resolved campaignId:", campaignId);
       await campaignRepository.updateCampaign(campaignId, {
         organization_id: input.organizationId,
         created_by: input.userId,
@@ -84,29 +107,20 @@ export class CampaignService {
       });
     } else {
       // Create new campaign draft
-      console.log("Incoming campaignId:", input.campaignId);
-      console.log("Resolved campaignId:", campaignId);
       const newCampaign = await campaignRepository.createCampaign({
         organization_id: input.organizationId,
-
-        // Use the original schema
         created_by: input.userId,
         name: input.campaignName,
-
-        // Keep the new fields too if you still need them
         campaign_name: input.campaignName,
         user_id: input.userId,
-
         subject: input.subject,
         body: input.body,
         template_id: input.templateId ?? null,
-
         status: "draft",
-
         recipient_count: input.recipients.length,
       });
+
       // Avoid using `any` — assert a minimal shape for the returned campaign
-      // cast via `unknown` in case createCampaign's return type is void
       campaignId = (newCampaign as unknown as { id?: string })?.id;
     }
 

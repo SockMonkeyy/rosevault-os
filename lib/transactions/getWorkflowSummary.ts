@@ -8,8 +8,12 @@ export async function getWorkflowSummary(
 ) {
   const supabase = await createClient();
 
-  const workflow =
-    TRANSACTION_WORKFLOWS[stage];
+  const workflow = TRANSACTION_WORKFLOWS[stage];
+
+  // Explicit guard clause with a clear error throw
+  if (!workflow) {
+    throw new Error(`Invalid transaction stage: "${stage}"`);
+  }
 
   const { data: checklist } = await supabase
     .from("transaction_checklist_items")
@@ -17,11 +21,9 @@ export async function getWorkflowSummary(
     .eq("transaction_id", transactionId);
 
   const completedTasks =
-    checklist?.filter((item) => item.completed)
-      .length ?? 0;
+    checklist?.filter((item) => item.completed).length ?? 0;
 
-  const totalTasks =
-    checklist?.length ?? 0;
+  const totalTasks = checklist?.length ?? 0;
 
   const remainingTasks =
     checklist
@@ -32,9 +34,7 @@ export async function getWorkflowSummary(
     stageTitle: workflow.title,
 
     nextStage: workflow.nextStage
-      ? TRANSACTION_WORKFLOWS[
-          workflow.nextStage
-        ].title
+      ? TRANSACTION_WORKFLOWS[workflow.nextStage]?.title
       : undefined,
 
     completedTasks,
@@ -43,8 +43,7 @@ export async function getWorkflowSummary(
 
     uploadedDocuments: 0,
 
-    requiredDocuments:
-      workflow.requiredDocuments.length,
+    requiredDocuments: workflow.requiredDocuments.length,
 
     remainingTasks,
   };

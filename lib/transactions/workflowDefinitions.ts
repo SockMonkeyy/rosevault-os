@@ -14,23 +14,20 @@ export interface WorkflowDocument {
 }
 
 export interface WorkflowDefinition {
-  stage: TransactionStage;
+  stage: string;
 
   title: string;
 
   description: string;
 
-  nextStage?: TransactionStage;
+  nextStage?: string;
 
   checklist: WorkflowChecklistItem[];
 
   requiredDocuments: WorkflowDocument[];
 }
 
-export const TRANSACTION_WORKFLOWS: Record<
-  TransactionStage,
-  WorkflowDefinition
-> = {
+export const TRANSACTION_WORKFLOWS: Record<string, WorkflowDefinition> = {
   lead: {
     stage: "lead",
 
@@ -63,6 +60,29 @@ export const TRANSACTION_WORKFLOWS: Record<
     ],
 
     requiredDocuments: [],
+  },
+
+  // Add the missing stage here
+  offer_made: {
+    stage: "offer_made",
+    title: "Offer Made",
+    description: "Submit the offer and await seller response.",
+    nextStage: "under_contract",
+    checklist: [
+      {
+        id: "offer_submitted",
+        title: "Offer Submitted",
+        required: true,
+        autoComplete: false,
+      },
+    ],
+    requiredDocuments: [
+      {
+        id: "submitted_offer",
+        title: "Submitted Offer Document",
+        required: true,
+      },
+    ],
   },
 
   under_contract: {
@@ -104,8 +124,7 @@ export const TRANSACTION_WORKFLOWS: Record<
 
     title: "Inspection",
 
-    description:
-      "Complete inspections and negotiate repairs if needed.",
+    description: "Complete inspections and negotiate repairs if needed.",
 
     nextStage: "appraisal",
 
@@ -138,8 +157,7 @@ export const TRANSACTION_WORKFLOWS: Record<
 
     title: "Appraisal",
 
-    description:
-      "Complete appraisal, title work, and contingency review.",
+    description: "Complete appraisal, title work, and contingency review.",
 
     nextStage: "financing",
 
@@ -177,8 +195,7 @@ export const TRANSACTION_WORKFLOWS: Record<
 
     title: "Financing",
 
-    description:
-      "Finalize financing approval before closing.",
+    description: "Finalize financing approval before closing.",
 
     nextStage: "closing",
 
@@ -211,8 +228,7 @@ export const TRANSACTION_WORKFLOWS: Record<
 
     title: "Closing",
 
-    description:
-      "Complete the transaction and archive the deal.",
+    description: "Complete the transaction and archive the deal.",
 
     checklist: [
       {

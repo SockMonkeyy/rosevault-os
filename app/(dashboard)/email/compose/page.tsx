@@ -10,22 +10,26 @@ type ComposeEmailPageProps = {
   }>;
 };
 
+type InitialCampaign = {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  template_id: string | null;
+  status: string;
+};
+
 export default async function ComposeEmailPage({
   searchParams,
 }: ComposeEmailPageProps) {
   const params = await searchParams;
 
-  // Get contact IDs passed from the Contacts page.
-  const initialSelectedContactIds = params.contacts
-    ? params.contacts
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean)
-    : [];
-
   const supabase = await createClient();
 
-  // Get the currently authenticated user.
+  // ------------------------------------------------------------
+  // AUTHENTICATED USER
+  // ------------------------------------------------------------
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -34,12 +38,16 @@ export default async function ComposeEmailPage({
     redirect("/login");
   }
 
-  // Get the user's organization.
-  const { data: membership, error: membershipError } = await supabase
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // ------------------------------------------------------------
+  // ORGANIZATION
+  // ------------------------------------------------------------
+
+  const { data: membership, error: membershipError } =
+    await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
   if (membershipError) {
     console.error(
@@ -52,28 +60,49 @@ export default async function ComposeEmailPage({
     redirect("/onboarding");
   }
 
-  // Load contacts that have email addresses.
-  const { data: contacts, error: contactsError } = await supabase
-    .from("contacts")
-    .select(`
-      id,
-      first_name,
-      last_name,
-      email,
-      mailing_address_line_1,
-      mailing_address_line_2,
-      mailing_city,
-      mailing_state,
-      mailing_postal_code,
-      property_address_line_1,
-      property_address_line_2,
-      property_city,
-      property_state,
-      property_postal_code
-    `)
-    .eq("organization_id", membership.organization_id)
-    .not("email", "is", null)
-    .order("first_name", { ascending: true });
+  const organizationId = membership.organization_id;
+
+  // ------------------------------------------------------------
+  // CONTACT IDS FROM CONTACTS PAGE
+  //
+  // Used only when creating a NEW campaign.
+  // ------------------------------------------------------------
+
+  const initialSelectedContactIds = params.contacts
+    ? params.contacts
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+    : [];
+
+  // ------------------------------------------------------------
+  // CONTACTS
+  // ------------------------------------------------------------
+
+  const { data: contacts, error: contactsError } =
+    await supabase
+      .from("contacts")
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        mailing_address_line_1,
+        mailing_address_line_2,
+        mailing_city,
+        mailing_state,
+        mailing_postal_code,
+        property_address_line_1,
+        property_address_line_2,
+        property_city,
+        property_state,
+        property_postal_code
+      `)
+      .eq("organization_id", organizationId)
+      .not("email", "is", null)
+      .order("first_name", {
+        ascending: true,
+      });
 
   if (contactsError) {
     console.error(
@@ -82,19 +111,25 @@ export default async function ComposeEmailPage({
     );
   }
 
-  // Load active email templates for this organization.
-  const { data: templates, error: templatesError } = await supabase
-    .from("email_templates")
-    .select(`
-      id,
-      name,
-      subject,
-      body,
-      category
-    `)
-    .eq("organization_id", membership.organization_id)
-    .eq("is_active", true)
-    .order("name", { ascending: true });
+  // ------------------------------------------------------------
+  // EMAIL TEMPLATES
+  // ------------------------------------------------------------
+
+  const { data: templates, error: templatesError } =
+    await supabase
+      .from("email_templates")
+      .select(`
+        id,
+        name,
+        subject,
+        body,
+        category
+      `)
+      .eq("organization_id", organizationId)
+      .eq("is_active", true)
+      .order("name", {
+        ascending: true,
+      });
 
   if (templatesError) {
     console.error(
@@ -103,21 +138,19 @@ export default async function ComposeEmailPage({
     );
   }
 
-  // Existing campaign data is loaded only when a campaign ID
-  // is included in the URL.
-  let initialCampaign: {
-    id: string;
-    name: string;
-    subject: string;
-    body: string;
-    template_id: string | null;
-    status: string;
-  } | null = null;
+  // ------------------------------------------------------------
+  // EXISTING CAMPAIGN
+  // ------------------------------------------------------------
+
+  let initialCampaign: InitialCampaign | null = null;
 
   let campaignRecipientIds: string[] = [];
 
   if (params.campaign) {
-    const { data: campaign, error: campaignError } = await supabase
+    const {
+      data: campaign,
+      error: campaignError,
+    } = await supabase
       .from("email_campaigns")
       .select(`
         id,
@@ -128,7 +161,7 @@ export default async function ComposeEmailPage({
         status
       `)
       .eq("id", params.campaign)
-      .eq("organization_id", membership.organization_id)
+      .eq("organization_id", organizationId)
       .maybeSingle();
 
     if (campaignError) {
@@ -138,9 +171,12 @@ export default async function ComposeEmailPage({
       );
     }
 
-    // Only draft campaigns can currently be edited.
-    if (campaign && campaign.status === "draft") {
+    if (campaign) {
       initialCampaign = campaign;
+
+      // ----------------------------------------------------------
+      // LOAD SAVED CAMPAIGN RECIPIENTS
+      // ----------------------------------------------------------
 
       const {
         data: recipients,
@@ -155,28 +191,60 @@ export default async function ComposeEmailPage({
           "Error loading campaign recipients:",
           recipientsError,
         );
+      } else {
+        campaignRecipientIds = (recipients ?? [])
+          .map((recipient) => recipient.contact_id)
+          .filter(
+            (id): id is string => Boolean(id),
+          );
       }
-
-      campaignRecipientIds = (recipients ?? [])
-        .map((recipient) => recipient.contact_id)
-        .filter((id): id is string => Boolean(id));
     }
   }
 
-  // If editing an existing campaign, use its saved recipients.
-  // Otherwise, use contact IDs passed from the Contacts page.
-  const selectedContactIds =
-    initialCampaign && campaignRecipientIds.length > 0
-      ? campaignRecipientIds
-      : initialSelectedContactIds;
+  // ------------------------------------------------------------
+  // SELECTED RECIPIENTS
+  //
+  // IMPORTANT:
+  //
+  // Existing campaign:
+  //   Use ONLY the recipients saved to that campaign.
+  //
+  // New campaign:
+  //   Use the contacts passed from the Contacts page.
+  // ------------------------------------------------------------
 
-    return (
+  const selectedContactIds = initialCampaign
+    ? campaignRecipientIds
+    : initialSelectedContactIds;
+
+  console.log("COMPOSE PAGE CAMPAIGN:", initialCampaign?.id);
+
+  console.log(
+    "COMPOSE PAGE SAVED RECIPIENT IDS:",
+    campaignRecipientIds,
+  );
+
+  console.log(
+    "COMPOSE PAGE FINAL SELECTED IDS:",
+    selectedContactIds,
+  );
+
+  // ------------------------------------------------------------
+  // RENDER
+  // ------------------------------------------------------------
+
+  return (
     <div className="px-6 py-10 lg:px-8">
       <div className="mx-auto max-w-7xl">
+
         {/* Page Header */}
         <div className="mb-8">
           <Link
-            href={initialCampaign ? "/marketing/campaigns" : "/contacts"}
+            href={
+              initialCampaign
+                ? "/marketing/campaigns"
+                : "/contacts"
+            }
             className="group inline-flex items-center gap-2 text-xs font-medium tracking-wide text-[#B7832F] transition-all duration-300 hover:-translate-x-0.5 hover:text-[#916520]"
           >
             <span
@@ -186,10 +254,13 @@ export default async function ComposeEmailPage({
               ←
             </span>
 
-            {initialCampaign ? "Back to Campaigns" : "Back to Contacts"}
+            {initialCampaign
+              ? "Back to Campaigns"
+              : "Back to Contacts"}
           </Link>
 
           <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
                 RoseVault Communications
@@ -210,6 +281,7 @@ export default async function ComposeEmailPage({
 
             {/* Quick Actions */}
             <div className="flex flex-wrap gap-3">
+
               <Link
                 href="/marketing/campaigns"
                 className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-3 text-center text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
@@ -223,6 +295,7 @@ export default async function ComposeEmailPage({
               >
                 Manage Templates
               </Link>
+
             </div>
           </div>
         </div>
@@ -232,10 +305,11 @@ export default async function ComposeEmailPage({
           contacts={contacts ?? []}
           templates={templates ?? []}
           initialSelectedContactIds={selectedContactIds}
-          organizationId={membership.organization_id}
+          organizationId={organizationId}
           userId={user.id}
           initialCampaign={initialCampaign}
         />
+
       </div>
     </div>
   );
