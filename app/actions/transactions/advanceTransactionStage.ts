@@ -47,7 +47,7 @@ export async function advanceTransactionStage(
 
   await moveTransactionToStage(
     transactionId,
-    nextStage,
+    nextStage as TransactionStage,
   );
 
   revalidatePath(
