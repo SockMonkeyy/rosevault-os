@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { TRANSACTION_WORKFLOWS } from "./workflowDefinitions";
+import { TRANSACTION_WORKFLOWS, WorkflowDefinition } from "./workflowDefinitions";
 import { TransactionStage } from "./stages";
 
 export async function getWorkflowSummary(
@@ -8,9 +8,9 @@ export async function getWorkflowSummary(
 ) {
   const supabase = await createClient();
 
-  const workflow = TRANSACTION_WORKFLOWS[stage];
+  const workflow = TRANSACTION_WORKFLOWS[stage] as WorkflowDefinition | undefined;
 
-  // Explicit guard clause with a clear error throw
+  // TypeScript now treats this cleanly as a type narrowing guard
   if (!workflow) {
     throw new Error(`Invalid transaction stage: "${stage}"`);
   }
@@ -43,7 +43,7 @@ export async function getWorkflowSummary(
 
     uploadedDocuments: 0,
 
-    requiredDocuments: workflow.requiredDocuments.length,
+    requiredDocuments: workflow.requiredDocuments?.length ?? 0,
 
     remainingTasks,
   };
