@@ -1,35 +1,18 @@
 import { personalizeText } from "@/app/components/email/BulkEmailComposer/personalize";
 import { emailService } from "./emailService";
-import { campaignRepository } from "@/app/repositories/email/campaignRepository";
+import {
+  campaignRepository,
+} from "@/app/repositories/email/campaignRepository";
 import { SaveCampaignDraftInput } from "../../actions/email/saveCampaignDraft";
+import { createClient } from "@/lib/supabase/server";
 
 export class CampaignService {
-  // ============================================================
-  // SEND CAMPAIGN
-  // ============================================================
-
   async sendCampaign(campaignId: string) {
-    // ------------------------------------------------------------
-    // 1. Load campaign
-    // ------------------------------------------------------------
+    const supabase = await createClient();
 
-    const campaign = await campaignRepository.getCampaign(campaignId);
-
-    if (!campaign) {
-      throw new Error("Campaign not found.");
-    }
-
-    if (campaign.status === "sent") {
-      throw new Error("This campaign has already been sent.");
-    }
-
-    // ------------------------------------------------------------
-    // 2. Get authenticated user
-    // ------------------------------------------------------------
-
-    const supabase = await (
-      await import("@/lib/supabase/server")
-    ).createClient();
+    // ============================================================
+    // 1. AUTHENTICATED USER
+    // ============================================================
 
     const {
       data: { user },
@@ -40,283 +23,515 @@ export class CampaignService {
       throw new Error("Unauthorized.");
     }
 
-    // ------------------------------------------------------------
-    // 3. Load recipients BEFORE creating send history
-    // ------------------------------------------------------------
+    // ============================================================
+    // 2. LOAD CAMPAIGN
+    // ============================================================
 
-    const recipients = await campaignRepository.getRecipients(campaignId);
+    const campaign =
+      await campaignRepository.getCampaign(
+        campaignId,
+      );
 
-    const recipientList = recipients ?? [];
-
-    const recipientCount = recipientList.length;
-
-    if (recipientCount === 0) {
-      throw new Error("This campaign has no recipients.");
+    if (!campaign) {
+      throw new Error("Campaign not found.");
     }
 
-    // ------------------------------------------------------------
-    // 4. Create campaign send-history record
-    // ------------------------------------------------------------
-    console.log("CREATING CAMPAIGN SEND HISTORY:", {
+    // ============================================================
+    // 3. LOAD RECIPIENTS
+    // ============================================================
+
+    const recipients =
+      await campaignRepository.getRecipients(
+        campaignId,
+      );
+
+    if (
+      !recipients ||
+      recipients.length === 0
+    ) {
+      throw new Error(
+        "This campaign has no recipients.",
+      );
+    }
+
+    // ============================================================
+    // 4. DETERMINE CAMPAIGN STAGE
+    //
+    // Existing campaigns may not have a stage yet.
+    // We default them to Introduction.
+    // ============================================================
+
+    const campaignStage =
+      campaign.campaign_stage ||
+      "Introduction";
+
+    const stageOrder =
+      campaign.stage_order ?? 1;
+
+    // ============================================================
+    // 5. LOOK UP THE TEMPLATE NAME
+    //
+    // We intentionally look this up on the server rather than
+    // trusting the browser to provide the template name.
+    // ============================================================
+
+    let templateName:
+      | string
+      | null = null;
+
+    if (campaign.template_id) {
+      const {
+        data: template,
+        error: templateError,
+      } = await supabase
+        .from("email_templates")
+        .select("id, name")
+        .eq(
+          "id",
+          campaign.template_id,
+        )
+        .eq(
+          "organization_id",
+          campaign.organization_id,
+        )
+        .maybeSingle();
+
+      if (templateError) {
+        console.error(
+          "Error loading campaign template:",
+          templateError,
+        );
+      }
+
+      templateName =
+        template?.name ??
+        null;
+    }
+
+    // ============================================================
+    // 6. CREATE SEND HISTORY RECORD
+    //
+    // This creates a NEW SEND RECORD.
+    //
+    // It does NOT create a new campaign.
+    // ============================================================
+
+    const recipientCount =
+      recipients.length;
+
+    const startedAt =
+      new Date().toISOString();
+
+    const {
+      data: sendRecord,
+      error: sendRecordError,
+    } = await supabase
+      .from("email_campaign_sends")
+      .insert({
+        campaign_id:
+          campaignId,
+
+        organization_id:
+          campaign.organization_id,
+
+        sent_by:
+          user.id,
+
+        status:
+          "sending",
+
+        recipient_count:
+          recipientCount,
+
+        sent_count:
+          0,
+
+        failed_count:
+          0,
+
+        started_at:
+          startedAt,
+
+        // Campaign stage snapshot
+        stage:
+          campaignStage,
+
+        stage_order:
+          stageOrder,
+
+        // Template snapshot
+        template_id:
+          campaign.template_id ??
+          null,
+
+        template_name:
+          templateName ??
+          "Custom Message",
+      })
+      .select()
+      .single();
+
+    if (sendRecordError) {
+      console.error(
+        "Unable to create campaign send history:",
+        sendRecordError,
+      );
+
+      throw new Error(
+        sendRecordError.message,
+      );
+    }
+
+    // ============================================================
+    // 7. MARK CAMPAIGN AS SENDING
+    // ============================================================
+
+    await campaignRepository.updateCampaignStatus(
       campaignId,
-      organizationId: campaign.organization_id,
-      sentBy: user.id,
-      recipientCount,
-    });
+      "sending",
+      {
+        sent_at:
+          startedAt,
+      },
+    );
 
-    const campaignSend = await campaignRepository.createCampaignSend({
-      campaignId,
-
-      organizationId: campaign.organization_id,
-
-      sentBy: user.id,
-
-      status: "sending",
-
-      recipientCount,
-
-      sentCount: 0,
-
-      failedCount: 0,
-
-      startedAt: new Date().toISOString(),
-
-      completedAt: null,
-    });
-
-    // ------------------------------------------------------------
-    // 5. Mark campaign as sending
-    // ------------------------------------------------------------
-
-    await campaignRepository.updateCampaignStatus(campaignId, "sending");
-
-    // ------------------------------------------------------------
-    // 6. Send recipients
-    // ------------------------------------------------------------
+    // ============================================================
+    // 8. SEND EMAILS
+    // ============================================================
 
     let sent = 0;
     let failed = 0;
 
-    for (const recipient of recipientList) {
-      console.log("Sending campaign email to:", recipient.email);
-
+    for (
+      const recipient of recipients
+    ) {
       try {
-        const result = await emailService.sendEmail({
-          to: [recipient.email],
-
-          subject: personalizeText(campaign.subject, recipient),
-
-          html: personalizeText(campaign.body, recipient),
-
-          text: personalizeText(campaign.body, recipient),
-        });
-
-        console.log("Email send result:", result);
-
-        // --------------------------------------------------------
-        // Successful send
-        // --------------------------------------------------------
-
-        if (result.success) {
-          sent++;
-
-          await campaignRepository.updateRecipientStatus(recipient.id, "sent");
+        if (!recipient.email) {
+          throw new Error(
+            "Recipient does not have an email address.",
+          );
         }
 
-        // --------------------------------------------------------
-        // Failed send
-        // --------------------------------------------------------
-        else {
-          failed++;
-
-          console.error(
-            "Email provider failed:",
+        await emailService.sendEmail({
+          to: [
             recipient.email,
-            result.error,
-          );
+          ],
 
-          await campaignRepository.updateRecipientStatus(
-            recipient.id,
-            "failed",
-          );
-        }
+          subject:
+            personalizeText(
+              campaign.subject,
+              recipient,
+            ),
 
-        // --------------------------------------------------------
-        // Update send-history progress
-        // --------------------------------------------------------
+          html:
+            personalizeText(
+              campaign.body,
+              recipient,
+            ),
 
-        await campaignRepository.updateCampaignSend(campaignSend.id, {
-          sentCount: sent,
-          failedCount: failed,
+          text:
+            personalizeText(
+              campaign.body,
+              recipient,
+            ),
         });
+
+        sent++;
+
+        await campaignRepository.updateRecipientStatus(
+          recipient.id,
+          "sent",
+        );
       } catch (error) {
         failed++;
 
-        console.error("Unexpected send error:", recipient.email, error);
+        console.error(
+          "Unexpected send error:",
+          recipient.email,
+          error,
+        );
 
-        await campaignRepository.updateRecipientStatus(recipient.id, "failed");
-
-        await campaignRepository.updateCampaignSend(campaignSend.id, {
-          sentCount: sent,
-          failedCount: failed,
-        });
+        await campaignRepository.updateRecipientStatus(
+          recipient.id,
+          "failed",
+        );
       }
     }
 
-    // ------------------------------------------------------------
-    // 7. Determine final status
-    // ------------------------------------------------------------
+    // ============================================================
+    // 9. DETERMINE FINAL STATUS
+    // ============================================================
 
-    let finalStatus: "sent" | "partial" | "failed";
+    let finalStatus:
+      | "sent"
+      | "partial"
+      | "failed";
 
-    if (sent === recipientCount) {
-      finalStatus = "sent";
+    if (failed === 0) {
+      finalStatus =
+        "sent";
     } else if (sent > 0) {
-      finalStatus = "partial";
+      finalStatus =
+        "partial";
     } else {
-      finalStatus = "failed";
+      finalStatus =
+        "failed";
     }
 
-    // ------------------------------------------------------------
-    // 8. Complete send-history record
-    // ------------------------------------------------------------
+    const completedAt =
+      new Date().toISOString();
 
-    await campaignRepository.updateCampaignSend(campaignSend.id, {
-      status: finalStatus,
+    // ============================================================
+    // 10. UPDATE SEND HISTORY
+    // ============================================================
 
-      recipientCount,
+    const {
+      error:
+        historyUpdateError,
+    } = await supabase
+      .from(
+        "email_campaign_sends",
+      )
+      .update({
+        status:
+          finalStatus,
 
-      sentCount: sent,
+        sent_count:
+          sent,
 
-      failedCount: failed,
+        failed_count:
+          failed,
 
-      completedAt: new Date().toISOString(),
-    });
+        completed_at:
+          completedAt,
+      })
+      .eq(
+        "id",
+        sendRecord.id,
+      );
 
-    // ------------------------------------------------------------
-    // 9. Update campaign
-    // ------------------------------------------------------------
+    if (historyUpdateError) {
+      console.error(
+        "Unable to update campaign send history:",
+        historyUpdateError,
+      );
 
-    await campaignRepository.updateCampaignStatus(campaignId, finalStatus, {
-      sent_at: new Date().toISOString(),
-    });
+      throw new Error(
+        historyUpdateError.message,
+      );
+    }
 
-    // ------------------------------------------------------------
-    // 10. Return result to UI
-    // ------------------------------------------------------------
+    // ============================================================
+    // 11. UPDATE CAMPAIGN'S CURRENT TRACKING INFORMATION
+    //
+    // These fields represent the MOST RECENT send.
+    // ============================================================
+
+    await campaignRepository.updateCampaignStatus(
+      campaignId,
+      finalStatus,
+      {
+        sent_at:
+          completedAt,
+
+        recipient_count:
+          recipientCount,
+
+        last_template_id:
+          campaign.template_id ??
+          null,
+
+        last_template_name:
+          templateName ??
+          "Custom Message",
+
+        campaign_stage:
+          campaignStage,
+
+        stage_order:
+          stageOrder,
+      },
+    );
+
+    // ============================================================
+    // 12. RETURN SEND RESULTS
+    // ============================================================
 
     return {
       sent,
 
       failed,
 
-      recipientCount,
+      campaignId,
 
-      status: finalStatus,
+      sendId:
+        sendRecord.id,
 
-      sendId: campaignSend.id,
+      status:
+        finalStatus,
+
+      stage:
+        campaignStage,
+
+      stageOrder,
+
+      templateId:
+        campaign.template_id ??
+        null,
+
+      templateName:
+        templateName ??
+        "Custom Message",
     };
   }
 
   // ============================================================
-  // SAVE CAMPAIGN DRAFT
+  // SAVE DRAFT
   // ============================================================
 
-  async saveDraft(input: SaveCampaignDraftInput) {
-    let campaignId = input.campaignId;
-
-    console.log("Incoming campaignId:", input.campaignId);
-
-    console.log("Resolved campaignId:", campaignId);
-
-    // ------------------------------------------------------------
-    // UPDATE EXISTING CAMPAIGN
-    // ------------------------------------------------------------
+  async saveDraft(
+    input: SaveCampaignDraftInput,
+  ) {
+    let campaignId =
+      input.campaignId;
 
     if (campaignId) {
-      await campaignRepository.updateCampaign(campaignId, {
-        organization_id: input.organizationId,
+      // ========================================================
+      // UPDATE EXISTING CAMPAIGN
+      // ========================================================
 
-        created_by: input.userId,
+      await campaignRepository.updateCampaign(
+        campaignId,
+        {
+          organization_id:
+            input.organizationId,
 
-        user_id: input.userId,
+          created_by:
+            input.userId,
 
-        name: input.campaignName,
+          name:
+            input.campaignName,
 
-        campaign_name: input.campaignName,
+          campaign_name:
+            input.campaignName,
 
-        subject: input.subject,
+          user_id:
+            input.userId,
 
-        body: input.body,
+          subject:
+            input.subject,
 
-        template_id: input.templateId ?? null,
+          body:
+            input.body,
 
-        recipient_count: input.recipients.length,
+          template_id:
+            input.templateId ??
+            null,
 
-        status: "draft",
-      });
-    }
+          recipient_count:
+            input.recipients.length,
 
-    // ------------------------------------------------------------
-    // CREATE NEW CAMPAIGN
-    // ------------------------------------------------------------
-    else {
-      const newCampaign = await campaignRepository.createCampaign({
-        organizationId: input.organizationId,
+          status:
+            "draft",
+        },
+      );
+    } else {
+      // ========================================================
+      // CREATE NEW CAMPAIGN
+      // ========================================================
 
-        userId: input.userId,
+      const newCampaign =
+        await campaignRepository.createCampaign(
+          {
+            organization_id:
+              input.organizationId,
 
-        campaignName: input.campaignName,
+            created_by:
+              input.userId,
 
-        subject: input.subject,
+            name:
+              input.campaignName,
 
-        body: input.body,
+            campaign_name:
+              input.campaignName,
 
-        templateId: input.templateId ?? null,
+            user_id:
+              input.userId,
 
-        status: "draft",
+            subject:
+              input.subject,
 
-        recipientCount: input.recipients.length,
-      });
+            body:
+              input.body,
 
-      campaignId = (
-        newCampaign as {
-          id?: string;
-        }
-      )?.id;
+            template_id:
+              input.templateId ??
+              null,
 
-      if (!campaignId) {
-        throw new Error(
-          "Campaign was created but no campaign ID was returned.",
+            status:
+              "draft",
+
+            recipient_count:
+              input.recipients.length,
+          },
         );
-      }
+
+      campaignId =
+        (
+          newCampaign as {
+            id?: string;
+          }
+        )?.id;
     }
 
-    // ------------------------------------------------------------
-    // Replace recipients
-    // ------------------------------------------------------------
+    // ============================================================
+    // VERIFY CAMPAIGN ID
+    // ============================================================
 
-    await campaignRepository.replaceRecipients(
+    if (!campaignId) {
+      throw new Error(
+        "Campaign ID could not be resolved.",
+      );
+    }
+
+    // ============================================================
+    // REPLACE RECIPIENTS
+    // ============================================================
+
+    if (
+      input.recipients
+    ) {
+      await campaignRepository.replaceRecipients(
+        campaignId,
+
+        input.recipients.map(
+          (
+            recipient,
+          ) => ({
+            contact_id:
+              recipient.contactId,
+
+            email:
+              recipient.email,
+
+            first_name:
+              recipient.firstName,
+
+            last_name:
+              recipient.lastName,
+
+            status:
+              "pending",
+          }),
+        ),
+      );
+    }
+
+    return await campaignRepository.getCampaign(
       campaignId,
-      input.recipients.map((recipient) => ({
-        contact_id: recipient.contactId,
-
-        email: recipient.email,
-
-        first_name: recipient.firstName,
-
-        last_name: recipient.lastName,
-
-        status: "pending",
-      })),
     );
-
-    // ------------------------------------------------------------
-    // Return saved campaign
-    // ------------------------------------------------------------
-
-    return await campaignRepository.getCampaign(campaignId);
   }
 }
 
-export const campaignService = new CampaignService();
+export const campaignService =
+  new CampaignService();
