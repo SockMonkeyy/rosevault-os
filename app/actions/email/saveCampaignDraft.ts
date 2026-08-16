@@ -1,21 +1,36 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import { campaignService } from "@/app/services/email/campaignService";
+import {
+  campaignService,
+} from "@/app/services/email/campaignService";
 
 export interface SaveCampaignDraftInput {
   campaignId?: string;
+
   organizationId: string;
+
   userId: string;
+
   campaignName: string;
+
   subject: string;
+
   body: string;
+
   templateId?: string | null;
+
+  campaignStage?: string;
+
+  stageOrder?: number;
+
   recipients: {
     contactId: string;
+
     email: string;
+
     firstName: string | null;
+
     lastName: string | null;
   }[];
 }
@@ -23,24 +38,27 @@ export interface SaveCampaignDraftInput {
 export async function saveCampaignDraft(
   input: SaveCampaignDraftInput,
 ) {
-  const supabase = await createClient();
+  try {
+    const campaign =
+      await campaignService.saveDraft(
+        input,
+      );
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+    revalidatePath(
+      "/marketing/campaigns",
+    );
 
-  console.log("SERVER ACTION USER:", user);
-  console.log("INPUT:", input);
+    revalidatePath(
+      "/email/compose",
+    );
 
-  if (error || !user) {
-    throw new Error("No authenticated user.");
+    return campaign;
+  } catch (error) {
+    console.error(
+      "SAVE DRAFT ERROR:",
+      error,
+    );
+
+    throw error;
   }
-
-  const campaign = await campaignService.saveDraft(input);
-
-  revalidatePath("/marketing/campaigns");
-  revalidatePath("/marketing/compose");
-
-  return campaign;
 }

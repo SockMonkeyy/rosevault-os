@@ -26,17 +26,23 @@ export default async function CampaignsPage() {
 
   const { data: campaigns, error } = await supabase
     .from("email_campaigns")
-    .select(`
-      id,
-      name,
-      subject,
-      status,
-      recipient_count,
-      scheduled_for,
-      sent_at,
-      created_at,
-      updated_at
-    `)
+    .select(
+      `
+  id,
+  name,
+  subject,
+  status,
+  recipient_count,
+  scheduled_for,
+  sent_at,
+  created_at,
+  updated_at,
+  campaign_stage,
+  stage_order,
+  last_template_id,
+  last_template_name
+`,
+    )
     .eq("organization_id", membership.organization_id)
     .order("updated_at", { ascending: false });
 
@@ -44,7 +50,7 @@ export default async function CampaignsPage() {
     console.error("Error loading email campaigns:", error);
   }
 
-    return (
+  return (
     <div className="px-6 py-10 lg:px-8">
       <div className="mx-auto max-w-7xl">
         {/* Page Header */}

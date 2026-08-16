@@ -32,4 +32,10 @@ export type InitialCampaign = {
   body: string;
   template_id: string | null;
   status: string;
+
+  campaign_stage: string | null;
+  stage_order: number | null;
+
+  last_template_id: string | null;
+  last_template_name: string | null;
 };

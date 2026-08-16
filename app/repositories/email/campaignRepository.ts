@@ -1,35 +1,32 @@
 import { createClient } from "@/lib/supabase/server";
 
-export interface CampaignSendData {
-  campaignId: string;
-  organizationId: string;
-  sentBy: string;
-  status?: "sending" | "sent" | "partial" | "failed";
-  recipientCount?: number;
-  sentCount?: number;
-  failedCount?: number;
-  startedAt?: string;
-  completedAt?: string | null;
-}
-
 export class CampaignRepository {
   // ============================================================
-  // CAMPAIGN
+  // GET CAMPAIGN
   // ============================================================
 
   async getCampaign(campaignId: string) {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    const {
+      data,
+      error,
+    } = await supabase
       .from("email_campaigns")
       .select("*")
       .eq("id", campaignId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return data;
   }
+
+  // ============================================================
+  // CREATE CAMPAIGN
+  // ============================================================
 
   async createCampaign(
     campaignData: Record<string, unknown>,
@@ -38,21 +35,37 @@ export class CampaignRepository {
 
     const dbPayload: Record<string, unknown> = {
       organization_id:
-        campaignData.organizationId ??
-        campaignData.organization_id,
+        campaignData.organization_id ??
+        campaignData.organizationId,
+
+      created_by:
+        campaignData.created_by ??
+        campaignData.createdBy ??
+        campaignData.user_id ??
+        campaignData.userId,
+
+      user_id:
+        campaignData.user_id ??
+        campaignData.userId,
 
       name:
-        campaignData.campaignName ??
+        campaignData.name ??
+        campaignData.campaignName,
+
+      campaign_name:
         campaignData.campaign_name ??
+        campaignData.campaignName ??
         campaignData.name,
 
-      subject: campaignData.subject,
+      subject:
+        campaignData.subject,
 
-      body: campaignData.body,
+      body:
+        campaignData.body,
 
       template_id:
-        campaignData.templateId ??
         campaignData.template_id ??
+        campaignData.templateId ??
         null,
 
       status:
@@ -60,33 +73,51 @@ export class CampaignRepository {
         "draft",
 
       recipient_count:
-        campaignData.recipientCount ??
         campaignData.recipient_count ??
         0,
+
+      campaign_stage:
+        campaignData.campaign_stage ??
+        campaignData.campaignStage ??
+        "Introduction",
+
+      stage_order:
+        campaignData.stage_order ??
+        campaignData.stageOrder ??
+        1,
+
+      last_template_id:
+        campaignData.last_template_id ??
+        campaignData.lastTemplateId ??
+        campaignData.template_id ??
+        campaignData.templateId ??
+        null,
+
+      last_template_name:
+        campaignData.last_template_name ??
+        campaignData.lastTemplateName ??
+        null,
     };
-
-    const userId =
-      campaignData.userId ??
-      campaignData.user_id;
-
-    if (userId) {
-      dbPayload.user_id = userId;
-      dbPayload.created_by = userId;
-    }
 
     const {
       data,
       error,
     } = await supabase
       .from("email_campaigns")
-      .insert([dbPayload])
-      .select()
+      .insert(dbPayload)
+      .select("*")
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return data;
   }
+
+  // ============================================================
+  // UPDATE CAMPAIGN
+  // ============================================================
 
   async updateCampaign(
     campaignId: string,
@@ -96,60 +127,115 @@ export class CampaignRepository {
 
     const dbPayload: Record<string, unknown> = {};
 
+    // ----------------------------------------------------------
+    // BASIC CAMPAIGN INFORMATION
+    // ----------------------------------------------------------
+
     if (
-      campaignData.campaignName !== undefined ||
-      campaignData.campaign_name !== undefined ||
-      campaignData.name !== undefined
+      campaignData.name !== undefined ||
+      campaignData.campaignName !== undefined
     ) {
       dbPayload.name =
-        campaignData.campaignName ??
-        campaignData.campaign_name ??
-        campaignData.name;
-    }
-
-    if (campaignData.subject !== undefined) {
-      dbPayload.subject = campaignData.subject;
-    }
-
-    if (campaignData.body !== undefined) {
-      dbPayload.body = campaignData.body;
+        campaignData.name ??
+        campaignData.campaignName;
     }
 
     if (
-      campaignData.templateId !== undefined ||
-      campaignData.template_id !== undefined
+      campaignData.campaign_name !== undefined ||
+      campaignData.campaignName !== undefined
+    ) {
+      dbPayload.campaign_name =
+        campaignData.campaign_name ??
+        campaignData.campaignName;
+    }
+
+    if (
+      campaignData.subject !== undefined
+    ) {
+      dbPayload.subject =
+        campaignData.subject;
+    }
+
+    if (
+      campaignData.body !== undefined
+    ) {
+      dbPayload.body =
+        campaignData.body;
+    }
+
+    if (
+      campaignData.template_id !== undefined ||
+      campaignData.templateId !== undefined
     ) {
       dbPayload.template_id =
+        campaignData.template_id ??
         campaignData.templateId ??
-        campaignData.template_id;
-    }
-
-    if (campaignData.status !== undefined) {
-      dbPayload.status = campaignData.status;
+        null;
     }
 
     if (
-      campaignData.recipientCount !== undefined ||
+      campaignData.status !== undefined
+    ) {
+      dbPayload.status =
+        campaignData.status;
+    }
+
+    if (
       campaignData.recipient_count !== undefined
     ) {
       dbPayload.recipient_count =
-        campaignData.recipientCount ??
         campaignData.recipient_count;
     }
 
+    // ----------------------------------------------------------
+    // CAMPAIGN JOURNEY
+    // ----------------------------------------------------------
+
     if (
-      campaignData.sentAt !== undefined ||
-      campaignData.sent_at !== undefined
+      campaignData.campaign_stage !== undefined ||
+      campaignData.campaignStage !== undefined
     ) {
-      dbPayload.sent_at =
-        campaignData.sentAt ??
-        campaignData.sent_at;
+      dbPayload.campaign_stage =
+        campaignData.campaign_stage ??
+        campaignData.campaignStage;
     }
 
-    if (campaignData.scheduledFor !== undefined) {
-      dbPayload.scheduled_for =
-        campaignData.scheduledFor;
+    if (
+      campaignData.stage_order !== undefined ||
+      campaignData.stageOrder !== undefined
+    ) {
+      dbPayload.stage_order =
+        campaignData.stage_order ??
+        campaignData.stageOrder;
     }
+
+    // ----------------------------------------------------------
+    // LAST TEMPLATE
+    // ----------------------------------------------------------
+
+    if (
+      campaignData.last_template_id !== undefined ||
+      campaignData.lastTemplateId !== undefined
+    ) {
+      dbPayload.last_template_id =
+        campaignData.last_template_id ??
+        campaignData.lastTemplateId ??
+        null;
+    }
+
+    if (
+      campaignData.last_template_name !== undefined ||
+      campaignData.lastTemplateName !== undefined
+    ) {
+      dbPayload.last_template_name =
+        campaignData.last_template_name ??
+        campaignData.lastTemplateName ??
+        null;
+    }
+
+    // ----------------------------------------------------------
+    // UPDATE
+    // ----------------------------------------------------------
 
     const {
       data,
@@ -158,13 +244,19 @@ export class CampaignRepository {
       .from("email_campaigns")
       .update(dbPayload)
       .eq("id", campaignId)
-      .select()
+      .select("*")
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return data;
   }
+
+  // ============================================================
+  // UPDATE CAMPAIGN STATUS
+  // ============================================================
 
   async updateCampaignStatus(
     campaignId: string,
@@ -173,7 +265,9 @@ export class CampaignRepository {
   ) {
     const supabase = await createClient();
 
-    const { error } = await supabase
+    const {
+      error,
+    } = await supabase
       .from("email_campaigns")
       .update({
         status,
@@ -181,14 +275,18 @@ export class CampaignRepository {
       })
       .eq("id", campaignId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   // ============================================================
-  // CAMPAIGN RECIPIENTS
+  // GET RECIPIENTS
   // ============================================================
 
-  async getRecipients(campaignId: string) {
+  async getRecipients(
+    campaignId: string,
+  ) {
     const supabase = await createClient();
 
     const {
@@ -197,65 +295,120 @@ export class CampaignRepository {
     } = await supabase
       .from("email_campaign_recipients")
       .select("*")
-      .eq("campaign_id", campaignId);
+      .eq(
+        "campaign_id",
+        campaignId,
+      );
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
-    return data;
+    return data ?? [];
   }
+
+  // ============================================================
+  // REPLACE RECIPIENTS
+  // ============================================================
 
   async replaceRecipients(
     campaignId: string,
-    recipients: Array<Record<string, unknown>>,
+    recipients: Array<{
+      contact_id?: string | null;
+      contactId?: string | null;
+      email: string;
+      first_name?: string | null;
+      firstName?: string | null;
+      last_name?: string | null;
+      lastName?: string | null;
+      status?: string;
+    }>,
   ) {
     const supabase = await createClient();
+
+    // ----------------------------------------------------------
+    // DELETE OLD RECIPIENTS
+    // ----------------------------------------------------------
 
     const {
       error: deleteError,
     } = await supabase
       .from("email_campaign_recipients")
       .delete()
-      .eq("campaign_id", campaignId);
+      .eq(
+        "campaign_id",
+        campaignId,
+      );
 
-    if (deleteError) throw deleteError;
-
-    if (recipients.length === 0) {
-      return;
+    if (deleteError) {
+      throw deleteError;
     }
 
+    // Nothing else to insert.
+    if (recipients.length === 0) {
+      return [];
+    }
+
+    // ----------------------------------------------------------
+    // FORMAT RECIPIENTS
+    // ----------------------------------------------------------
+
     const formattedRecipients =
-      recipients.map((recipient) => ({
-        campaign_id: campaignId,
+      recipients.map(
+        (recipient) => ({
+          campaign_id:
+            campaignId,
 
-        contact_id:
-          recipient.contactId ??
-          recipient.contact_id,
+          contact_id:
+            recipient.contact_id ??
+            recipient.contactId ??
+            null,
 
-        email: recipient.email,
+          email:
+            recipient.email,
 
-        first_name:
-          recipient.firstName ??
-          recipient.first_name ??
-          null,
+          first_name:
+            recipient.first_name ??
+            recipient.firstName ??
+            null,
 
-        last_name:
-          recipient.lastName ??
-          recipient.last_name ??
-          null,
+          last_name:
+            recipient.last_name ??
+            recipient.lastName ??
+            null,
 
-        status:
-          recipient.status ??
-          "pending",
-      }));
+          status:
+            recipient.status ??
+            "pending",
+        }),
+      );
+
+    // ----------------------------------------------------------
+    // INSERT NEW RECIPIENTS
+    // ----------------------------------------------------------
 
     const {
+      data,
       error: insertError,
     } = await supabase
-      .from("email_campaign_recipients")
-      .insert(formattedRecipients);
+      .from(
+        "email_campaign_recipients",
+      )
+      .insert(
+        formattedRecipients,
+      )
+      .select("*");
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      throw insertError;
+    }
+
+    return data ?? [];
   }
+
+  // ============================================================
+  // UPDATE RECIPIENT STATUS
+  // ============================================================
 
   async updateRecipientStatus(
     recipientId: string,
@@ -263,182 +416,23 @@ export class CampaignRepository {
   ) {
     const supabase = await createClient();
 
-    const { error } = await supabase
-      .from("email_campaign_recipients")
-      .update({ status })
-      .eq("id", recipientId);
-
-    if (error) throw error;
-  }
-
-  // ============================================================
-  // CAMPAIGN SEND HISTORY
-  // ============================================================
-
-  async createCampaignSend(
-    sendData: CampaignSendData,
-  ) {
-    const supabase = await createClient();
-
-    const dbPayload = {
-      campaign_id: sendData.campaignId,
-
-      organization_id:
-        sendData.organizationId,
-
-      sent_by:
-        sendData.sentBy,
-
-      status:
-        sendData.status ??
-        "sending",
-
-      recipient_count:
-        sendData.recipientCount ??
-        0,
-
-      sent_count:
-        sendData.sentCount ??
-        0,
-
-      failed_count:
-        sendData.failedCount ??
-        0,
-
-      started_at:
-        sendData.startedAt ??
-        new Date().toISOString(),
-
-      completed_at:
-        sendData.completedAt ??
-        null,
-    };
-
     const {
-      data,
       error,
     } = await supabase
-      .from("email_campaign_sends")
-      .insert([dbPayload])
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(
-        `Failed to create campaign send history: ${error.message}`,
-      );
-    }
-
-    return data;
-  }
-
-  async updateCampaignSend(
-    sendId: string,
-    updates: {
-      status?: "sending" | "sent" | "partial" | "failed";
-      recipientCount?: number;
-      sentCount?: number;
-      failedCount?: number;
-      completedAt?: string | null;
-    },
-  ) {
-    const supabase = await createClient();
-
-    const dbPayload: Record<string, unknown> = {};
-
-    if (updates.status !== undefined) {
-      dbPayload.status = updates.status;
-    }
-
-    if (updates.recipientCount !== undefined) {
-      dbPayload.recipient_count =
-        updates.recipientCount;
-    }
-
-    if (updates.sentCount !== undefined) {
-      dbPayload.sent_count =
-        updates.sentCount;
-    }
-
-    if (updates.failedCount !== undefined) {
-      dbPayload.failed_count =
-        updates.failedCount;
-    }
-
-    if (updates.completedAt !== undefined) {
-      dbPayload.completed_at =
-        updates.completedAt;
-    }
-
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("email_campaign_sends")
-      .update(dbPayload)
-      .eq("id", sendId)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(
-        `Failed to update campaign send history: ${error.message}`,
-      );
-    }
-
-    return data;
-  }
-
-  async getCampaignSends(
-    campaignId: string,
-  ) {
-    const supabase = await createClient();
-
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("email_campaign_sends")
-      .select("*")
-      .eq("campaign_id", campaignId)
-      .order("started_at", {
-        ascending: false,
-      });
-
-    if (error) {
-      throw new Error(
-        `Failed to load campaign send history: ${error.message}`,
-      );
-    }
-
-    return data;
-  }
-
-  async getLatestCampaignSend(
-    campaignId: string,
-  ) {
-    const supabase = await createClient();
-
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("email_campaign_sends")
-      .select("*")
-      .eq("campaign_id", campaignId)
-      .order("started_at", {
-        ascending: false,
+      .from(
+        "email_campaign_recipients",
+      )
+      .update({
+        status,
       })
-      .limit(1)
-      .maybeSingle();
+      .eq(
+        "id",
+        recipientId,
+      );
 
     if (error) {
-      throw new Error(
-        `Failed to load latest campaign send: ${error.message}`,
-      );
+      throw error;
     }
-
-    return data;
   }
 }
 

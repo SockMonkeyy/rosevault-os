@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { saveCampaignDraft } from "@/app/actions/email/saveCampaignDraft";
 import { sendCampaign } from "@/app/actions/email/sendCampaign";
 import { useRouter } from "next/navigation";
 
@@ -181,14 +181,19 @@ export default function BulkEmailComposer({
     // SYNCHRONIZE CAMPAIGN
     // ============================================================
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCampaign(initialCampaign);
 
     // ============================================================
     // SYNCHRONIZE RECIPIENTS
     // ============================================================
 
-    const validSelectedContactIds = initialSelectedContactIds.filter((id) =>
-      contacts.some((contact) => contact.id === id),
+    const validSelectedContactIds = Array.from(
+      new Set(
+        initialSelectedContactIds.filter((id) =>
+          contacts.some((contact) => contact.id === id),
+        ),
+      ),
     );
 
     setSelectedContactIds(validSelectedContactIds);
@@ -278,247 +283,108 @@ export default function BulkEmailComposer({
   async function saveDraft() {
     if (!campaignName.trim()) {
       setDraftMessage("Enter a campaign name before saving.");
+
       return;
     }
 
     if (selectedContacts.length === 0) {
       setDraftMessage("Select at least one recipient before saving.");
+
       return;
     }
 
     setIsSavingDraft(true);
     setDraftMessage("");
 
-    const supabase = createClient();
+    try {
+      const stage =
+        CAMPAIGN_STAGES.find((item) => item.value === campaignStage) ??
+        CAMPAIGN_STAGES[0];
 
-    const stage =
-      CAMPAIGN_STAGES.find((item) => item.value === campaignStage) ??
-      CAMPAIGN_STAGES[0];
+      const savedCampaign = await saveCampaignDraft({
+        campaignId: campaign?.id,
 
-    const campaignPayload = {
-      organization_id: organizationId,
+        organizationId,
 
-      name: campaignName.trim(),
+        userId,
 
-      subject: subject.trim(),
+        campaignName: campaignName.trim(),
 
-      body,
+        subject: subject.trim(),
 
-      template_id: selectedTemplateId || null,
+        body,
 
-      status: "draft",
+        templateId: selectedTemplateId || null,
 
-      recipient_count: selectedContacts.length,
+        campaignStage: stage.value,
 
-      campaign_stage: stage.value,
+        stageOrder: stage.order,
 
-      stage_order: stage.order,
-    };
+        recipients: selectedContacts
+          .filter((contact) => Boolean(contact.email))
+          .map((contact) => ({
+            contactId: contact.id,
 
-    // ============================================================
-    // UPDATE EXISTING CAMPAIGN
-    // ============================================================
+            email: contact.email as string,
 
-    if (campaign) {
-      const { error: updateError } = await supabase
-        .from("email_campaigns")
-        .update(campaignPayload)
-        .eq("id", campaign.id)
-        .eq("organization_id", organizationId);
+            firstName: contact.first_name ?? null,
 
-      if (updateError) {
-        setDraftMessage(`Unable to update campaign: ${updateError.message}`);
+            lastName: contact.last_name ?? null,
+          })),
+      });
 
-        setIsSavingDraft(false);
+      // ==========================================================
+      // UPDATE LOCAL CAMPAIGN STATE
+      // ==========================================================
 
-        return;
+      setCampaign({
+        id: savedCampaign.id,
+
+        name: savedCampaign.name,
+
+        subject: savedCampaign.subject,
+
+        body: savedCampaign.body,
+
+        template_id: savedCampaign.template_id,
+
+        status: savedCampaign.status,
+
+        campaign_stage: savedCampaign.campaign_stage,
+
+        stage_order: savedCampaign.stage_order,
+
+        last_template_id: savedCampaign.last_template_id,
+
+        last_template_name: savedCampaign.last_template_name,
+      });
+
+      // ==========================================================
+      // MAKE THE URL AN EDIT URL AFTER FIRST SAVE
+      // ==========================================================
+
+      if (!campaign?.id) {
+        router.replace(`/email/compose?campaign=${savedCampaign.id}`, {
+          scroll: false,
+        });
       }
 
-      // ----------------------------------------------------------
-      // Replace recipients
-      // ----------------------------------------------------------
-
-      const { error: deleteRecipientsError } = await supabase
-        .from("email_campaign_recipients")
-        .delete()
-        .eq("campaign_id", campaign.id);
-
-      if (deleteRecipientsError) {
-        setDraftMessage(
-          `Campaign details were updated, but recipients could not be refreshed: ${deleteRecipientsError.message}`,
-        );
-
-        setIsSavingDraft(false);
-
-        return;
-      }
-
-      const recipients = selectedContacts
-        .filter((contact) => contact.email)
-        .map((contact) => ({
-          campaign_id: campaign.id,
-
-          contact_id: contact.id,
-
-          email: contact.email as string,
-
-          first_name: contact.first_name || null,
-
-          last_name: contact.last_name || null,
-
-          status: "pending",
-        }));
-
-      const { error: recipientsError } = await supabase
-        .from("email_campaign_recipients")
-        .insert(recipients);
-
-      if (recipientsError) {
-        setDraftMessage(
-          `Campaign details were updated, but recipients could not be saved: ${recipientsError.message}`,
-        );
-
-        setIsSavingDraft(false);
-
-        return;
-      }
-
-      // ----------------------------------------------------------
-      // Update local campaign state
-      // ----------------------------------------------------------
-
-      setCampaign((current) =>
-        current
-          ? {
-              ...current,
-
-              name: campaignName.trim(),
-
-              subject: subject.trim(),
-
-              body,
-
-              template_id: selectedTemplateId || null,
-
-              campaign_stage: stage.value,
-
-              stage_order: stage.order,
-
-              status: "draft",
-            }
-          : current,
-      );
-
-      setDraftMessage("Campaign draft updated successfully.");
-
-      setIsSavingDraft(false);
-
-      setTimeout(() => {
-        setDraftMessage("");
-      }, 5000);
-
-      return;
-    }
-
-    // ============================================================
-    // CREATE NEW CAMPAIGN
-    // ============================================================
-
-    const { data: savedCampaign, error: campaignError } = await supabase
-      .from("email_campaigns")
-      .insert({
-        ...campaignPayload,
-        created_by: userId,
-        user_id: userId,
-      })
-      .select("*")
-      .single();
-
-    if (campaignError || !savedCampaign) {
       setDraftMessage(
-        campaignError?.message || "Unable to save the campaign draft.",
+        campaign
+          ? "Campaign draft updated successfully."
+          : "Campaign draft saved successfully.",
       );
+    } catch (error) {
+      console.error("SAVE DRAFT ERROR:", error);
 
+      setDraftMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to save campaign draft.",
+      );
+    } finally {
       setIsSavingDraft(false);
-
-      return;
     }
-
-    // ----------------------------------------------------------
-    // Save recipients
-    // ----------------------------------------------------------
-
-    const recipients = selectedContacts
-      .filter((contact) => contact.email)
-      .map((contact) => ({
-        campaign_id: savedCampaign.id,
-
-        contact_id: contact.id,
-
-        email: contact.email as string,
-
-        first_name: contact.first_name || null,
-
-        last_name: contact.last_name || null,
-
-        status: "pending",
-      }));
-
-    const { error: recipientsError } = await supabase
-      .from("email_campaign_recipients")
-      .insert(recipients);
-
-    if (recipientsError) {
-      await supabase
-        .from("email_campaigns")
-        .delete()
-        .eq("id", savedCampaign.id)
-        .eq("organization_id", organizationId);
-
-      setDraftMessage(`Unable to save recipients: ${recipientsError.message}`);
-
-      setIsSavingDraft(false);
-
-      return;
-    }
-
-    // ----------------------------------------------------------
-    // Store campaign locally
-    // ----------------------------------------------------------
-
-    setCampaign({
-      id: savedCampaign.id,
-
-      name: savedCampaign.name,
-
-      subject: savedCampaign.subject,
-
-      body: savedCampaign.body,
-
-      template_id: savedCampaign.template_id,
-
-      status: savedCampaign.status,
-
-      campaign_stage: savedCampaign.campaign_stage,
-
-      stage_order: savedCampaign.stage_order,
-
-      last_template_id: savedCampaign.last_template_id,
-
-      last_template_name: savedCampaign.last_template_name,
-    });
-
-    router.replace(`/email/compose?campaign=${savedCampaign.id}`, {
-      scroll: false,
-    });
-
-    setDraftMessage("Campaign draft saved successfully.");
-
-    setIsSavingDraft(false);
-
-    setTimeout(() => {
-      setDraftMessage("");
-    }, 5000);
   }
 
   async function handleSendCampaign() {
@@ -941,7 +807,33 @@ export default function BulkEmailComposer({
                 </p>
               </div>
 
-              {/* Current stage summary */}
+              {/* ================================================== */}
+              {/* CURRENT CAMPAIGN STATUS */}
+              {/* ================================================== */}
+
+              {campaign && (
+                <div className="rounded-lg border border-[#D8B66A]/30 bg-white/60 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#A89C8D]">
+                        Existing Campaign
+                      </p>
+
+                      <p className="mt-1 font-serif text-sm text-[#29231D]">
+                        {campaign.name}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full border border-[#D8B66A]/40 bg-[#B7832F]/5 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#B7832F]">
+                      {campaign.status}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* ================================================== */}
+              {/* CURRENT STAGE / TEMPLATE */}
+              {/* ================================================== */}
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border border-[#E3DCD0] bg-white/60 px-4 py-3">
@@ -969,6 +861,10 @@ export default function BulkEmailComposer({
                 </div>
               </div>
 
+              {/* ================================================== */}
+              {/* CAMPAIGN NAME */}
+              {/* ================================================== */}
+
               <div>
                 <label className={labelClasses}>Campaign Name</label>
 
@@ -981,11 +877,14 @@ export default function BulkEmailComposer({
                 />
               </div>
 
+              {/* ================================================== */}
+              {/* SAVE MESSAGE */}
+              {/* ================================================== */}
+
               {draftMessage && (
                 <div
                   className={`rounded-md border px-4 py-3 text-xs whitespace-pre-wrap leading-relaxed ${
-                    draftMessage.toLowerCase().includes("success") ||
-                    draftMessage.toLowerCase().includes("sending")
+                    draftMessage.toLowerCase().includes("success")
                       ? "border-emerald-200 bg-emerald-50/70 text-emerald-700"
                       : "border-amber-200 bg-amber-50/70 text-amber-700"
                   }`}
@@ -994,7 +893,13 @@ export default function BulkEmailComposer({
                 </div>
               )}
 
+              {/* ================================================== */}
+              {/* ACTION BUTTONS */}
+              {/* ================================================== */}
+
               <div className="flex flex-col gap-3 sm:flex-row">
+                {/* SAVE / UPDATE */}
+
                 <button
                   type="button"
                   onClick={saveDraft}
@@ -1010,6 +915,8 @@ export default function BulkEmailComposer({
                       : "Save as Draft"}
                 </button>
 
+                {/* SEND */}
+
                 <button
                   type="button"
                   onClick={handleSendCampaign}
@@ -1019,6 +926,16 @@ export default function BulkEmailComposer({
                   {isSending ? "Sending Email..." : "Send Email"}
                 </button>
               </div>
+
+              {/* ================================================== */}
+              {/* SAVE BEHAVIOR */}
+              {/* ================================================== */}
+
+              <p className="text-[10px] leading-5 text-[#8F8578]">
+                {campaign
+                  ? "Changes will update this existing campaign. A new campaign will not be created."
+                  : "Saving this draft will create the campaign. After it is saved, this button will change to Update Draft."}
+              </p>
             </div>
           </section>
         </div>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+
+
 type EmailCampaign = {
   id: string;
   name: string;
@@ -14,6 +16,11 @@ type EmailCampaign = {
   sent_at: string | null;
   created_at: string;
   updated_at: string;
+
+  campaign_stage: string | null;
+  stage_order: number | null;
+  last_template_id: string | null;
+  last_template_name: string | null;
 };
 
 type CampaignSend = {
@@ -34,6 +41,47 @@ type Props = {
   initialCampaigns: EmailCampaign[];
   organizationId: string;
 };
+
+const CAMPAIGN_STAGES = [
+  {
+    value: "Introduction",
+    order: 1,
+  },
+  {
+    value: "Follow-Up 1",
+    order: 2,
+  },
+  {
+    value: "Follow-Up 2",
+    order: 3,
+  },
+  {
+    value: "Follow-Up 3",
+    order: 4,
+  },
+  {
+    value: "Final Follow-Up",
+    order: 5,
+  },
+  {
+    value: "Nurture",
+    order: 6,
+  },
+  {
+    value: "Completed",
+    order: 7,
+  },
+];
+
+function getNextCampaignStage(stageOrder: number | null) {
+  if (!stageOrder) {
+    return CAMPAIGN_STAGES[0];
+  }
+
+  return (
+    CAMPAIGN_STAGES.find((stage) => stage.order === stageOrder + 1) ?? null
+  );
+}
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All Campaigns" },
@@ -778,46 +826,136 @@ export default function EmailCampaignsManager({
                     </div>
 
                     {/* ==================================================
-                          CAMPAIGN METRICS
+                          CAMPAIGN PROGRESSION
                       ================================================== */}
 
-                    <div className="grid grid-cols-2 gap-3 border-t border-[#EDE7DC] pt-4 sm:grid-cols-3 lg:grid-cols-6">
-                      <Metric
-                        label="Recipients"
-                        value={campaign.recipient_count ?? 0}
-                      />
+                    {(() => {
+  const lastStage =
+    CAMPAIGN_STAGES.find(
+      (stage) => stage.order === campaign.stage_order,
+    ) ??
+    CAMPAIGN_STAGES.find(
+      (stage) => stage.value === campaign.campaign_stage,
+    ) ??
+    CAMPAIGN_STAGES[0];
 
-                      <Metric
-                        label="Last Sent"
-                        value={
-                          lastSend ? formatDate(lastSend.started_at) : "Never"
-                        }
-                      />
+  const nextStage = getNextCampaignStage(
+    lastStage.order,
+  );
 
-                      <Metric
-                        label="Last Sent Count"
-                        value={lastSend ? sentCount : "—"}
-                      />
+  return (
+    <div className="space-y-3 border-t border-[#EDE7DC] pt-4">
 
-                      <Metric
-                        label="Failed"
-                        value={lastSend ? failedCount : "—"}
-                      />
+      {/* ==================================================
+            STAGE / TEMPLATE ROW
+        ================================================== */}
 
-                      <Metric
-                        label="Success Rate"
-                        value={successRate !== null ? `${successRate}%` : "—"}
-                      />
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
 
-                      <Metric label="Total Sends" value={totalSends} />
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
+        {/* LAST STAGE */}
+
+        <div className="rounded-lg border border-[#E3DCD0] bg-white/60 p-4">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#A89C8D]">
+            Last Stage
+          </p>
+
+          <p className="mt-1 font-serif text-sm text-[#29231D]">
+            {lastStage.value}
+          </p>
+
+          <p className="mt-1 text-[10px] text-[#8F8578]">
+            Stage {lastStage.order} of{" "}
+            {CAMPAIGN_STAGES.length}
+          </p>
+        </div>
+
+        {/* NEXT STAGE */}
+
+        <div className="rounded-lg border border-[#D8B66A]/40 bg-[#B7832F]/5 p-4">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#B7832F]">
+            Next Stage
+          </p>
+
+          <p className="mt-1 font-serif text-sm text-[#29231D]">
+            {nextStage
+              ? nextStage.value
+              : "Campaign Complete"}
+          </p>
+
+          <p className="mt-1 text-[10px] text-[#8F8578]">
+            {nextStage
+              ? `Stage ${nextStage.order} of ${CAMPAIGN_STAGES.length}`
+              : "No further outreach"}
+          </p>
+        </div>
+
+        {/* LAST TEMPLATE */}
+
+        <div className="rounded-lg border border-[#E3DCD0] bg-white/60 p-4">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#A89C8D]">
+            Last Template Sent
+          </p>
+
+          <p className="mt-1 truncate font-serif text-sm text-[#29231D]">
+            {campaign.last_template_name ??
+              "No template sent yet"}
+          </p>
+
+          <p className="mt-1 text-[10px] text-[#8F8578]">
+            {campaign.sent_at
+              ? formatDate(campaign.sent_at)
+              : "Not sent yet"}
+          </p>
+        </div>
       </div>
+
+      {/* ==================================================
+            DELIVERY METRICS
+        ================================================== */}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+
+        <Metric
+          label="Recipients"
+          value={campaign.recipient_count ?? 0}
+        />
+
+        <Metric
+          label="Last Sent"
+          value={
+            lastSend
+              ? formatDate(lastSend.started_at)
+              : "Never"
+          }
+        />
+
+        <Metric
+          label="Last Sent Count"
+          value={lastSend ? sentCount : "—"}
+        />
+
+        <Metric
+          label="Failed"
+          value={lastSend ? failedCount : "—"}
+        />
+
+        <Metric
+          label="Success Rate"
+          value={
+            successRate !== null
+              ? `${successRate}%`
+              : "—"
+          }
+        />
+
+        <Metric
+          label="Total Sends"
+          value={totalSends}
+        />
+      </div>
+    </div>
+  );
+})()}
 
       {/* ========================================================
           DELETE MODAL
@@ -948,6 +1086,13 @@ export default function EmailCampaignsManager({
           </div>
         </div>
       )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </>
   );
 }

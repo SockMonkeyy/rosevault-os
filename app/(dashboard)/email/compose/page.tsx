@@ -215,46 +215,42 @@ export default async function ComposeEmailPage({
     // ONLY LOAD EDITABLE DRAFTS
     // ==========================================================
 
-    if (
-      campaign &&
-      campaign.status === "draft"
-    ) {
-      initialCampaign = campaign;
+    if (campaign) {
+  initialCampaign = campaign;
 
-      // ========================================================
-      // LOAD SAVED RECIPIENTS
-      // ========================================================
+  // ==========================================================
+  // LOAD SAVED RECIPIENTS FOR EVERY CAMPAIGN STATUS
+  // ==========================================================
 
-      const {
-        data: recipients,
-        error: recipientsError,
-      } = await supabase
-        .from("email_campaign_recipients")
-        .select("contact_id")
-        .eq(
-          "campaign_id",
-          campaign.id,
-        );
+  const {
+    data: recipients,
+    error: recipientsError,
+  } = await supabase
+    .from("email_campaign_recipients")
+    .select("contact_id")
+    .eq(
+      "campaign_id",
+      campaign.id,
+    );
 
-      if (recipientsError) {
-        console.error(
-          "Error loading campaign recipients:",
-          recipientsError,
-        );
-      }
-
-      campaignRecipientIds =
-        (recipients ?? [])
-          .map(
-            (recipient) =>
-              recipient.contact_id,
-          )
-          .filter(
-            (id): id is string =>
-              Boolean(id),
-          );
-    }
+  if (recipientsError) {
+    console.error(
+      "Error loading campaign recipients:",
+      recipientsError,
+    );
   }
+
+  campaignRecipientIds =
+    (recipients ?? [])
+      .map(
+        (recipient) =>
+          recipient.contact_id,
+      )
+      .filter(
+        (id): id is string =>
+          Boolean(id),
+      );
+}
 
   // ============================================================
   // SELECTED RECIPIENTS
@@ -262,6 +258,8 @@ export default async function ComposeEmailPage({
   // Existing campaign recipients take priority.
   // New campaigns use contacts passed from Contacts.
   // ============================================================
+
+  }
 
   const selectedContactIds =
     initialCampaign
