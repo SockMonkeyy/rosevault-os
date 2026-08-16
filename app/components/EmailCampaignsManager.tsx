@@ -730,8 +730,7 @@ export default function EmailCampaignsManager({
 
               const failedCount = lastSend?.failed_count ?? 0;
 
-              const lastRecipientCount =
-                lastSend?.recipient_count ?? campaign.recipient_count ?? 0;
+              
 
               const successRate =
                 lastSend && lastSend.recipient_count > 0

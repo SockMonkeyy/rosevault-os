@@ -22,6 +22,7 @@ const marketingItems = [
   { label: "Bulk Email", href: "/email/compose" },
   { label: "Email Templates", href: "/email/templates" },
   { label: "Campaigns", href: "/marketing/campaigns" },
+  { label: "Email Settings", href: "/email/settings" },
   { label: "Mailchimp", href: "/marketing/mailchimp" },
   { label: "Mailing Labels", href: "/marketing/mailing-labels" },
 ];
