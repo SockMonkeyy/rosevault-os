@@ -716,6 +716,15 @@ export default function BulkEmailComposer({
         return;
       }
 
+      const sendResult =
+        result as typeof result & {
+          status?: string;
+          stage?: string;
+          stageOrder?: number;
+          templateId?: string | null;
+          templateName?: string | null;
+        };
+
       // ----------------------------------------------------------
       // Keep local campaign state synchronized with the send
       // ----------------------------------------------------------
@@ -725,13 +734,32 @@ export default function BulkEmailComposer({
           current
             ? {
                 ...current,
-                status: "sent",
+
+                status:
+                  sendResult.status ??
+                  "sent",
+
+                campaign_stage:
+                  sendResult.stage ??
+                  current.campaign_stage,
+
+                stage_order:
+                  sendResult.stageOrder ??
+                  current.stage_order,
+
+                last_template_id:
+                  sendResult.templateId ??
+                  current.last_template_id,
+
+                last_template_name:
+                  sendResult.templateName ??
+                  current.last_template_name,
               }
             : current,
       );
 
       setDraftMessage(
-        `Campaign sent successfully.\n${result.sent} sent • ${result.failed} failed.`,
+        `Campaign sent successfully.\n${result.sent} sent • ${result.failed} failed.\n\nStage: ${sendResult.stage ?? campaignStage}\nTemplate: ${sendResult.templateName ?? "Custom Message"}`,
       );
     } catch (error) {
       console.error(error);

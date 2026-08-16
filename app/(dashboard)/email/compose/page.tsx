@@ -10,25 +10,28 @@ type ComposeEmailPageProps = {
   }>;
 };
 
-type InitialCampaign = {
-  id: string;
-  name: string;
-  subject: string;
-  body: string;
-  template_id: string | null;
-  status: string;
-};
-
 export default async function ComposeEmailPage({
   searchParams,
 }: ComposeEmailPageProps) {
   const params = await searchParams;
 
+  // ============================================================
+  // CONTACTS PASSED FROM CONTACTS PAGE
+  // ============================================================
+
+  const initialSelectedContactIds =
+    params.contacts
+      ? params.contacts
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean)
+      : [];
+
   const supabase = await createClient();
 
-  // ------------------------------------------------------------
+  // ============================================================
   // AUTHENTICATED USER
-  // ------------------------------------------------------------
+  // ============================================================
 
   const {
     data: { user },
@@ -38,16 +41,18 @@ export default async function ComposeEmailPage({
     redirect("/login");
   }
 
-  // ------------------------------------------------------------
-  // ORGANIZATION
-  // ------------------------------------------------------------
+  // ============================================================
+  // ORGANIZATION MEMBERSHIP
+  // ============================================================
 
-  const { data: membership, error: membershipError } =
-    await supabase
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+  const {
+    data: membership,
+    error: membershipError,
+  } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (membershipError) {
     console.error(
@@ -60,49 +65,46 @@ export default async function ComposeEmailPage({
     redirect("/onboarding");
   }
 
-  const organizationId = membership.organization_id;
+  // ============================================================
+  // LOAD CONTACTS
+  // ============================================================
 
-  // ------------------------------------------------------------
-  // CONTACT IDS FROM CONTACTS PAGE
-  //
-  // Used only when creating a NEW campaign.
-  // ------------------------------------------------------------
-
-  const initialSelectedContactIds = params.contacts
-    ? params.contacts
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean)
-    : [];
-
-  // ------------------------------------------------------------
-  // CONTACTS
-  // ------------------------------------------------------------
-
-  const { data: contacts, error: contactsError } =
-    await supabase
-      .from("contacts")
-      .select(`
-        id,
-        first_name,
-        last_name,
-        email,
-        mailing_address_line_1,
-        mailing_address_line_2,
-        mailing_city,
-        mailing_state,
-        mailing_postal_code,
-        property_address_line_1,
-        property_address_line_2,
-        property_city,
-        property_state,
-        property_postal_code
-      `)
-      .eq("organization_id", organizationId)
-      .not("email", "is", null)
-      .order("first_name", {
+  const {
+    data: contacts,
+    error: contactsError,
+  } = await supabase
+    .from("contacts")
+    .select(`
+      id,
+      first_name,
+      last_name,
+      email,
+      mailing_address_line_1,
+      mailing_address_line_2,
+      mailing_city,
+      mailing_state,
+      mailing_postal_code,
+      property_address_line_1,
+      property_address_line_2,
+      property_city,
+      property_state,
+      property_postal_code
+    `)
+    .eq(
+      "organization_id",
+      membership.organization_id,
+    )
+    .not(
+      "email",
+      "is",
+      null,
+    )
+    .order(
+      "first_name",
+      {
         ascending: true,
-      });
+      },
+    );
 
   if (contactsError) {
     console.error(
@@ -111,25 +113,36 @@ export default async function ComposeEmailPage({
     );
   }
 
-  // ------------------------------------------------------------
-  // EMAIL TEMPLATES
-  // ------------------------------------------------------------
+  // ============================================================
+  // LOAD EMAIL TEMPLATES
+  // ============================================================
 
-  const { data: templates, error: templatesError } =
-    await supabase
-      .from("email_templates")
-      .select(`
-        id,
-        name,
-        subject,
-        body,
-        category
-      `)
-      .eq("organization_id", organizationId)
-      .eq("is_active", true)
-      .order("name", {
+  const {
+    data: templates,
+    error: templatesError,
+  } = await supabase
+    .from("email_templates")
+    .select(`
+      id,
+      name,
+      subject,
+      body,
+      category
+    `)
+    .eq(
+      "organization_id",
+      membership.organization_id,
+    )
+    .eq(
+      "is_active",
+      true,
+    )
+    .order(
+      "name",
+      {
         ascending: true,
-      });
+      },
+    );
 
   if (templatesError) {
     console.error(
@@ -138,13 +151,30 @@ export default async function ComposeEmailPage({
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // EXISTING CAMPAIGN
-  // ------------------------------------------------------------
+  // ============================================================
 
-  let initialCampaign: InitialCampaign | null = null;
+  let initialCampaign: {
+    id: string;
+    name: string;
+    subject: string;
+    body: string;
+    template_id: string | null;
+    status: string;
+
+    // Campaign journey fields
+    campaign_stage: string | null;
+    stage_order: number | null;
+    last_template_id: string | null;
+    last_template_name: string | null;
+  } | null = null;
 
   let campaignRecipientIds: string[] = [];
+
+  // ============================================================
+  // LOAD CAMPAIGN WHEN EDITING
+  // ============================================================
 
   if (params.campaign) {
     const {
@@ -158,10 +188,20 @@ export default async function ComposeEmailPage({
         subject,
         body,
         template_id,
-        status
+        status,
+        campaign_stage,
+        stage_order,
+        last_template_id,
+        last_template_name
       `)
-      .eq("id", params.campaign)
-      .eq("organization_id", organizationId)
+      .eq(
+        "id",
+        params.campaign,
+      )
+      .eq(
+        "organization_id",
+        membership.organization_id,
+      )
       .maybeSingle();
 
     if (campaignError) {
@@ -171,12 +211,19 @@ export default async function ComposeEmailPage({
       );
     }
 
-    if (campaign) {
+    // ==========================================================
+    // ONLY LOAD EDITABLE DRAFTS
+    // ==========================================================
+
+    if (
+      campaign &&
+      campaign.status === "draft"
+    ) {
       initialCampaign = campaign;
 
-      // ----------------------------------------------------------
-      // LOAD SAVED CAMPAIGN RECIPIENTS
-      // ----------------------------------------------------------
+      // ========================================================
+      // LOAD SAVED RECIPIENTS
+      // ========================================================
 
       const {
         data: recipients,
@@ -184,60 +231,55 @@ export default async function ComposeEmailPage({
       } = await supabase
         .from("email_campaign_recipients")
         .select("contact_id")
-        .eq("campaign_id", campaign.id);
+        .eq(
+          "campaign_id",
+          campaign.id,
+        );
 
       if (recipientsError) {
         console.error(
           "Error loading campaign recipients:",
           recipientsError,
         );
-      } else {
-        campaignRecipientIds = (recipients ?? [])
-          .map((recipient) => recipient.contact_id)
-          .filter(
-            (id): id is string => Boolean(id),
-          );
       }
+
+      campaignRecipientIds =
+        (recipients ?? [])
+          .map(
+            (recipient) =>
+              recipient.contact_id,
+          )
+          .filter(
+            (id): id is string =>
+              Boolean(id),
+          );
     }
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // SELECTED RECIPIENTS
   //
-  // IMPORTANT:
-  //
-  // Existing campaign:
-  //   Use ONLY the recipients saved to that campaign.
-  //
-  // New campaign:
-  //   Use the contacts passed from the Contacts page.
-  // ------------------------------------------------------------
+  // Existing campaign recipients take priority.
+  // New campaigns use contacts passed from Contacts.
+  // ============================================================
 
-  const selectedContactIds = initialCampaign
-    ? campaignRecipientIds
-    : initialSelectedContactIds;
+  const selectedContactIds =
+    initialCampaign
+      ? campaignRecipientIds
+      : initialSelectedContactIds;
 
-  console.log("COMPOSE PAGE CAMPAIGN:", initialCampaign?.id);
-
-  console.log(
-    "COMPOSE PAGE SAVED RECIPIENT IDS:",
-    campaignRecipientIds,
-  );
-
-  console.log(
-    "COMPOSE PAGE FINAL SELECTED IDS:",
-    selectedContactIds,
-  );
-
-  // ------------------------------------------------------------
-  // RENDER
-  // ------------------------------------------------------------
+  // ============================================================
+  // PAGE
+  // ============================================================
 
   return (
     <div className="px-6 py-10 lg:px-8">
       <div className="mx-auto max-w-7xl">
 
-        {/* Page Header */}
+        {/* ====================================================== */}
+        {/* PAGE HEADER */}
+        {/* ====================================================== */}
+
         <div className="mb-8">
           <Link
             href={
@@ -260,7 +302,6 @@ export default async function ComposeEmailPage({
           </Link>
 
           <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B7832F]">
                 RoseVault Communications
@@ -274,14 +315,16 @@ export default async function ComposeEmailPage({
 
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[#7C7265]">
                 {initialCampaign
-                  ? "Update your saved campaign draft, recipients, message, and personalization."
-                  : "Select recipients, apply a reusable template, personalize each message, and preview your campaign before sending."}
+                  ? "Update your saved campaign draft, recipients, message, stage, and personalization."
+                  : "Select recipients, apply a reusable template, choose a campaign stage, personalize each message, and preview your campaign before sending."}
               </p>
             </div>
 
-            {/* Quick Actions */}
-            <div className="flex flex-wrap gap-3">
+            {/* ================================================== */}
+            {/* QUICK ACTIONS */}
+            {/* ================================================== */}
 
+            <div className="flex flex-wrap gap-3">
               <Link
                 href="/marketing/campaigns"
                 className="cursor-pointer rounded-md border border-[#E3DCD0] bg-white/60 px-5 py-3 text-center text-xs font-medium tracking-wide text-[#7C7265] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D8B66A]/60 hover:bg-[#B7832F]/5 hover:text-[#B7832F] hover:shadow-sm active:translate-y-0 active:scale-[0.99]"
@@ -295,21 +338,28 @@ export default async function ComposeEmailPage({
               >
                 Manage Templates
               </Link>
-
             </div>
           </div>
         </div>
 
-        {/* Composer */}
+        {/* ====================================================== */}
+        {/* REAL BULK EMAIL COMPOSER */}
+        {/* ====================================================== */}
+
         <BulkEmailComposer
           contacts={contacts ?? []}
           templates={templates ?? []}
-          initialSelectedContactIds={selectedContactIds}
-          organizationId={organizationId}
+          initialSelectedContactIds={
+            selectedContactIds
+          }
+          organizationId={
+            membership.organization_id
+          }
           userId={user.id}
-          initialCampaign={initialCampaign}
+          initialCampaign={
+            initialCampaign
+          }
         />
-
       </div>
     </div>
   );
